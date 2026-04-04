@@ -18,4 +18,11 @@ Reduce friction when recording daily expenses by providing multiple input channe
 - **Language:** Go (Golang)
 - **Primary Database:** Plain-text `.ledger` file (Ledger CLI format).
 - **Core Logic:** CRUD operations on the ledger file.
-- **Integrations:** Modular approach for various input sources (Telegram, Excel, APIs).
+- **Integrations:** Modular Hexagonal Architecture (Ports & Adapters).
+
+## Documentation
+The project uses `godoc` for documentation. You can view it in the terminal or browser:
+- **Terminal:** `go doc -all`
+- **Browser:** Run `godoc -http=:6060` and navigate to `http://localhost:6060/pkg/github.com/a-perez/finance-app/`
+
+> **Note:** If `godoc` is not installed, run `go install golang.org/x/tools/cmd/godoc@latest`.
