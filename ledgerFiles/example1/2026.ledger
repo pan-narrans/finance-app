@@ -1,0 +1,491 @@
+commodity EUR
+commodity USD
+commodity BTN
+commodity ROB
+commodity IREN
+commodity "S6P"
+commodity GOLD
+
+; ACTIVOS
+account Assets:
+account Assets:Checking
+account Assets:Checking:Efectivo
+account Assets:Checking:Imagin
+account Assets:Checking:Paypal
+
+account Assets:Shares
+account Assets:Shares:IREN
+account Assets:Shares:S6P
+
+account Assets:Gold
+
+account Assets:IndexFunds
+account Assets:IndexFunds:CarteraRock
+
+account Assets:Crypto:Bitcoin
+
+account Assets:Savings
+account Assets:Savings:MyInvestor
+account Assets:Savings:OpenBank
+account Assets:Savings:Revolut
+
+; GASTOS
+account Expenses
+account Expenses:Broker:Commissions
+account Expenses:Casa
+account Expenses:Casa:Decoracion
+account Expenses:Casa:Muebles
+account Expenses:Comida
+account Expenses:Comida:Almuerzo
+account Expenses:Comida:Cafe
+account Expenses:Comida:Suplementos
+account Expenses:CuentaComun
+account Expenses:Cultura
+account Expenses:Cultura:Juegos
+account Expenses:Cultura:Libros
+account Expenses:Donaciones
+account Expenses:Educacion
+account Expenses:Efectivo
+account Expenses:GastosEnvio
+account Expenses:Loteria
+account Expenses:Material
+account Expenses:Ocio
+account Expenses:Ocio:Quedar
+account Expenses:Ocio:Comer
+account Expenses:Regalos
+account Expenses:Ropa
+account Expenses:Salud
+account Expenses:Salud:Dentista
+account Expenses:Salud:Vacunas
+account Expenses:Subscripciones
+account Expenses:Subscripciones:Cloudflare
+account Expenses:Subscripciones:Dropout
+account Expenses:Subscripciones:Obsidian
+account Expenses:Subscripciones:Polideportivo
+account Expenses:Subscripciones:Proton
+account Expenses:Subscripciones:Spotify
+account Expenses:Subscripciones:Tidal
+account Expenses:Trabajo
+account Expenses:Tax:Hacienda
+account Expenses:Tax:IRPF
+
+; INGRESOS
+account Income
+account Income:AspaNetconomy
+account Income:EducaEnDigital
+account Income:Hacienda
+account Income:Interest:MyInvestor
+account Income:Interest:CarteraRock
+account Income:Interest:Revolut
+account Income:Olga
+account Income:Regalos
+
+; DEUDAS
+account Liabilities
+
+; PATRIMONIO
+account Equity:Opening Balance
+account Equity:Closing Balance
+account Equity:Reembolsos
+account Equity:Reembolsos:AlMartinez
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+; TAGS
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+tag Recurring
+tag Period
+tag Impuesto
+tag DietasAspa
+tag Payee
+tag Polideportivo
+tag Polideportivo Cuota Socio
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+; AUTOMATED
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+= expr payee =~ /Obsidian/i
+	; Recurring: Obsidian
+
+= expr payee =~ /Tidal/i
+	; Recurring: Tidal
+    
+= expr "has_tag('Polideportivo')"
+	; Recurring: Polideportivo Soto
+
+= expr "has_tag('Polideportivo Cuota Socio')"
+	; Recurring: Polideportivo Cuota Anual
+    
+= expr payee =~ /Educa En Digital$/i
+    ; Recurring: Nómina - Educa En Digital
+    
+= expr payee =~ /Aspanetconomy$/i
+    ; Recurring: Nómina - Aspanetconomy
+    
+= expr payee =~ /Aspanetconomy - Extra$/i
+    ; Recurring: Paga Extra - Aspanetconomy
+    ; Period: 15W JUL,DEC ?
+
+
+; Enero
+
+2026/01/01 * Opening Balance
+    Assets:Checking:Efectivo                                  581 EUR      
+    Assets:Checking:Imagin                                1975.31 EUR
+    Assets:Checking:Paypal                                    140 EUR
+    ;Assets:Savings:Revolut                                 300.62 EUR
+    ;Assets:Savings:MyInvestor                             4220.66 EUR
+    ;Assets:IndexFunds:CarteraRock                            2500 ROB
+    ;Assets:Shares:IREN                                         15 IREN
+    ;Assets:Shares:S6P                                      68.807 "S6P"
+    Equity:Opening Balance
+
+2026/01/03 * Tidal
+    Expenses:Subscripciones:Tidal                           16.99 EUR
+    Assets:Checking:Imagin
+    
+2026/01/03  * Alejandro Pérez
+    Assets:Savings:MyInvestor                                 100 EUR
+    Assets:Checking:Imagin
+
+2026/01/03 * My Investor
+    Assets:IndexFunds:CarteraRock                             250 ROB 
+    Assets:Checking:Imagin                                  - 250 EUR
+
+2026/01/03 * Cuenta Común
+    Expenses:CuentaComun                                      720 EUR
+    Assets:Checking:Imagin
+
+P 2026/01/03 ROB 1.086384 EUR
+P 2026/01/03 IREN 36.4 EUR
+P 2026/01/03 "S6P" 1.10 EUR
+
+2026/01/05 * My Investor
+    Assets:Savings:MyInvestor                                 5.9 EUR 
+    Income:Interest:MyInvestor
+
+2026/01/05 * Spotify
+    Expenses:Subscripciones:Spotify                         20.99 EUR
+    Assets:Checking:Imagin
+
+2026/01/06 * Steam
+    Expenses:Cultura:Juegos                                  4.49 EUR
+    Assets:Checking:Imagin
+
+2026/01/07 Zenith
+	; Chino pozuelo
+    Expenses:Ocio:Comer                                     18.95 EUR
+    Assets:Checking:Imagin
+
+2026/01/08 * Amazon
+    Expenses:Material                                       99.89 EUR
+    Assets:Checking:Imagin
+
+2026/01/09 * Abuela
+    Assets:Checking:Imagin                                     50 EUR
+    Income:Regalos
+
+2026/01/09 * Copial
+    Expenses:Material                                        2.40 EUR
+    Assets:Checking:Imagin
+
+2026/01/13 * Steam
+    Expenses:Cultura:Juegos                                 19.91 EUR
+    Assets:Checking:Paypal
+
+2026/01/14 * Día
+    Expenses:CuentaComun                                    12.13 EUR
+    Assets:Checking:Imagin
+
+2026/01/14 * Día
+    Expenses:Comida:Almuerzo                                 1.50 EUR
+    Assets:Checking:Imagin
+
+2026/01/18 * Obsidian
+    Expenses:Subscripciones:Obsidian                         8.63 EUR
+    Assets:Checking:Imagin
+
+2026/01/19 * Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR 
+    Assets:Checking:Imagin
+
+2026/01/19 * Myprotein
+    Expenses:Comida:Suplementos                             37.98 EUR
+    Assets:Checking:Paypal
+
+2026/01/19 * Basanta
+    Expenses:Salud                                          21.47 EUR
+    Assets:Checking:Imagin
+
+P 2026/01/20 ROB 1.1146363636 EUR
+P 2026/01/20 IREN 46.71 EUR
+P 2026/01/20 "S6P" 1.11 EUR
+
+2026/01/21 * Día
+    Expenses:Comida:Almuerzo                                 1.89 EUR
+    Assets:Checking:Imagin
+
+2026/01/27 * Día
+    Expenses:Comida:Almuerzo                                 4.56 EUR
+    Expenses:CuentaComun                                     3.65 EUR
+    Equity:Reembolsos:AlMartinez                             1.90 EUR
+    Assets:Checking:Imagin                                - 10.11 EUR
+
+2026/01/27 * Alejandro Martinez
+    Assets:Checking:Imagin                                   1.90 EUR
+    Equity:Reembolsos:AlMartinez
+
+2026/01/29 * Aspanetconomy
+    Assets:Checking:Imagin                                1287.37 EUR
+    Income:AspaNetconomy
+
+2026/01/29 * Educa En Digital
+    Assets:Checking:Paypal                                    140 EUR
+    Income:EducaEnDigital
+
+2026/01/31 * Abuela
+	; Dinero para el parking 50-15
+    Assets:Checking:Efectivo                                   35 EUR
+    Income
+    
+2026/01/31 * Revolut
+    Assets:Savings:Revolut                                   0.26 EUR
+	Income:Interest:Revolut		
+
+
+
+
+
+; Febrero
+
+2026/02/01 * Cuenta Común
+    Expenses:CuentaComun                                      800 EUR
+    Assets:Checking:Imagin
+
+2026/02/01  * Alejandro Pérez
+    Assets:Savings:MyInvestor                                 100 EUR
+    Assets:Checking:Imagin
+
+2026/02/01 * My Investor
+    Assets:IndexFunds:CarteraRock                             250 ROB 
+    Assets:Checking:Imagin                                  - 250 EUR
+
+P 2026/02/01 ROB 1.09117818182 EUR
+
+2026/02/02 * Tidal
+    Expenses:Subscripciones:Tidal                           16.99 EUR
+    Assets:Checking:Imagin
+
+P 2026/02/04 ROB 1.09705 EUR
+P 2026/02/04 IREN 34.88 EUR
+P 2026/02/04 "S6P" 1.06 EUR
+
+2026/02/05 * Amazon
+	; Papel impresora fotos
+    Expenses:Material                                       56.88 EUR
+    Assets:Checking:Imagin
+
+2026/02/05 * Wallapop
+	; Impresora de fotos
+    Expenses:Material                                       90.37 EUR
+    Assets:Checking:Imagin                                 - 8.26 EUR
+    Assets:Checking:Paypal                                - 82.11 EUR
+
+2026/02/09 * Alejandro Pérez
+    Assets:Savings:Revolut                                4426.56 EUR
+    Assets:Savings:MyInvestor
+
+2026/02/15 * Sputnik Climbing
+    Expenses:Ocio:Quedar                                       16 EUR
+    Assets:Checking:Imagin
+
+2026/02/15 * Jorge Granero
+    Expenses:Ocio:Comer                                        15 EUR
+    Assets:Checking:Imagin
+
+2026/02/16 * Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2026/02/17 * Obsidian	
+    Expenses:Subscripciones:Obsidian                        10.22 EUR
+    Assets:Checking:Imagin
+
+P 2026/02/18 ROB 1.09905333333 EUR
+P 2026/02/18 IREN 36.71 EUR
+P 2026/02/18 "S6P" 1.12 EUR
+
+2026/02/24 * Peach Bitcoin
+    Assets:Crypto:Bitcoin                              0.00073218 BTN
+    Assets:Checking:Imagin                                - 43.21 EUR
+
+2026/02/25 * Día
+    Expenses:Comida:Almuerzo                                 4.83 EUR
+    Assets:Checking:Imagin
+
+2026/02/27 * Aspanetconomy
+    Assets:Checking:Imagin                                1287.37 EUR
+    Income:AspaNetconomy
+
+2026/02/27 * Regalo Alba
+    Expenses:Regalos                                        11.15 EUR
+    Assets:Checking:Imagin                                 - 8.35 EUR
+    Assets:Checking:Imagin                                 - 2.80 EUR
+
+2026/02/28 * Fisio: Rebeca
+    Expenses:Salud                                             40 EUR
+    Assets:Checking:Efectivo
+
+2026/02/28 * My Investor
+    Assets:Savings:MyInvestor                                1.22 EUR        
+	Income:Interest:MyInvestor		
+    
+2026/02/28 * Revolut
+    Assets:Savings:Revolut                                   1.22 EUR
+	Assets:Savings:MyInvestor		
+    
+2026/02/28 * Revolut
+    Assets:Savings:Revolut                                   2.60 EUR
+	Income:Interest:Revolut		
+
+2026/02/28 * Educa En Digital
+    Assets:Checking:Paypal                                    140 EUR
+    Income:EducaEnDigital
+
+P 2026/02/28 ROB 1.111678125 EUR
+P 2026/02/28 IREN 34.83 EUR
+P 2026/02/28 BTN 56143.00 EUR
+P 2026/02/28 "S6P" 1.05 EUR
+
+
+
+; Marzo
+
+2026/03/01 * Cuenta Común
+    Expenses:CuentaComun                                      800 EUR
+    Assets:Checking:Imagin
+
+2026/03/01  * Alejandro Pérez
+    Assets:Savings:Revolut                                    100 EUR
+    Assets:Checking:Imagin
+
+2026/03/01 * My Investor
+    Assets:IndexFunds:CarteraRock                             200 ROB 
+    Assets:Checking:Imagin                                  - 200 EUR
+
+P 2026/03/01 ROB 1.111678125 EUR
+
+2026/03/04 * Peach Bitcoin
+    Assets:Crypto:Bitcoin                              0.00105794 BTN
+    Assets:Checking:Imagin                                - 66.79 EUR
+
+2026/03/04 * Tidal
+    Expenses:Subscripciones:Tidal                           16.99 EUR
+    Assets:Checking:Imagin
+
+2026/03/08 * Amazon - Esterilla, Tapones y Regla
+    Expenses:Material                                       45.31 EUR
+    Assets:Checking:Imagin
+
+2026/03/12 * Día
+    Expenses:Comida:Almuerzo                                11.66 EUR
+    Assets:Checking:Imagin			
+
+2026/03/14 * Cuenta Común
+    Expenses:CuentaComun                                       67 EUR
+    Assets:Checking:Imagin
+    
+P 2026/03/15 ROB 1.07799402985 EUR
+P 2026/03/15 IREN 39.03 EUR
+P 2026/03/15 BTN 64479.00 EUR
+P 2026/03/15 "S6P" 1.18 EUR
+
+2026/03/16 * Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2026/03/16 * My Investor
+    Assets:Savings:MyInvestor                              581.21 EUR
+    Assets:Shares:IREN                                       - 15 IREN
+
+2026/03/17 * My Investor
+    Assets:IndexFunds:CarteraRock                             150 ROB
+    Assets:Savings:MyInvestor                               - 150 EUR      
+
+P 2026/03/17 ROB 1.07799402985 EUR
+
+2026/03/18 * Sanchez Romero
+	; Yogur
+    Expenses:Comida:Almuerzo                                 0.95 EUR
+    Assets:Checking:Imagin
+
+2026/03/20 * Obsidian
+    Expenses:Subscripciones:Obsidian                        10.58 EUR
+    Assets:Checking:Imagin
+
+2026/03/23 * My Investor
+    Assets:IndexFunds:CarteraRock                             150 ROB
+    Assets:Savings:MyInvestor                               - 150 EUR      
+
+P 2026/03/23 ROB 1.07799402985 EUR
+
+2026/03/24 * Easy Lunch
+	; Yogur
+    Expenses:Comida:Almuerzo                                    3 EUR
+    Assets:Checking:Imagin
+
+2026/03/29 * Heladería
+    Expenses:Ocio:Comer                                      4.70 EUR
+    Assets:Checking:Imagin
+
+2026/03/31 * Aspanetconomy
+    Assets:Checking:Imagin                                1287.37 EUR
+    Income:AspaNetconomy
+
+2026/03/31 * Revolut
+    Assets:Savings:Revolut                                   4.15 EUR
+	Income:Interest:Revolut	
+    
+2026/03/31 * My Investor
+    Assets:Savings:MyInvestor                                0.02 EUR
+	Income:Interest:MyInvestor		
+
+P 2026/03/31 ROB 1.04110857143 EUR
+P 2026/03/31 BTN 58788.00 EUR
+P 2026/03/31 "S6P" 1.05 EUR
+
+; Abril
+
+2026/04/01 * Cuenta Común
+    Expenses:CuentaComun                                      400 EUR
+    Expenses:CuentaComun                                   137.18 EUR
+    Expenses:CuentaComun                                       56 EUR
+    Expenses:CuentaComun                                   206.82 EUR
+    Assets:Checking:Imagin                                  - 800 EUR
+
+2026/04/01 * The Gold House
+    Assets:Gold                                               2.5 GOLD
+    Assets:Checking:Imagin                                -373.01 EUR
+
+2026/04/01 * Revolut
+    Assets:Savings:Revolut                                 131.23 EUR
+    Assets:Savings:MyInvestor
+
+2026/04/01 * My Investor
+    Assets:IndexFunds:CarteraRock                             150 ROB
+    Assets:Savings:MyInvestor                               - 150 EUR      
+
+P 2026/04/01 ROB 1.04110857143 EUR
+
+; Mayo
+; Junio
+; Julio
+; Agosto
+; Septiembre
+; Octubre
+; Noviembre
+; Diciembre

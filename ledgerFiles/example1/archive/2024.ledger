@@ -1,0 +1,1034 @@
+commodity EUR
+
+; ACTIVOS
+account Assets:
+account Assets:Checking
+account Assets:Checking:Efectivo
+account Assets:Checking:Imagin
+account Assets:Checking:OpenBank
+
+; GASTOS
+account Expenses
+account Expenses:Casa
+account Expenses:Casa:Decoracion
+account Expenses:Casa:Muebles
+account Expenses:Comida
+account Expenses:Comida:Almuerzo
+account Expenses:Comida:Cafe
+account Expenses:CuentaComun
+account Expenses:Cultura
+account Expenses:Cultura:Juegos
+account Expenses:Cultura:Libros
+account Expenses:Donaciones
+account Expenses:Educacion
+account Expenses:Ocio:Escalada
+account Expenses:Efectivo
+account Expenses:Otros:Loteria
+account Expenses:Otros:Mascotas
+account Expenses:Material
+account Expenses:Material:Hardware
+account Expenses:Material:Software
+account Expenses:Material:Arte
+account Expenses:Ocio
+account Expenses:Ocio:Comer
+account Expenses:Ocio:Quedar
+account Expenses:Regalos
+account Expenses:Ropa
+account Expenses:Salud
+account Expenses:Salud:Dentista
+account Expenses:Salud:Fisio
+account Expenses:Salud:Vacunas
+account Expenses:Subscripciones
+account Expenses:Subscripciones:Obsidian
+account Expenses:Subscripciones:Cloudflare
+account Expenses:Subscripciones:Polideportivo
+account Expenses:Subscripciones:Spotify
+
+; INGRESOS
+account Income
+account Income:AspaNetconomy
+account Income:EducaEnDigital
+account Income:Hacienda
+account Income:Olga
+account Income:Regalos
+
+; DEUDAS
+account Liabilities
+account Liabilities:Pilar
+
+; PATRIMONIO
+account Equity:Closing Balance
+account Equity:Opening Balance
+account Equity:Reembolsos
+account Equity:Reembolsos:AlMartinez
+account Equity:Reembolsos:AspaNetconomy
+account Equity:Reembolsos:CuentaComun
+account Equity:Reembolsos:Ocampo
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+; TAGS
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+tag Amazon
+tag Recurring
+tag Period
+tag Impuesto
+tag DietasAspa
+tag Payee
+tag Escalada
+tag Polideportivo
+tag Polideportivo Cuota Socio
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+; AUTOMATED
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+= expr payee =~ /Obsidian/i
+	; Recurring: Obsidian
+
+= expr payee =~ /Spotify/i
+	; Recurring: Spotify
+
+= expr "has_tag('Polideportivo')"
+	; Recurring: Polideportivo Soto
+
+= expr "has_tag('Polideportivo Cuota Socio')"
+	; Recurring: Polideportivo Cuota Anual
+    
+= expr payee =~ /Educa En Digital$/i
+    ; Recurring: Nómina - Educa En Digital
+    
+= expr payee =~ /Aspanetconomy$/i
+    ; Recurring: Nómina - Aspanetconomy
+= expr payee =~ /Aspanetconomy - Extra$/i
+    ; Recurring: Paga Extra - Aspanetconomy
+    ; Period: 15W JUL,DEC ?
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+; BUDGETS
+;;;;;;;;;;;;;;;;;;;;;;;;
+    
+~ Monthly in 2024/06/01
+    Expenses:Casa:Decoracion                                    0 EUR
+    Expenses:Comida                                            33 EUR
+    Expenses:CuentaComun                                      720 EUR
+    Expenses:Cultura                                           21 EUR
+    Expenses:Material                                           0 EUR
+    Expenses:Regalos                                            0 EUR
+    Expenses:Ropa                                               0 EUR
+    Expenses:Ocio                                             148 EUR
+    Expenses:Salud                                              0 EUR
+    Expenses:Subscripciones                                    58 EUR
+    Assets:Checking:Imagin                                   -980 EUR
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+; TRANSACTIONS
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+2024-03-13 * Starting Balance
+    Assets:Checking:Imagin                                 480.19 EUR
+    Assets:Checking:OpenBank                                   25 EUR
+    Assets:Checking:Efectivo                                  560 EUR
+    Liabilities:Pilar                                        -780 EUR
+    Equity:Opening Balance
+
+2024-03-14 * Supermercados Día
+    Expenses:Comida:Almuerzo                                 1.94 EUR
+    Equity:Reembolsos:Ocampo                                 1.00 EUR
+	Assets:Checking:Imagin   
+
+2024-03-14 * Bizum
+    Equity:Reembolsos:Ocampo                                -1.00 EUR
+    Assets:Checking:Imagin 
+
+2024-03-16 * Clases Python Álvaro
+    Expenses:Efectivo                                          40 EUR
+    Income:Olga
+
+2024-03-21 * Supermercados Día
+    Expenses:Comida:Almuerzo                                 3.37 EUR
+    Assets:Checking:Imagin
+
+2024-03-24 * Affinity Software
+    Expenses:Material:Software                             125.99 EUR
+    Assets:Checking:Imagin
+
+2024-03-26 * Aspanetconomy
+    Assets:Checking:Imagin                                1183.95 EUR
+    Income:AspaNetconomy
+
+2024-03-27 * Licencia JetBrains IntelliJ
+    Equity:Reembolsos:AspaNetconomy                        122.69 EUR
+    Assets:Checking:Imagin
+
+2024-03-27 * Compra Amazon: tijeras y cutters
+	; :Amazon:
+    Expenses:Regalos                                        15.99 EUR	; Cutter para Pilar
+    Expenses:Material:Hardware                              34.29 EUR	; Cutter y Tijeras Electricista
+    Assets:Checking:Imagin
+
+2024-04-01 * Ingreso Cuenta Común Alex
+    Expenses:CuentaComun                                      500 EUR
+    Assets:Checking:Imagin                                 
+
+2024-03-29 Ahorro
+    Assets:Checking:OpenBank                                  118 EUR
+    Assets:Checking:Imagin
+
+2024-03-29 * Educa En Digital
+    Liabilities:Pilar                                         120 EUR
+    Income:EducaEnDigital
+
+2024/04/04 * Asturiano
+    Expenses:Comida:Almuerzo                                 8.50 EUR
+    Assets:Checking:Imagin
+
+2024/04/04 * Spotify
+    Expenses:Subscripciones:Spotify                         14.99 EUR
+    Assets:Checking:Imagin
+
+2024/04/06 * Obsidian Abril
+    Expenses:Subscripciones:Obsidian                         9.64 EUR
+    Assets:Checking:Imagin
+    
+2024/04/08 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      45 EUR
+    Assets:Checking:Imagin
+
+2024/04/09 * Día
+    Expenses:Comida:Almuerzo                                 6.36 EUR ; Empanadilla, Yogures, Nueces y Chocolate
+    Assets:Checking:Imagin
+
+2024/04/13 * Amazon: Regalos Anita
+    Expenses:Regalos                                        52.07 EUR
+    Assets:Checking:Imagin
+
+2024/04/17 * Licencia JetBrains IntelliJ: Reembolso
+    Assets:Checking:Imagin                                 122.69 EUR
+    Equity:Reembolsos:AspaNetconomy
+
+2024/04/18 * Viernes de Bocata
+    Expenses:Comida:Almuerzo                                 3.34 EUR
+    Assets:Checking:Imagin
+
+2024/04/18 * Yogures Ocampo
+    Equity:Reembolsos:Ocampo                                 3.34 EUR
+    Assets:Checking:Imagin                                  -3.34 EUR
+    
+2024/04/19 * Yogures Ocampo
+    Equity:Reembolsos:Ocampo                                -3.33 EUR
+    Assets:Checking:Imagin                                   3.33 EUR
+    Expenses:Comida:Almuerzo                                 0.01 EUR
+    Equity:Reembolsos:Ocampo                                -0.01 EUR
+
+2024/04/18 * AppStore - Kitten Game
+    Expenses:Cultura:Juegos                                  2.99 EUR
+    Assets:Checking:Imagin
+
+2024/04/19 * Qwertee
+    Expenses:Ropa                                              39 EUR
+    Assets:Checking:Imagin
+
+2024/04/20 * Clases Álvaro
+    Assets:Checking:Imagin                                     40 EUR
+    Income:Olga
+
+2024/04/22 * Fisio: Rebeca
+    Expenses:Salud:Fisio                                       38 EUR
+    Expenses:Efectivo
+
+2024/04/25 * Día: Jueves de Bocata
+    Expenses:Comida:Almuerzo                                 3.20 EUR
+    Assets:Checking:Imagin
+
+2024/04/26 * Amazon: Feria, cable y tapones
+	; :Amazon:
+    Equity:Reembolsos:CuentaComun                            4.99 EUR ; Film transparente autoadhesivo
+    Equity:Reembolsos:CuentaComun                            5.99 EUR ; Sobres
+    Equity:Reembolsos:CuentaComun                              31 EUR ; Lienzos impresos
+    Expenses:Salud                                          24.95 EUR ; Tapones Oidos
+    Expenses:Material:Hardware                               5.94 EUR ; Cable HDMI
+    Assets:Checking:Imagin 
+
+2024/04/27 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+	Income:EducaEnDigital  		
+
+2024/04/27 * Pagar a Pilar
+    Liabilities:Pilar                                         130 EUR
+    Assets:Checking:Imagin
+
+2024/04/29 * Cajas para los cuadernos
+    Equity:Reembolsos:CuentaComun                              21 EUR
+    Assets:Checking:Imagin
+
+2024/05/01 * Ingreso Cuenta Común Alex: Mayo
+    Expenses:CuentaComun                                      325 EUR
+    Assets:Checking:Imagin  
+
+2024/04/30 * Aspanetconomy
+    Assets:Checking:Imagin                                1183.95 EUR
+    Income:AspaNetconomy		
+
+2024/05/01 * Martes de Bocata
+    Expenses:Comida:Almuerzo                                  2.5 EUR
+    Assets:Checking:Imagin
+
+2024/05/01 * Ingreso Cuenta Común Alex: Mayo
+    Expenses:CuentaComun                                      395 EUR
+    Assets:Checking:Imagin  
+    
+2024/05/01 * Cancelar deuda Cuenta Común
+    Expenses:CuentaComun                                    62.98 EUR
+    Equity:Reembolsos:CuentaComun  
+
+2024/05/01 * Ahorro
+    Assets:Checking:OpenBank                               236.79 EUR
+    Assets:Checking:Imagin
+
+2024/05/04 * Spotify
+    Expenses:Subscripciones:Spotify                         14.99 EUR
+    Assets:Checking:Imagin
+
+2024/05/04 * Comida día de paseo con Diego y Granero
+    Expenses:Ocio:Comer                                        35 EUR ; Zumo y comida
+    Assets:Checking:Imagin
+
+2024/05/06 * Obsidian Mayo
+    Expenses:Subscripciones:Obsidian                         9.67 EUR
+    Assets:Checking:Imagin
+
+2024/05/08 * Bizum camiseta jedai
+    Expenses:Ropa                                               7 EUR
+    Assets:Checking:Imagin
+
+2024/05/11 * Seven Wonders: Duels
+    Expenses:Cultura:Juegos                                    25 EUR
+    Assets:Checking:Imagin
+
+2024/05/12 * Feria Villalba: Comprar prints a artistas
+    Expenses:Casa:Decoracion                                   11 EUR
+    Assets:Checking:Imagin
+    
+2024/05/10 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      45 EUR
+    Assets:Checking:Imagin
+
+2024/05/19 * Amazon: Calzoncillos, Tapones y la Hitchickers Guide
+    Expenses:Ropa                                           22.09 EUR
+    Expenses:Salud                                           8.99 EUR
+    Expenses:Regalos                                        12.46 EUR
+    Assets:Checking:Imagin                                 -43.54 EUR
+
+2024/05/20 * Devolución Hacienda 2024
+    Assets:Checking:OpenBank                               106.60 EUR
+    Income:Hacienda
+
+2024/05/25 * Steam - Outer Wilds
+    Expenses:Cultura:Juegos                                 13.79 EUR
+    Assets:Checking:Imagin
+
+2024/05/28 * Almuerzo
+    Expenses:Comida:Almuerzo                                 4.59 EUR
+    Assets:Checking:Imagin
+
+2024/05/29 * Aspanetconomy
+    Assets:Checking:Imagin                                1183.95 EUR
+    Income:AspaNetconomy                               
+
+2024/05/29 * Repostaje 207 
+    Equity:Reembolsos:CuentaComun                           64.27 EUR
+    Assets:Checking:Imagin
+
+2024/05/30 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+2024/05/30 * Pagar a Pilar
+    Liabilities:Pilar                                         130 EUR
+    Assets:Checking:Imagin
+
+2024/05/30 * Ahorro
+    Assets:Checking:OpenBank                               200.38 EUR
+    Assets:Checking:Imagin
+
+2024/06/01 * Ingreso Cuenta Común: Junio 2024
+    Expenses:CuentaComun                                      720 EUR
+    Assets:Checking:Imagin
+
+2024/06/03 * Donación a Wikipedia
+    Expenses:Donaciones                                     10.40 EUR
+    Assets:Checking:Imagin
+
+2024/06/07 * Spotify
+    Expenses:Subscripciones:Spotify                         14.99 EUR
+    Assets:Checking:Imagin
+
+2024/06/07 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.57 EUR
+    Assets:Checking:Imagin
+
+2024/06/08 * Comida cumpleaños en el Marqués
+    Expenses:Ocio:Comer                                    141.10 EUR
+    Assets:Checking:Imagin
+
+2024/06/11 * Regalo cumpleaños Abuela
+    Assets:Checking:Imagin                                    100 EUR
+    Income:Regalos
+
+2024/06/12 * Desayuno cumpleaños Aspa
+    Expenses:Comida:Almuerzo                                22.83 EUR
+    Assets:Checking:Imagin
+
+2024/06/13 * Supermercados Día: Frutos secos y chocolate
+    Expenses:Comida:Almuerzo                                 9.98 EUR
+    Assets:Checking:Imagin
+
+2024/06/17 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/06/22 * Cena en el Abuelo Trobas con Rebeca y Luca
+    Expenses:Ocio:Comer                                        56 EUR
+    Assets:Checking:Efectivo                                   60 EUR
+    Assets:Checking:Imagin
+
+2024/06/27 * Steam
+    Expenses:Cultura:Juegos                                 13.99 EUR ; Payee: Steam - Balatro
+    Expenses:Cultura:Juegos                                  6.89 EUR ; Payee: Steam - Farmer was replaced
+    Assets:Checking:Imagin                                - 20.88 EUR
+
+2024/06/28 * Aspanetconomy
+    Assets:Checking:Imagin                                1183.95 EUR
+	Income:AspaNetconomy			
+
+2024/06/28 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+2024/06/30 * Sputnik: Escalada y Comida
+	; Con Diego y Granero
+    Expenses:Ocio:Escalada                                     20 EUR
+    Expenses:Ocio:Comer                                     17.80 EUR
+    Assets:Checking:Imagin
+
+
+; JULIO
+
+2024/07/01 * Ingreso Cuenta Común: Julio 2024
+    Expenses:CuentaComun                                      720 EUR
+    Assets:Checking:Imagin
+
+2024/07/01 * Pagar a Pilar
+    Liabilities:Pilar                                         130 EUR
+    Assets:Checking:Imagin
+
+2024/07/01 * Ahorro
+    Assets:Checking:OpenBank                                  200 EUR
+    Assets:Checking:Imagin
+
+2024/07/03 * Libros: Lolita y el Hereje
+    Expenses:Cultura:Libros                                 28.40 EUR
+    Assets:Checking:Imagin                                 -28.40 EUR
+    
+2024/07/03 * Regalo Pi: Momo
+    Expenses:Regalos                                           20 EUR
+    Assets:Checking:Imagin                                    -20EUR
+
+2024/07/04 * Spotify
+    Expenses:Subscripciones:Spotify                         14.99 EUR
+    Assets:Checking:Imagin
+
+2024/07/08 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.62 EUR
+    Assets:Checking:Imagin
+
+2024/07/09 * Aspanetconomy - Extra
+    Assets:Checking:Imagin                                   1134 EUR
+    Income:AspaNetconomy
+
+2024/07/10 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/07/15 * Pastelería Piccola: Tartita Pi
+    Expenses:Regalos                                         3.90 EUR
+    Assets:Checking:Imagin
+
+2024/07/15 * Ahorro
+    Assets:Checking:OpenBank                               213.23 EUR
+    Assets:Checking:Imagin
+
+2024/07/15 * Teclado Lofree Flow
+    Expenses:Material:Hardware                             199.48 EUR
+    Assets:Checking:Imagin
+
+2024/07/28 * Helado
+    Expenses:Comida                                          4.20 EUR
+    Assets:Checking:Imagin
+
+2024/07/30 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+    
+2024/07/30 * Aspanetconomy
+    Assets:Checking:Imagin                                1183.95 EUR
+    Income:AspaNetconomy
+
+
+
+; AGOSTO
+
+2024/08/01 * Ingreso Cuenta Común: Agosto 2024
+    Expenses:CuentaComun                                   213.23 EUR
+    Assets:Checking:Imagin
+    
+2024/08/01 * Ingreso Cuenta Común: Agosto 2024
+    Expenses:CuentaComun                                   506.77 EUR
+    Assets:Checking:Imagin
+
+2024/08/01 * Ahorro
+    Assets:Checking:OpenBank                                  200 EUR
+    Assets:Checking:Imagin
+
+2024/08/01 * Pagar a Pilar
+    Liabilities:Pilar                                         130 EUR
+    Assets:Checking:Imagin
+    
+2024/08/01 * Perdonar Deuda
+	; Esto es un repostaje que hice hace un par de meses
+    Expenses:CuentaComun                                    64.27 EUR
+    Equity:Reembolsos:CuentaComun
+
+2024/08/04 * Comida con Jorge GreenGlob
+    Expenses:Ocio:Comer                                     17.80 EUR
+    Assets:Checking:Imagin
+
+2024/08/04 * Spotify
+    Expenses:Subscripciones:Spotify                         14.99 EUR
+    Assets:Checking:Imagin
+
+2024/08/08 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.53 EUR
+    Assets:Checking:Imagin
+
+2024/08/10 * Repostaje 207
+    Equity:Reembolsos:CuentaComun                           66.79 EUR
+    Assets:Checking:Imagin
+
+2024/08/10 * Efectivo Obra
+    Expenses:CuentaComun                                      500 EUR
+    Assets:Checking:Efectivo                                   
+
+2024/08/10 * Sputnik: Escalada y Comida
+    Expenses:Ocio:Escalada                                     20 EUR
+    Expenses:Ocio:Comer                                     21.80 EUR
+    Assets:Checking:Imagin
+
+2024/08/15 * Regalos diego
+    Expenses:Regalos                                         11.1 EUR
+    Assets:Checking:Imagin
+
+2024/08/17 * Comida cumple Diego
+    Expenses:Ocio:Comer                                     12.69 EUR
+    Assets:Checking:Imagin
+
+2024/08/17 * Noche en Vela Soto
+    Expenses:Regalos                                            9 EUR ; Pollo de Ganchillo
+    Expenses:Casa:Decoracion                                   30 EUR ; Acuarela Gato
+    Assets:Checking:Imagin
+
+2024/08/20 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/08/23 * Heladería
+    Expenses:Ocio:Comer                                      3.70 EUR
+    Assets:Checking:Imagin
+
+2024/08/25 * Steam
+    Expenses:Cultura:Juegos                                  3.99 EUR ; Payee: Steam - Swarm Grinder
+    Expenses:Cultura:Juegos                                 13.31 EUR ; Payee: Steam - Ember Tower
+    Assets:Checking:Imagin                                - 17.30 EUR
+
+2024/08/27 * Najarra
+	; Celebrar contrato indefinido con Pi
+    Expenses:Ocio:Comer                                        45 EUR
+    Assets:Checking:Imagin
+
+2024/08/28 * Aspanetconomy
+    Assets:Checking:Imagin                                1144.48 EUR
+    Assets:Checking:Imagin                                  39.90 EUR
+    Income:AspaNetconomy
+
+2024/08/29 * Clases Álvaro
+    Assets:Checking:Imagin                                     20 EUR
+    Income:Olga
+
+2024/08/30 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+    
+
+
+; Septiembre
+
+2024/09/01 * Ingreso Cuenta Común: Septiembre 2024
+    Expenses:CuentaComun                                      720 EUR
+    Equity:Reembolsos:CuentaComun                          -66.79 EUR
+    Assets:Checking:Imagin                                -653.21 EUR
+
+2024/09/01 * Ahorro
+    Assets:Checking:OpenBank                                  200 EUR
+    Assets:Checking:Imagin
+
+2024/09/01 * Pagar a Pilar
+    Liabilities:Pilar                                         140 EUR
+    Assets:Checking:Imagin
+
+2024/09/04 * Spotify
+    Expenses:Subscripciones:Spotify                         14.99 EUR
+    Assets:Checking:Imagin
+
+2024/09/08 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.40 EUR
+    Assets:Checking:Imagin
+
+2024/09/07 * Regalo Pollo: Mochila
+    Expenses:Regalos                                        17.85 EUR
+    Assets:Checking:Imagin
+
+2024/09/10 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/09/11 * Amazon: Herramientas y regalo Granero
+    Expenses:Regalos                                        13.50 EUR
+    Expenses:Material:Hardware                              24.79 EUR
+    Assets:Checking:Imagin                                 -38.29 EUR
+
+2024/09/24 * Día
+    Expenses:Comida:Almuerzo                                 6.34 EUR
+    Assets:Checking:Imagin
+
+2024/09/24 * Farmacia: Vacunas
+    Expenses:Salud:Vacunas                                 163.33 EUR
+    Assets:Checking:Imagin
+
+2024/09/25 * Dentista Quiroga - Ferula Descarga
+	; Primer pago de la férula de descarga
+    Expenses:Salud:Dentista                                   175 EUR
+    Assets:Checking:Imagin
+
+2024/09/28 * Aspanetconomy
+    Assets:Checking:Imagin                                1167.07 EUR
+    Income:AspaNetconomy
+    
+2024/09/29 * Ikea
+    Equity:Reembolsos:CuentaComun                          212.59 EUR
+    Assets:Checking:Imagin
+
+2024/09/30 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+
+
+
+
+    
+
+
+; Octubre
+
+2024/10/01 * Flexispot: Mesa elevable
+    Expenses:Casa:Muebles                                  609.96 EUR
+    Assets:Checking:Imagin
+    
+2024/10/01 * Ingreso Cuenta Común: Octubre 2024
+    Expenses:CuentaComun                                      720 EUR
+    Equity:Reembolsos:CuentaComun                         -212.59 EUR
+    Assets:Checking:Imagin                               - 507.41 EUR
+
+2024/10/01 * Ahorro
+    Assets:Checking:OpenBank                                  200 EUR
+    Assets:Checking:Imagin
+
+2024/10/03 * Spotify
+    Expenses:Subscripciones:Spotify                         17.99 EUR
+    Assets:Checking:Imagin
+
+2024/10/04 * Dentista Quiroga
+	; Segundo pago de la férula de descarga y limpieza de boca.
+    Expenses:Salud:Dentista                                   175 EUR 
+    ; Payee: Dentista Quiroga - Ferula Descarga
+    Expenses:Salud:Dentista                                    60 EUR 
+    ; Payee: Dentista Quiroga - Limpieza de boca
+    Assets:Checking:Imagin                                  - 235 EUR
+
+2024/10/07 Ayuntamiento Soto del Real
+	; :Polideportivo Cuota Socio:
+    Expenses:Subscripciones:Polideportivo                      15 EUR
+    Assets:Checking:Imagin
+    
+2024/10/07 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/10/09 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.48 EUR
+    Assets:Checking:Imagin
+
+2024/10/11 * Amazon
+    Equity:Reembolsos:CuentaComun                           19.80 EUR
+    	; Payee: Amazon - Pijama Luca
+    Expenses:Material:Hardware                               7.64 EUR 
+    	; Payee: Amazon - Alicates de puntas
+    Expenses:Regalos                                        59.99 EUR 
+    	; Payee: Amazon - Vespa Lego Madre
+    Liabilities:Pilar                                          30 EUR 
+    	; Payee: Amazon - Vespa Lego Madre
+    Assets:Checking:Imagin      
+                         
+
+2024/10/11 * Ingreso Cuenta Común: Octubre 2024
+    Expenses:CuentaComun                                      100 EUR
+    Assets:Checking:Imagin
+
+2024/10/17 * Efectivo de Pilar
+	; Me lo da para tener efectivo en Austria
+    Assets:Checking:Efectivo                                   30 EUR
+    Liabilities:Pilar
+
+2024/10/17 * Oreos en el Aeropuerto
+	; DietasAspa: Summit 2024
+    Expenses:Comida                                          2.80 EUR
+    Assets:Checking:Imagin
+    
+2024/10/17 * Durum en Astria
+	; DietasAspa: Summit 2024
+    Expenses:Comida                                            10 EUR
+    Assets:Checking:Efectivo
+    
+2024/10/17 * Durum en Astria
+    Equity:Reembolsos:AlMartinez                               10 EUR
+    Assets:Checking:Efectivo
+    
+2024/10/17 * Cervezas en Austria
+	; DietasAspa: Summit 2024
+    Expenses:Ocio:Quedar                                     4.90 EUR
+    Expenses:Ocio:Quedar                                     4.60 EUR
+    Assets:Checking:Imagin
+    
+2024/10/17 * Durum en Astria
+	; DietasAspa: Summit 2024
+    Expenses:Comida                                          6.50 EUR
+    Assets:Checking:Imagin                                    - 4 EUR
+    Assets:Checking:Efectivo                               - 2.50 EUR
+    
+2024/10/19 * Agua en el Aeropuerto
+	; DietasAspa: Summit 2024
+    Expenses:Comida                                          2.89 EUR
+    Assets:Checking:Imagin
+    
+2024/10/19 * Comida en el Aeropuerto
+	; DietasAspa: Summit 2024
+    Expenses:Comida                                         12.50 EUR
+    Assets:Checking:Imagin
+ 
+2024/10/17 * Alejandro Martinez
+    Assets:Checking:Imagin                                     10 EUR
+    Equity:Reembolsos:AlMartinez                             - 10 EUR
+
+2024/10/22 * AppStore - Dumbify
+	; App para que el móvil distraiga menos
+    Expenses:Material:Software                               5.99 EUR
+    Assets:Checking:Imagin
+
+2024/10/22 * Chino - Regleta
+    Expenses:Material:Hardware                               6.90 EUR
+    Assets:Checking:Imagin
+
+2024/10/25 * Dentista Quiroga - Empaste 
+    Expenses:Salud:Dentista                                    60 EUR
+    Assets:Checking:Imagin
+
+2024/10/27 * Sputnik Climbing
+	; Escalada y Comida
+    Expenses:Ocio:Escalada                                     20 EUR
+    Expenses:Ocio:Comer                                     17.10 EUR
+    Assets:Checking:Imagin
+
+2024/10/27 * Olga - Clase de Álvaro
+    Assets:Checking:Imagin                                     20 EUR
+    Income:Olga
+
+2024/10/29 * Aspanetconomy
+    Assets:Checking:Imagin                                1167.07 EUR
+    Income:AspaNetconomy
+
+2024/10/29 * Supermercados Día
+    Expenses:Comida:Almuerzo                                 1.50 EUR
+    Assets:Checking:Imagin
+    
+2024/10/29 * Tim Hortons
+    Expenses:Comida:Cafe                                     1.50 EUR
+    Assets:Checking:Imagin
+      
+2024/10/30 * Tim Hortons
+    Expenses:Comida:Cafe                                     1.51 EUR
+    Assets:Checking:Imagin
+    
+2024/10/30 * Easy Lunch
+	; Pincho de Tortilla
+    Expenses:Comida:Almuerzo                                 3.40 EUR
+    Assets:Checking:Imagin
+
+2024/10/31 * Tim Hortons
+    Expenses:Comida:Cafe                                     1.51 EUR
+    Assets:Checking:Imagin
+
+2024/10/31 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+
+
+
+; Noviembre
+
+2024/11/01 * Cuenta Común
+    Expenses:CuentaComun                                      720 EUR
+    Assets:Checking:Imagin                               
+
+2024/11/01 * Ahorro
+    Assets:Checking:OpenBank                                  200 EUR
+    Assets:Checking:Imagin
+
+2024/11/03 * Spotify
+    Expenses:Subscripciones:Spotify                         17.99 EUR
+    Assets:Checking:Imagin
+
+2024/11/09 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.73 EUR
+    Assets:Checking:Imagin
+
+2024/11/10 * Amazon
+    Equity:Reembolsos:CuentaComun                           21.24 EUR
+        ; Payee: Amazon - Aplique pared Exterior
+    Expenses:Material:Hardware                              70.06 EUR
+    	; Payee: Amazon - Brazos monitor
+    Expenses:Material:Hardware                              15.96 EUR
+    	; Payee: Amazon - Soporte portátil
+    Expenses:Material:Hardware                               6.59 EUR
+    	; Payee: Amazon - Protector cables
+    Expenses:Cultura:Libros                                  7.25 EUR
+    	; Payee: Amazon - Bushido
+    Expenses:Cultura:Libros                                  7.25 EUR
+    	; Payee: Amazon - The Freedom to be Free
+    Assets:Checking:Imagin
+
+2024/11/12 * Día
+    Expenses:Comida:Almuerzo                                  2.6 EUR
+    Expenses:CuentaComun                                     3.50 EUR
+    Assets:Checking:Imagin                                 - 6.10 EUR
+
+2024/11/12 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/11/14 * Madre
+	; Cremación de pelusa
+    Expenses:Otros:Mascotas                                   250 EUR
+    Assets:Checking:Imagin
+
+2024/11/16 * Olga - Clase de Álvaro
+    Assets:Checking:Imagin                                     20 EUR
+    Income:Olga
+
+2024/11/16 * Transferencia
+	; No tengo ni idea de donde viene este ingreso
+    Assets:Checking:Imagin                                     54 EUR
+    Income
+
+2024/11/19 * Supermercados Día
+	; Pan y empanadillas
+    Expenses:Comida:Almuerzo                                 2.69 EUR
+    Assets:Checking:Imagin
+    
+2024/10/31 * Easy Lunch
+    Expenses:Comida:Cafe                                     1.50 EUR
+    Assets:Checking:Imagin
+
+2024/11/22 * Amazon
+    Equity:Reembolsos:CuentaComun                           49.57 EUR
+    Assets:Checking:Imagin
+
+2024/11/23 * Cloudflare
+	; Recurring: Cloudflare - Auranimbus
+	; auranimbus.net
+    Expenses:Subscripciones:Cloudflare                      11.94 EUR
+    Assets:Checking:Imagin
+
+2024/11/26 * Granero
+	; Comida en el barrio de Granero por no poder escalar
+    Expenses:Ocio:Comer                                        18 EUR
+    Assets:Checking:Imagin
+
+2024/11/27 * Día
+	; Tortilla de patatas
+    Expenses:Comida:Almuerzo                                 2.69 EUR
+    Assets:Checking:Imagin
+
+2024/11/28 * Aspanetconomy
+    Assets:Checking:Imagin                                1167.07 EUR
+    Income:AspaNetconomy
+
+2024/11/29 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+2024/11/30 * Urban Monkey
+    Expenses:Ocio:Escalada                                  11.50 EUR
+    Assets:Checking:Imagin
+
+2024/11/30 * Aldi
+    Equity:Reembolsos:CuentaComun                          204.93 EUR
+    Assets:Checking:Imagin
+
+
+
+
+
+
+
+
+; Diciembre
+
+2024/12/01 * PcComponentes
+    ; Movil para Pilar
+    Expenses:Regalos                                       225.14 EUR
+    Assets:Checking:Imagin
+
+2024/12/01 * Cuenta Común
+    Expenses:CuentaComun                                      720 EUR
+    Equity:Reembolsos:CuentaComun                        - 295.54 EUR
+    Assets:Checking:Imagin                               - 424.46 EUR
+
+2024/12/01 * Ahorro
+    Assets:Checking:OpenBank                                  200 EUR
+    Assets:Checking:Imagin
+
+2024/12/03 * Spotify
+    Expenses:Subscripciones:Spotify                         17.99 EUR
+    Assets:Checking:Imagin
+
+2024/12/05 * Lotería
+    Expenses:Otros:Loteria                                     20 EUR
+    Assets:Checking:Imagin
+
+2024/12/07 * Sputnik Climbing
+    Expenses:Ocio:Escalada                                     21 EUR
+    Expenses:Ocio:Comer                                     22.50 EUR
+    Assets:Checking:Imagin
+
+2024/12/09 Ayuntamiento Soto del Real
+	; :Polideportivo:
+    Expenses:Subscripciones:Polideportivo                      33 EUR
+    Assets:Checking:Imagin
+
+2024/12/10 * Obsidian
+    Expenses:Subscripciones:Obsidian                         9.88 EUR
+    Assets:Checking:Imagin
+
+2024/12/12 * Día
+    Expenses:Comida:Almuerzo                                 1.44 EUR
+    Assets:Checking:Imagin
+
+2024/12/12 * Tim Hortons
+    Expenses:Comida:Cafe                                     1.51 EUR
+    Assets:Checking:Imagin
+
+2024/12/14 * Aspanetconomy - Extra
+    Assets:Checking:Imagin                                1128.60 EUR
+    Income:AspaNetconomy
+
+2024/12/24 * Steam
+    Expenses:Cultura:Juegos                                  8.77 EUR ; Payee: Steam - Outer Wilds Echoes of the Eye
+    Expenses:Cultura:Juegos                                 11.99 EUR ; Payee: Steam - Deathloop
+    Expenses:Cultura:Juegos                                  2.99 EUR ; Payee: Steam - Wavetale
+    Assets:Checking:Imagin                                - 23.75 EUR
+
+2024/12/18 * Carlos Ocampo
+	; Hamburguesas en la ofi
+    Expenses:Comida                                         13.71 EUR
+    Assets:Checking:Imagin
+
+2024/12/20 * SoloClimb
+    Expenses:Ocio:Escalada                                     89 EUR
+    Assets:Checking:Imagin
+
+2024/12/22 * Sputnik Climbing
+    Expenses:Ocio:Escalada                                     16 EUR
+    Assets:Checking:Imagin
+
+2024/12/22 * Jorge Granero
+    Expenses:Ocio:Comer                                     24.05 EUR
+    Assets:Checking:Imagin
+
+2024/12/22 * Jorge Granero
+	; Dinero gasolina
+    Assets:Checking:Imagin                                     10 EUR
+    Income
+
+2024/12/23 * Cuenta Común
+    Equity:Reembolsos:CuentaComun                            2.35 EUR
+    Equity:Reembolsos:CuentaComun                            6.01 EUR
+    Assets:Checking:OpenBank
+
+2024/12/24 * Ahorro
+    Assets:Checking:OpenBank                               408.36 EUR
+    Assets:Checking:Imagin
+
+2024/12/25 * Abuela 
+    Assets:Checking:Efectivo                                  100 EUR
+    Income:Regalos
+
+2024/12/25 * Madre
+    Expenses:Otros:Loteria                                      6 EUR
+    Assets:Checking:Imagin
+
+2024/12/27 * Olga - Clase de Álvaro
+    Assets:Checking:Imagin                                     20 EUR
+    Income:Olga
+
+2024/12/28 * Urban Monkey
+    Expenses:Ocio:Escalada                                   8.50 EUR
+    Assets:Checking:Imagin
+
+2024/12/28 * Aspanetconomy
+    Assets:Checking:Imagin                                1167.07 EUR
+    Income:AspaNetconomy
+
+2024/12/31 * Educa En Digital
+    Assets:Checking:Imagin                                    130 EUR
+    Income:EducaEnDigital
+
+2025/01/01 * Closing Balance
+    Assets:Checking:Efectivo                              -227.50 EUR      
+    Assets:Checking:Imagin                               -2236.41 EUR      
+    Equity:Reembolsos:CuentaComun                           -8.36 EUR      
+    Assets:Checking:OpenBank                             -2500.00 EUR    
+    Equity:Closing Balance
