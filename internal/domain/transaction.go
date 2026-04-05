@@ -59,27 +59,26 @@ type Posting struct {
 func (transaction *Transaction) Format() string {
 	var sb strings.Builder
 
-	// Header: DATE [STATUS] [(CODE)] DESC
+	// Helper function to simplify formatted writes to the builder.
+	// We ignore the error because strings.Builder.Write never returns one.
+	write := func(format string, args ...any) {
+		_, _ = fmt.Fprintf(&sb, format, args...)
+	}
+
 	sb.WriteString(transaction.Date.Format("2006/01/02"))
 
-	statusStr := transaction.Status.String()
-	if statusStr != "" {
-		sb.WriteString(" ")
-		sb.WriteString(statusStr)
+	if statusStr := transaction.Status.String(); statusStr != "" {
+		write(" %s", statusStr)
 	}
 
-	// TODO: ensure code is uniform, here we use string format and 7 lines down we split the writing into 3 lines
 	if transaction.Code != "" {
-		sb.WriteString(fmt.Sprintf(" (%s)", transaction.Code))
+		write(" (%s)", transaction.Code)
 	}
 
-	sb.WriteString(" ")
-	sb.WriteString(transaction.Description)
-	sb.WriteString("\n")
+	write(" %s\n", transaction.Description)
 
 	for _, posting := range transaction.Postings {
-		sb.WriteString("    ")
-		sb.WriteString(posting.Account)
+		write("    %s", posting.Account)
 
 		if posting.Amount != nil {
 			// Calculate padding to align amounts (column 52)
@@ -93,12 +92,13 @@ func (transaction *Transaction) Format() string {
 			// Format amount and currency
 			// Heuristic: 1-char symbols prefix (e.g., "$"), others suffix (e.g., "EUR")
 			if len(posting.Currency) == 1 {
-				sb.WriteString(fmt.Sprintf("%s%.2f", posting.Currency, *posting.Amount))
+				write("%s%.2f", posting.Currency, *posting.Amount)
 			} else {
-				sb.WriteString(fmt.Sprintf("%.2f %s", *posting.Amount, posting.Currency))
+				write("%.2f %s", *posting.Amount, posting.Currency)
 			}
 		}
-		sb.WriteString("\n")
+
+		sb.WriteByte('\n')
 	}
 
 	return sb.String()
