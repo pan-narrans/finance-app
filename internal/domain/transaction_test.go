@@ -108,11 +108,11 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 				err := tt.transaction.Validate()
 
 				// Assert
-				var multiErr *MultiError
-				ok := errors.As(err, &multiErr)
+				var validationErrors *ValidationErrors
+				ok := errors.As(err, &validationErrors)
 				require.Error(t, err)
-				require.True(t, ok, "Error should be of type *MultiError")
-				assert.Equal(t, tt.expectedErrors, multiErr.Errors)
+				require.True(t, ok, "Error should be of type *ValidationErrors")
+				assert.Equal(t, tt.expectedErrors, validationErrors.Errors)
 			},
 		)
 	}
