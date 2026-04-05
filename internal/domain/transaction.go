@@ -107,24 +107,36 @@ func (transaction *Transaction) Format() string {
 // Validate performs business rule validation on the transaction.
 // It ensures required fields are present and that our internal rules
 // (like mandatory currency for numeric amounts) are respected.
-//
-// TODO: Validate and return all errors at the same time instead of one by one
+// It returns a structured MultiError if any validation failures occur.
 func (transaction *Transaction) Validate() error {
+	var errs []ValidationError
+	entity := "Transaction"
+
 	if transaction.Date.IsZero() {
-		return fmt.Errorf("transaction date is required")
+		errs = append(errs, ValidationError{Entity: entity, Field: "Date", Message: "transaction date is required"})
 	}
 	if transaction.Description == "" {
-		return fmt.Errorf("transaction description is required")
+		errs = append(errs, ValidationError{Entity: entity, Field: "Description", Message: "transaction description is required"})
 	}
 	if len(transaction.Postings) < 2 {
-		return fmt.Errorf("transaction must have at least two postings to balance")
+		errs = append(
+			errs,
+			ValidationError{Entity: entity, Field: "Postings", Message: "transaction must have at least two postings to balance"},
+		)
 	}
 
 	nilCount := 0
-	for _, posting := range transaction.Postings {
+	for i, posting := range transaction.Postings {
 		// Business Rule: If an amount is present, currency is mandatory.
 		if posting.Amount != nil && posting.Currency == "" {
-			return fmt.Errorf("currency is mandatory for posting to account %q", posting.Account)
+			field := fmt.Sprintf("Postings[%d].Currency", i)
+			errs = append(
+				errs, ValidationError{
+					Entity:  entity,
+					Field:   field,
+					Message: fmt.Sprintf("currency is mandatory for posting to account %q", posting.Account),
+				},
+			)
 		}
 		if posting.Amount == nil {
 			nilCount++
@@ -132,7 +144,11 @@ func (transaction *Transaction) Validate() error {
 	}
 
 	if nilCount > 1 {
-		return fmt.Errorf("at most one posting can have an implicit amount")
+		errs = append(errs, ValidationError{Entity: entity, Field: "Postings", Message: "at most one posting can have an implicit amount"})
+	}
+
+	if len(errs) > 0 {
+		return &MultiError{Errors: errs}
 	}
 
 	return nil
