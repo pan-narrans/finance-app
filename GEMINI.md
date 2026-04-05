@@ -32,5 +32,9 @@ This document contains foundational mandates and architectural principles that t
 ## Coding Standards
 - **Language/Framework:** Go (Golang).
 - **Tooling:** Use `go fmt` for formatting and `golangci-lint` for linting.
+- **Naming Conventions:**
+    - Always use **descriptive variable names**.
+    - DO NOT use short abbreviations or single-letter variables (e.g., use `file` instead of `f`, `fileRepository` instead of `repo` or `r`, `transaction` instead of `t`, and `regex` instead of `re`).
+    - Test functions should follow the format: `Test<Subject>_<Method>_Should<ExpectedBehavior>_When<Condition>`.
 - **Error Handling:** Graceful failure is mandatory; never leave the `.ledger` file in a corrupted or half-written state.
 - **Testing:** New features must include tests that verify the generated ledger entries are valid Ledger CLI transactions.
