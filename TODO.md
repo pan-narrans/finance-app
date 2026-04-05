@@ -10,18 +10,20 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 
 ## Phase 2: Core Module - Ledger CRUD
 - [ ] Research and design the core Ledger parser/writer logic.
-- [ ] Implement `Create` (Add transaction to `.ledger`).
-- [ ] Implement `Read` (Fetch transactions from `.ledger`).
-- [ ] Implement `Update/Delete` (Safely modify existing entries).
+- [X] Implement `Create` (Add transaction to `.ledger`).
+- [X] Implement `Read` (Fetch transactions from `.ledger`).
+- [X] Implement `Update` (Safely modify existing entries).
+- [ ] Implement `Delete`.
 - [ ] Add unit tests with valid/invalid ledger entry samples.
 
 ## Phase 3: Input Integrations
-- [ ] **Telegram Bot:**
-  - [ ] Set up bot API integration.
-  - [ ] Implement command parser for simple expense entry (e.g., `/expense 15 Lunch`).
 - [ ] **Excel Parser:**
-  - [ ] Analyze bank-specific CSV/Excel formats.
-  - [ ] Create mapping logic to transform rows into ledger transactions.
+    - [ ] Analyze bank-specific CSV/Excel formats. We'll start with openbank.
+    - [ ] Create mapping logic to transform rows into ledger transactions.
+    - [ ] Select to which ledger file the operation should be done.
+- [ ] **Telegram Bot:**
+    - [ ] Set up bot API integration.
+    - [ ] Implement command parser for simple expense entry (e.g., `/expense 15 Lunch`).
 - [ ] **Bank Aggregator API:**
   - [ ] Research possible API providers (e.g., Salt Edge, Nordigen, or local alternatives).
 
