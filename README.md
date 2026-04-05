@@ -14,11 +14,31 @@ Reduce friction when recording daily expenses by providing multiple input channe
 - **Excel File Parser:** Custom parsers for bank-specific statement formats.
 - **Bank Aggregator API:** Potential integration with banking APIs for automated syncing.
 
-## Technical Architecture
+## Architecture & Design Principles
+
+The application is built following **Hexagonal Architecture (Ports and Adapters)** to ensure strict isolation between core business logic and external dependencies.
+
+### Core Mandates
+- **Single Source of Truth:** The `.ledger` file is the primary database. No redundant databases or caches are allowed.
+- **AI-Free Core:** The application is a deterministic middle-layer; it does not use AI or LLMs for its core functionality.
+- **Ledger Integrity:** All operations must maintain the strict formatting required by [Ledger CLI](https://ledger-cli.org/).
+- **Validation:** Every entry is validated against ledger syntax before persistence.
+
+### Hexagonal Architecture
+1. **Strict Isolation:** Business logic is decoupled from external systems (Ledger CLI, Telegram, Excel).
+2. **Dependency Rule:** Dependencies always point inwards. `Domain` and `App` layers never depend on `Adapters`.
+
+### Package Structure
+- `internal/domain`: Pure entities and business rules. No external imports.
+- `internal/app`: Use cases and Ports (Interfaces).
+- `internal/adapters/primary`: Driving adapters (e.g., Telegram Bot, CLI, API).
+- `internal/adapters/secondary`: Driven adapters (e.g., Ledger File I/O).
+
+### Development Standards
 - **Language:** Go (Golang)
-- **Primary Database:** Plain-text `.ledger` file (Ledger CLI format).
-- **Core Logic:** CRUD operations on the ledger file.
-- **Integrations:** Modular Hexagonal Architecture (Ports & Adapters).
+- **Tooling:** Uses `go fmt` for formatting and `golangci-lint` for linting.
+- **Testing:** Mandatory unit tests for all features, ensuring generated entries are valid Ledger transactions.
+- **Error Handling:** Graceful failure is required to prevent `.ledger` file corruption.
 
 ## Documentation
 The project uses `godoc` for documentation. You can view it in the terminal or browser:
