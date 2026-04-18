@@ -34,24 +34,36 @@ func (transactionStatus TransactionStatus) String() string {
 	}
 }
 
-// Transaction represents a single financial entry in a Ledger file.
-// It follows the canonical Ledger CLI format: DATE [STATUS] [(CODE)] DESC.
-// A valid transaction must have at least two balanced postings.
+/*
+Transaction represents a single financial entry in a Ledger file.
+
+Fields:
+  - Date: The date of the transaction (YYYY/MM/DD).
+  - Status: The clearing status (* for cleared, ! for pending, or none).
+  - Code: Optional unique identifier or reference number in parentheses.
+  - Description: Human-readable description, usually storing the payee.
+  - Postings: Detailed line items (at least two required).
+*/
 type Transaction struct {
-	Date        time.Time         // The date of the transaction (YYYY/MM/DD).
-	Status      TransactionStatus // The clearing status (*, !, or none).
-	Code        string            // Optional unique identifier or reference number in parentheses.
-	Description string            // Human-readable description of the transaction, usually used to store the payee.
-	Postings    []Posting         // Detailed line items (at least two required).
+	Date        time.Time
+	Status      TransactionStatus
+	Code        string
+	Description string
+	Postings    []Posting
 }
 
-// Posting represents a single line item within a transaction.
-// It consists of an account name and an optional amount with currency.
-// In Ledger, at most one posting per transaction can omit the amount for automatic balancing.
+/*
+Posting represents a single line item within a transaction.
+
+Fields:
+  - Account: Full hierarchical account path (e.g., "Expenses:Food").
+  - Amount: Numerical value. If nil, Ledger calculates the balancing amount.
+  - Currency: Mandatory if Amount is provided (e.g., "EUR", "$").
+*/
 type Posting struct {
-	Account  string   // Full hierarchical account path (e.g., "Expenses:Food").
-	Amount   *float64 // Numerical value. If nil, Ledger calculates the balancing amount.
-	Currency string   // Mandatory if Amount is provided (e.g., "EUR", "$").
+	Account  string
+	Amount   *float64
+	Currency string
 }
 
 // Format returns the transaction formatted as a multi-line string compatible with Ledger CLI.
@@ -82,7 +94,7 @@ func (transaction *Transaction) Format() string {
 
 		if posting.Amount != nil {
 			// Calculate padding to align amounts (column 52)
-			// TODO: Make this value configurable
+			// (TODO): Make this value configurable
 			padding := 52 - len(posting.Account)
 			if padding < 2 {
 				padding = 2

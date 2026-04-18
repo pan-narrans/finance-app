@@ -12,7 +12,17 @@ import (
 // Ensure TransactionFileRepository implements ports.TransactionRepository at compile time.
 var _ ports.TransactionRepository = (*TransactionFileRepository)(nil)
 
-// TransactionFileRepository implements ports.TransactionRepository for a plain-text file.
+/*
+TransactionFileRepository implements ports.TransactionRepository using a plain-text file.
+
+It uses regex-based parsing to interact with transactions in the Ledger CLI format.
+
+Methods:
+  - Create: Appends a new transaction to the end of the ledger file.
+  - FindByCode: Searches the file for a transaction with the given unique code.
+  - Update: Replaces an existing transaction block in the file with a new formatted version.
+  - Delete: Removes a transaction block from the file by its unique code.
+*/
 type TransactionFileRepository struct {
 	FilePath string
 }

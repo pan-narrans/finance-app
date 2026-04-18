@@ -7,7 +7,17 @@ import (
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
-// TransactionService implements the TransactionUseCase.
+/*
+TransactionService coordinates transaction-related business logic.
+
+It validates transactions using domain rules before delegating persistence
+to the underlying TransactionRepository.
+
+Methods:
+  - Add: Validates and saves a new transaction to the ledger.
+  - Update: Validates and replaces an existing transaction in the ledger.
+  - Delete: Removes a transaction from the ledger by its unique code.
+*/
 type TransactionService struct {
 	repository ports.TransactionRepository
 }
