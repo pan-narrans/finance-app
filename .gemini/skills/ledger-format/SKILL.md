@@ -5,7 +5,7 @@ description: Ensures all generated or modified transactions follow the Ledger CL
 
 # Ledger Format
 
-This skill provides precise specifications for the Ledger CLI transaction format to ensure compatibility with `ledger-cli` and `Paisa`.
+Ensure all transactions follow these precise specifications for the Ledger CLI format to maintain compatibility with `ledger-cli` and `Paisa`.
 
 ## 1. Basic Transaction Structure
 
@@ -47,3 +47,6 @@ YYYY/MM/DD [Status] [(Code)] Payee
 - **Precision:** Ensure at least two spaces exist between account names and amounts.
 - **Validation:** Before final write, ensure the transaction balances to zero (unless using virtual postings).
 - **Metadata:** Use tags for extra context: `; :Category: Food:`
+
+## 4. Verification
+Verify generated format using `ledger-tools` commands (e.g., `ledger stats`) before final commit.
