@@ -62,9 +62,7 @@ func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domai
 		return nil, err
 	}
 
-	// Regex to match the transaction block with the given (CODE)
-	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
-	regex := regexp.MustCompile(pattern)
+	regex := fileRepository.transactionRegex(code)
 
 	if regex.Match(data) {
 		// Return a shell transaction with the found code.
@@ -75,8 +73,10 @@ func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domai
 	return nil, nil
 }
 
-// Update replaces an existing transaction block with a new formatted version.
-// It returns a domain.DomainError if the transaction code is not found in the file.
+/*
+Update replaces an existing transaction block with a new formatted version.
+It returns a domain.DomainError if the transaction code is not found in the file.
+*/
 func (fileRepository *TransactionFileRepository) Update(transaction domain.Transaction) error {
 	if transaction.Code == "" {
 		return domain.NewValidationErrors("Transaction", "Code", "transaction must have a code to be updated")
@@ -87,24 +87,18 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 		return err
 	}
 
-	// Dynamic regex to find the transaction by its CODE
-	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(transaction.Code))
-	regex := regexp.MustCompile(pattern)
+	regex := fileRepository.transactionRegex(transaction.Code)
 
-	// Verify the transaction exists before trying to update it
 	if !regex.Match(data) {
 		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
 	}
 
-	// Replace the old block with the new formatted one
 	newContent := transaction.Format() + "\n"
 	updatedData := regex.ReplaceAllString(string(data), newContent)
 
-	// Write the entire file back
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
 }
 
-// Delete removes a transaction block from the file by its code.
 func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	if code == "" {
 		return domain.NewValidationErrors("Transaction", "Code", "code must be provided to delete a transaction")
@@ -118,18 +112,22 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 		return err
 	}
 
-	// Dynamic regex to find the transaction by its CODE
-	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
-	regex := regexp.MustCompile(pattern)
+	regex := fileRepository.transactionRegex(code)
 
-	// Verify the transaction exists before trying to delete it
 	if !regex.Match(data) {
 		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 	}
 
-	// Remove the block
 	updatedData := regex.ReplaceAllString(string(data), "")
 
-	// Write the entire file back
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
+}
+
+/*
+transactionRegex compiles a regular expression to match a transaction block
+by its unique code. It looks for the DATE followed by the (CODE) marker.
+*/
+func (fileRepository *TransactionFileRepository) transactionRegex(code string) *regexp.Regexp {
+	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
+	return regexp.MustCompile(pattern)
 }
