@@ -5,7 +5,7 @@ description: Provides information on the built-in commands and utilities of Ledg
 
 # Ledger Tools
 
-This skill guides you on how to leverage the existing `ledger-cli` commands to perform common financial operations and data validation.
+Leverage the existing `ledger-cli` commands to perform common financial operations and data validation instead of writing custom logic.
 
 ## 1. Core Reporting Commands
 
@@ -40,3 +40,6 @@ Use these flags to ensure the integrity of the data being read or written.
 - **Avoid manual parsing:** When possible, use `ledger print` or `ledger -f file.ledger csv` to get data in a machine-readable format rather than regex-ing the raw text file.
 - **Validation:** Always run `ledger -f file.ledger stats` after writing a new transaction to ensure no syntax errors were introduced.
 - **Account Verification:** Before adding a new transaction, use `ledger accounts` to check if the destination account already exists or if it's a new one.
+
+## 5. Related Skills
+Refer to `ledger-format` when modifying or cleaning up entries found by `ledger print`.

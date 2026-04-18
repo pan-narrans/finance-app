@@ -1,6 +1,11 @@
-# Skill: SDQA Expert (Go)
+---
+name: sdqa-go
+description: Expert in Software Development Quality Assurance for Go. Ensures code is robust, testable, and adheres to high architectural standards (Hexagonal/DDD). Use when writing or reviewing Go unit tests.
+---
 
-Expert in Software Development Quality Assurance for Go. Ensures code is robust, testable, and adheres to high architectural standards (Hexagonal/DDD).
+# SDQA Expert (Go)
+
+Ensure code is robust, testable, and adheres to high architectural standards (Hexagonal/DDD).
 
 ## Core Mandates
 
