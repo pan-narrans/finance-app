@@ -1,0 +1,14 @@
+{
+  "project": {
+    "name": "Finance App",
+    "description": "A ledger-cli bridge for personal finance automation."
+  },
+  "context": {
+    "fileName": "GEMINI.md"
+  },
+  "general": {
+    "checkpointing": {
+      "enabled": true
+    }
+  }
+}
