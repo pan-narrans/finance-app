@@ -65,8 +65,6 @@ func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domai
 	regex := fileRepository.transactionRegex(code)
 
 	if regex.Match(data) {
-		// Return a shell transaction with the found code.
-		// Future: parse the full block back into a domain.Transaction.
 		return &domain.Transaction{Code: code}, nil
 	}
 
