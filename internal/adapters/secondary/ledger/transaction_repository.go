@@ -9,23 +9,23 @@ import (
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
-// Ensure FileRepository implements ports.LedgerRepository at compile time.
-var _ ports.LedgerRepository = (*FileRepository)(nil)
+// Ensure TransactionFileRepository implements ports.TransactionRepository at compile time.
+var _ ports.TransactionRepository = (*TransactionFileRepository)(nil)
 
-// FileRepository implements ports.LedgerRepository for a plain-text file.
-type FileRepository struct {
+// TransactionFileRepository implements ports.TransactionRepository for a plain-text file.
+type TransactionFileRepository struct {
 	FilePath string
 }
 
-// NewFileRepository creates a new instance of FileRepository.
-func NewFileRepository(filePath string) *FileRepository {
-	return &FileRepository{
+// NewTransactionFileRepository creates a new instance of TransactionFileRepository.
+func NewTransactionFileRepository(filePath string) *TransactionFileRepository {
+	return &TransactionFileRepository{
 		FilePath: filePath,
 	}
 }
 
-// Append writes a transaction to the end of the ledger file.
-func (fileRepository *FileRepository) Append(transaction domain.Transaction) error {
+// Create writes a transaction to the end of the ledger file.
+func (fileRepository *TransactionFileRepository) Create(transaction domain.Transaction) error {
 	content := transaction.Format()
 	content += "\n"
 
@@ -43,7 +43,7 @@ func (fileRepository *FileRepository) Append(transaction domain.Transaction) err
 }
 
 // FindByCode searches the file using a regex to find a transaction with the given code.
-func (fileRepository *FileRepository) FindByCode(code string) (*domain.Transaction, error) {
+func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domain.Transaction, error) {
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -67,7 +67,7 @@ func (fileRepository *FileRepository) FindByCode(code string) (*domain.Transacti
 
 // Update replaces an existing transaction block with a new formatted version.
 // It returns a domain.DomainError if the transaction code is not found in the file.
-func (fileRepository *FileRepository) Update(transaction domain.Transaction) error {
+func (fileRepository *TransactionFileRepository) Update(transaction domain.Transaction) error {
 	if transaction.Code == "" {
 		return domain.NewValidationErrors("Transaction", "Code", "transaction must have a code to be updated")
 	}
@@ -95,7 +95,7 @@ func (fileRepository *FileRepository) Update(transaction domain.Transaction) err
 }
 
 // Delete removes a transaction block from the file by its code.
-func (fileRepository *FileRepository) Delete(code string) error {
+func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	if code == "" {
 		return domain.NewValidationErrors("Transaction", "Code", "code must be provided to delete a transaction")
 	}

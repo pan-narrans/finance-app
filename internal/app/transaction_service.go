@@ -9,11 +9,11 @@ import (
 
 // TransactionService implements the TransactionUseCase.
 type TransactionService struct {
-	repository ports.LedgerRepository
+	repository ports.TransactionRepository
 }
 
 // NewTransactionService creates a new instance of TransactionService.
-func NewTransactionService(ledgerRepository ports.LedgerRepository) *TransactionService {
+func NewTransactionService(ledgerRepository ports.TransactionRepository) *TransactionService {
 	return &TransactionService{
 		repository: ledgerRepository,
 	}
@@ -27,7 +27,7 @@ func (transactionService *TransactionService) Add(transaction domain.Transaction
 	}
 
 	// 2. Persistence
-	if err := transactionService.repository.Append(transaction); err != nil {
+	if err := transactionService.repository.Create(transaction); err != nil {
 		return fmt.Errorf("failed to save transaction: %w", err)
 	}
 

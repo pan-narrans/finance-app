@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFileRepository_Append_ShouldWriteFormattedTransactionToFile_WhenValidInputProvided(t *testing.T) {
+func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidInputProvided(t *testing.T) {
 	// Arrange
-	tmpFile, err := os.CreateTemp("", "test_append_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_create_*.ledger")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 	tmpFile.Close()
 
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 	date := time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC)
 	transaction := domain.Transaction{
 		Date:        date,
@@ -31,7 +31,7 @@ func TestFileRepository_Append_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	expectedContent := transaction.Format() + "\n"
 
 	// Act
-	err = fileRepository.Append(transaction)
+	err = fileRepository.Create(transaction)
 
 	// Assert
 	assert.NoError(t, err)
@@ -54,7 +54,7 @@ func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *tes
 	content := transaction.Format() + "\n"
 	os.WriteFile(tmpFile.Name(), []byte(content), 0644)
 
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 
 	// Act
 	found, err := fileRepository.FindByCode("FINDME")
@@ -69,7 +69,7 @@ func TestFileRepository_FindByCode_ShouldReturnNil_WhenCodeDoesNotExist(t *testi
 	// Arrange
 	tmpFile, _ := os.CreateTemp("", "test_find_none_*.ledger")
 	defer os.Remove(tmpFile.Name())
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 
 	// Act
 	found, err := fileRepository.FindByCode("NON_EXISTENT")
@@ -99,7 +99,7 @@ func TestFileRepository_Update_ShouldReplaceExistingTransaction_WhenCodeMatches(
 		Description: "New and Improved",
 		Postings:    []domain.Posting{{Account: "A", Amount: new(20.0), Currency: "USD"}, {Account: "B", Amount: nil}},
 	}
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 
 	// Act
 	err := fileRepository.Update(transactionNew)
@@ -115,7 +115,7 @@ func TestFileRepository_Update_ShouldReturnDomainError_WhenCodeIsNotFound(t *tes
 	// Arrange
 	tmpFile, _ := os.CreateTemp("", "test_update_fail_*.ledger")
 	defer os.Remove(tmpFile.Name())
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 
 	transaction := domain.Transaction{Code: "GHOST_CODE"}
 
@@ -133,7 +133,7 @@ func TestFileRepository_Update_ShouldReturnDomainError_WhenCodeIsNotFound(t *tes
 
 func TestFileRepository_Update_ShouldReturnError_WhenFileDoesNotExist(t *testing.T) {
 	// Arrange
-	fileRepository := NewFileRepository("non_existent_folder/ledger.ledger")
+	fileRepository := NewTransactionFileRepository("non_existent_folder/ledger.ledger")
 	transaction := domain.Transaction{Code: "FAIL"}
 
 	// Act
@@ -157,7 +157,7 @@ func TestFileRepository_Delete_ShouldRemoveTransaction_WhenCodeMatches(t *testin
 	content := transaction.Format() + "\n"
 	os.WriteFile(tmpFile.Name(), []byte(content), 0644)
 
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 
 	// Act
 	err := fileRepository.Delete("DELETE_ME")
@@ -172,7 +172,7 @@ func TestFileRepository_Delete_ShouldReturnDomainError_WhenCodeIsNotFound(t *tes
 	// Arrange
 	tmpFile, _ := os.CreateTemp("", "test_delete_fail_*.ledger")
 	defer os.Remove(tmpFile.Name())
-	fileRepository := NewFileRepository(tmpFile.Name())
+	fileRepository := NewTransactionFileRepository(tmpFile.Name())
 
 	// Act
 	err := fileRepository.Delete("GHOST_CODE")
