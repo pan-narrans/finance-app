@@ -8,21 +8,26 @@ import (
 	"time"
 )
 
-// TransactionStatus represents the Cleared (*) or Pending (!) status of a transaction,
-// as defined by the Ledger CLI format.
+/*
+TransactionStatus represents the clearing status of a transaction.
+
+Values:
+  - StatusNone: No status marker (default).
+  - StatusCleared: Reconciled [Transaction] (*).
+  - StatusPending: [Transaction] initiated but not cleared (!).
+*/
 type TransactionStatus int
 
 const (
-	// StatusNone indicates no status marker in the ledger (default).
-	StatusNone TransactionStatus = iota
-	// StatusCleared indicates the transaction has been reconciled (*).
-	StatusCleared
-	// StatusPending indicates the transaction is initiated but not yet cleared (!).
-	StatusPending
+	StatusNone    TransactionStatus = iota // No status marker in the ledger (default).
+	StatusCleared                          // [Transaction] has been reconciled (*).
+	StatusPending                          // [Transaction] is initiated but not yet cleared (!).
 )
 
-// String implements the fmt.Stringer interface.
-// It returns the single-character marker used by Ledger CLI: "*" for cleared, "!" for pending.
+/*
+String implements the fmt.Stringer interface.
+Returns the single-character marker used by Ledger CLI.
+*/
 func (transactionStatus TransactionStatus) String() string {
 	switch transactionStatus {
 	case StatusCleared:
@@ -66,13 +71,21 @@ type Posting struct {
 	Currency string
 }
 
-// Format returns the transaction formatted as a multi-line string compatible with Ledger CLI.
-// It uses a standard alignment (column 52) for amounts to ensure human-readability.
+/*
+Format returns a multi-line string compatible with Ledger CLI.
+
+It applies the following formatting rules:
+  - Dates use YYYY/MM/DD format.
+  - Payees and descriptions are appended to the header.
+  - Account names are indented by four spaces.
+  - Amounts are right-aligned to a standard column (default 52).
+  - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
+
+(TODO) Make alignment value (now 52) configurable.
+*/
 func (transaction *Transaction) Format() string {
 	var sb strings.Builder
 
-	// Helper function to simplify formatted writes to the builder.
-	// We ignore the error because strings.Builder.Write never returns one.
 	write := func(format string, args ...any) {
 		_, _ = fmt.Fprintf(&sb, format, args...)
 	}
@@ -93,16 +106,12 @@ func (transaction *Transaction) Format() string {
 		write("    %s", posting.Account)
 
 		if posting.Amount != nil {
-			// Calculate padding to align amounts (column 52)
-			// (TODO): Make this value configurable
 			padding := 52 - len(posting.Account)
 			if padding < 2 {
 				padding = 2
 			}
 			sb.WriteString(strings.Repeat(" ", padding))
 
-			// Format amount and currency
-			// Heuristic: 1-char symbols prefix (e.g., "$"), others suffix (e.g., "EUR")
 			if len(posting.Currency) == 1 {
 				write("%s%.2f", posting.Currency, *posting.Amount)
 			} else {
@@ -116,10 +125,17 @@ func (transaction *Transaction) Format() string {
 	return sb.String()
 }
 
-// Validate performs business rule validation on the transaction.
-// It ensures required fields are present and that our internal rules
-// (like mandatory currency for numeric amounts) are respected.
-// It returns a structured DomainError if any validation failures occur.
+/*
+Validate enforces domain business rules for a transaction.
+
+Validation checks:
+  - Required fields (Date, Description, Account).
+  - Minimum of two postings.
+  - Mandatory currency for numeric amounts.
+  - Maximum of one implicit (nil) amount.
+
+It returns a structured DomainError if any validation failures occur.
+*/
 func (transaction *Transaction) Validate() error {
 	validationErrors := &ValidationErrors{}
 	entity := "Transaction"
@@ -141,7 +157,6 @@ func (transaction *Transaction) Validate() error {
 			validationErrors.Add(entity, field, "account name is required")
 		}
 
-		// Business Rule: If an amount is present, currency is mandatory.
 		if posting.Amount != nil && posting.Currency == "" {
 			field := fmt.Sprintf("Postings[%d].Currency", i)
 			validationErrors.Add(entity, field, fmt.Sprintf("currency is mandatory for posting to account %q", posting.Account))
