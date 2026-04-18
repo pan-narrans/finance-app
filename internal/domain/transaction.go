@@ -136,6 +136,11 @@ func (transaction *Transaction) Validate() error {
 
 	nilCount := 0
 	for i, posting := range transaction.Postings {
+		if posting.Account == "" {
+			field := fmt.Sprintf("Postings[%d].Account", i)
+			validationErrors.Add(entity, field, "account name is required")
+		}
+
 		// Business Rule: If an amount is present, currency is mandatory.
 		if posting.Amount != nil && posting.Currency == "" {
 			field := fmt.Sprintf("Postings[%d].Currency", i)

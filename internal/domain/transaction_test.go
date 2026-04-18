@@ -117,3 +117,84 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 		)
 	}
 }
+
+func TestTransaction_Samples_ShouldBeHandledCorrectly(t *testing.T) {
+	// Arrange
+	date := time.Date(2026, 4, 18, 0, 0, 0, 0, time.UTC)
+	val100 := 100.0
+	val50 := 50.0
+
+	tests := []struct {
+		name        string
+		transaction Transaction
+		isValid     bool
+	}{
+		{
+			name: "Valid: Simple balanced transaction",
+			transaction: Transaction{
+				Date: date, Description: "Grocery",
+				Postings: []Posting{
+					{Account: "Expenses:Food", Amount: &val50, Currency: "USD"},
+					{Account: "Assets:Checking", Amount: nil},
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "Valid: Multi-posting split",
+			transaction: Transaction{
+				Date: date, Description: "Split Bill",
+				Postings: []Posting{
+					{Account: "Expenses:Rent", Amount: &val100, Currency: "EUR"},
+					{Account: "Expenses:Internet", Amount: &val50, Currency: "EUR"},
+					{Account: "Assets:Checking", Amount: nil},
+				},
+			},
+			isValid: true,
+		},
+		{
+			name: "Invalid: No postings",
+			transaction: Transaction{
+				Date: date, Description: "Empty",
+				Postings: []Posting{},
+			},
+			isValid: false,
+		},
+		{
+			name: "Invalid: All implicit amounts",
+			transaction: Transaction{
+				Date: date, Description: "Guess work",
+				Postings: []Posting{
+					{Account: "Assets:Checking", Amount: nil},
+					{Account: "Expenses:Unknown", Amount: nil},
+				},
+			},
+			isValid: false,
+		},
+		{
+			name: "Invalid: Missing account name",
+			transaction: Transaction{
+				Date: date, Description: "No account",
+				Postings: []Posting{
+					{Account: "", Amount: &val50, Currency: "USD"},
+					{Account: "Assets:Cash", Amount: nil},
+				},
+			},
+			isValid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Act
+			err := tt.transaction.Validate()
+
+			// Assert
+			if tt.isValid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}

@@ -14,7 +14,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 - [X] Implement `Read` (Fetch transactions from `.ledger`).
 - [X] Implement `Update` (Safely modify existing entries).
 - [X] Implement `Delete`.
-- [ ] Add unit tests with valid/invalid ledger entry samples.
+- [X] Add unit tests with valid/invalid ledger entry samples.
 
 ## Phase 3: Input Integrations
 - [ ] **Excel Parser:**
