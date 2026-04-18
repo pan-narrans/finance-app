@@ -15,7 +15,7 @@ type ValidationError struct {
 	Message string `json:"message"` // A human-readable error message.
 }
 
-// DomainError is a structured collection of one or more validation errors.
+// ValidationErrors DomainError is a structured collection of one or more validation errors.
 // It implements the standard error interface for basic error reporting.
 type ValidationErrors struct {
 	Errors []ValidationError `json:"errors"`

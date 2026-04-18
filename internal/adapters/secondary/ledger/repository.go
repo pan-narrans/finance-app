@@ -93,3 +93,33 @@ func (fileRepository *FileRepository) Update(transaction domain.Transaction) err
 	// Write the entire file back
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
 }
+
+// Delete removes a transaction block from the file by its code.
+func (fileRepository *FileRepository) Delete(code string) error {
+	if code == "" {
+		return domain.NewValidationErrors("Transaction", "Code", "code must be provided to delete a transaction")
+	}
+
+	data, err := os.ReadFile(fileRepository.FilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
+		}
+		return err
+	}
+
+	// Dynamic regex to find the transaction by its CODE
+	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
+	regex := regexp.MustCompile(pattern)
+
+	// Verify the transaction exists before trying to delete it
+	if !regex.Match(data) {
+		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
+	}
+
+	// Remove the block
+	updatedData := regex.ReplaceAllString(string(data), "")
+
+	// Write the entire file back
+	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
+}

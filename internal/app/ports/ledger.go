@@ -7,4 +7,5 @@ type LedgerRepository interface {
 	Append(transaction domain.Transaction) error
 	FindByCode(code string) (*domain.Transaction, error)
 	Update(transaction domain.Transaction) error
+	Delete(code string) error
 }

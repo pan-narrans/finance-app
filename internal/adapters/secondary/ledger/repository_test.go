@@ -142,3 +142,46 @@ func TestFileRepository_Update_ShouldReturnError_WhenFileDoesNotExist(t *testing
 	// Assert
 	assert.Error(t, err)
 }
+
+func TestFileRepository_Delete_ShouldRemoveTransaction_WhenCodeMatches(t *testing.T) {
+	// Arrange
+	tmpFile, _ := os.CreateTemp("", "test_delete_*.ledger")
+	defer os.Remove(tmpFile.Name())
+
+	transaction := domain.Transaction{
+		Date:        time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC),
+		Code:        "DELETE_ME",
+		Description: "Gone soon",
+		Postings:    []domain.Posting{{Account: "A", Amount: new(10.0), Currency: "USD"}, {Account: "B", Amount: nil}},
+	}
+	content := transaction.Format() + "\n"
+	os.WriteFile(tmpFile.Name(), []byte(content), 0644)
+
+	fileRepository := NewFileRepository(tmpFile.Name())
+
+	// Act
+	err := fileRepository.Delete("DELETE_ME")
+
+	// Assert
+	assert.NoError(t, err)
+	updatedContent, _ := os.ReadFile(tmpFile.Name())
+	assert.Empty(t, string(updatedContent))
+}
+
+func TestFileRepository_Delete_ShouldReturnDomainError_WhenCodeIsNotFound(t *testing.T) {
+	// Arrange
+	tmpFile, _ := os.CreateTemp("", "test_delete_fail_*.ledger")
+	defer os.Remove(tmpFile.Name())
+	fileRepository := NewFileRepository(tmpFile.Name())
+
+	// Act
+	err := fileRepository.Delete("GHOST_CODE")
+
+	// Assert
+	assert.Error(t, err)
+	var domainError *domain.ValidationErrors
+	ok := errors.As(err, &domainError)
+	require.True(t, ok, "Error should be of type *domain.ValidationErrors")
+	assert.Equal(t, "Code", domainError.Errors[0].Field)
+	assert.Contains(t, domainError.Errors[0].Message, "not found")
+}
