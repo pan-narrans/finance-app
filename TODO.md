@@ -8,8 +8,11 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 - [x] Initialize development environment (Go/Golang)
 - [x] Create agents and skills for gemini to accelerate development
 
+## Phase 1.5: Configuration & Infrastructure
+- [x] Implement environment variable support (`.env`).
+- [x] Configure `LEDGER_ROOT` for dynamic file paths.
+
 ## Phase 2: Core Module - Ledger CRUD
-- [ ] Research and design the core Ledger parser/writer logic.
 - [X] Implement `Create` (Add transaction to `.ledger`).
 - [X] Implement `Read` (Fetch transactions from `.ledger`).
 - [X] Implement `Update` (Safely modify existing entries).
@@ -17,10 +20,15 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 - [X] Add unit tests with valid/invalid ledger entry samples.
 
 ## Phase 3: Input Integrations
-- [ ] **Excel Parser:**
-    - [ ] Analyze bank-specific CSV/Excel formats. We'll start with openbank.
+- [ ] **Excel/CSV Parser:**
+    - [ ] CLI tool for manual import.
+    - [ ] Hotfolder watcher for automated import (`LEDGER_ROOT/imports`).
+    - [ ] Bank identification via filename (e.g., `openbank.xlsx` -> Openbank parser).
+    - [ ] Analyze bank-specific CSV/XLSX formats:
+      - [ ] Openbank
+      - [ ] ImaginBank
     - [ ] Create mapping logic to transform rows into ledger transactions.
-    - [ ] Select to which ledger file the operation should be done.
+    - [ ] Select target ledger file for the operation.
 - [ ] **Telegram Bot:**
     - [ ] Set up bot API integration.
     - [ ] Implement command parser for simple expense entry (e.g., `/expense 15 Lunch`).
