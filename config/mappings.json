@@ -1,0 +1,59 @@
+{
+  "ALEJANDRO PEREZ ALVAREZ": "Income:Alex",
+
+  "DIEGO SAEZ": "Expenses:Restaurante",
+
+  "ATIMO SL COPIAL": "Expenses:Otros",
+
+  "CORREOS": "Expenses:Correos",
+  "SOTO DEL REAL": "Expenses:Correos",
+
+  "FCIA.BASANTA": "Expenses:Salud:Farmacia",
+
+  "SP NATULIM": "Expenses:Hogar:Limpieza",
+  "FERRETERIA SOTO": "Expenses:Hogar:Ferreteria",
+  "GARDEN SOTO SIERRA": "Expenses:Hogar:Plantas",
+
+  "EUROLINE REGALOS": "Expenses:Chino",
+
+  "SOTO I": "Expenses:Transporte:Combustible",
+  "SOTO II": "Expenses:Transporte:Combustible",
+  "E. S. MANZANARES": "Expenses:Transporte:Combustible",
+  "PARKING UCM": "Expenses:Transporte:Parking",
+  "RENFE": "Expenses:Transporte:Tren",
+  "METRO DE MADRID": "Expenses:Transporte:Metro",
+
+  "DIA": "Expenses:Compra:Supermercado",
+  "ALDI": "Expenses:Compra:Supermercado",
+  "BM COLLADO MEDIANO": "Expenses:Compra:Supermercado",
+  "EXPSOTODELREAL": "Expenses:Compra:Supermercado",
+  "MIRASOTO": "Expenses:Compra:Supermercado",
+  "CARNICERIA LAZARO": "Expenses:Compra:Carnicería",
+  "PESCADOS SAN MIGUEL": "Expenses:Compra:Pescadería",
+  "FRUTERIA JARLY": "Expenses:Compra:Fruta y Verdura",
+  "TAHONA DE MARIO": "Expenses:Compra:Pan",
+
+  "MAS GALICIA": "Expenses:Ocio:Cultura",
+  "MUSEO DEL PRADO": "Expenses:Ocio:Cultura",
+  "MADRID CULTURA": "Expenses:Ocio:Cultura",
+
+  "PASTELERIA PICCOLA": "Expenses:Restaurante:Pastelería",
+  "ADRENALINA": "Expenses:Restaurante",
+  "ANTIGUA TERRAZA": "Expenses:Restaurante",
+  "ATALAYA BAR CAFETERIA": "Expenses:Restaurante",
+  "BAR 66": "Expenses:Restaurante",
+  "BAR ZEPPELIN": "Expenses:Restaurante",
+  "LA BOLA": "Expenses:Restaurante",
+  "LA NORIA": "Expenses:Restaurante",
+  "BAR REST. LA ESTRELLA": "Expenses:Restaurante",
+  "MOVHIDA": "Expenses:Restaurante",
+  "RESTAURANTE A CUCHILLO": "Expenses:Restaurante",
+  "ESTAURANTE ORIENTAL III": "Expenses:Restaurante",
+  "UNAGISUSHI": "Expenses:Restaurante",
+  "SUSHI YANGYANG": "Expenses:Restaurante",
+  "KASHIWA": "Expenses:Restaurante",
+  "YATAI MARKET": "Expenses:Restaurante",
+
+  "CENTRO VETERINARIO": "Expenses:Mascotas"
+  }
+
