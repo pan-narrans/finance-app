@@ -17,3 +17,13 @@ type TransactionRepository interface {
 	Update(transaction domain.Transaction) error
 	Delete(code string) error
 }
+
+/*
+BankParser defines the contract for parsing bank-specific files into domain transactions.
+
+Methods:
+  - Parse: Reads a bank-specific file and returns a list of domain transactions.
+*/
+type BankParser interface {
+	Parse(filePath string) ([]domain.Transaction, error)
+}
