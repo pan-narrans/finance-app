@@ -8,17 +8,17 @@ import (
 
 // ImportService orchestrates the process of parsing and persisting transactions from external files.
 type ImportService struct {
-	transactionRepository ports.TransactionRepository
+	transactionUseCase ports.TransactionUseCase
 }
 
 // NewImportService creates a new instance of ImportService.
-func NewImportService(transactionRepository ports.TransactionRepository) *ImportService {
+func NewImportService(transactionUseCase ports.TransactionUseCase) *ImportService {
 	return &ImportService{
-		transactionRepository: transactionRepository,
+		transactionUseCase: transactionUseCase,
 	}
 }
 
-// Import parses a file using the provided parser and saves the resulting transactions to the repository.
+// Import parses a file using the provided parser and saves the resulting transactions.
 func (importService *ImportService) Import(parser ports.BankParser, filePath string) error {
 	transactions, err := parser.Parse(filePath)
 	if err != nil {
@@ -26,12 +26,8 @@ func (importService *ImportService) Import(parser ports.BankParser, filePath str
 	}
 
 	for _, transaction := range transactions {
-		if err := transaction.Validate(); err != nil {
-			return fmt.Errorf("invalid transaction from file: %w", err)
-		}
-
-		if err := importService.transactionRepository.Create(transaction); err != nil {
-			return fmt.Errorf("failed to save transaction: %w", err)
+		if err := importService.transactionUseCase.Add(transaction); err != nil {
+			return fmt.Errorf("failed to process transaction: %w", err)
 		}
 	}
 
