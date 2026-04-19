@@ -10,6 +10,7 @@ import (
 // Config represents application configuration.
 type Config struct {
 	LedgerRoot string `env:"LEDGER_ROOT" envDefault:"."`
+	ConfigRoot string `env:"CONFIG_ROOT" envDefault:"./config"`
 }
 
 // Load loads configuration from .env file and environment variables.
