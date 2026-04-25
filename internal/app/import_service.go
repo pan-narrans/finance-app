@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/domain"
 )
 
 // ImportService orchestrates the process of parsing and persisting transactions from external files.
@@ -18,33 +19,51 @@ func NewImportService(transactionUseCase ports.TransactionUseCase) *ImportServic
 	}
 }
 
-// Import parses a file using the provided parser and saves the resulting transactions.
-func (importService *ImportService) Import(parser ports.BankParser, filePath string) error {
+/*
+Import parses a file using the provided parser and saves the resulting transactions.
+It continues processing even if individual transactions fail to save.
+*/
+func (importService *ImportService) Import(parser ports.BankParser, filePath string) (*ports.ImportSummary, error) {
 	transactions, err := parser.Parse(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse file: %w", err)
+		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	for _, transaction := range transactions {
-		if transaction.Code == "" {
-			transaction.Code = transaction.GenerateCode()
-		}
+	summary := &ports.ImportSummary{
+		Total:  len(transactions),
+		Errors: make(map[int]error),
+	}
 
-		// TODO I do not like this erorr management
-		existing, err := importService.transactionUseCase.GetByCode(transaction.Code)
-		if err != nil {
-			return fmt.Errorf("failed to check existing transaction: %w", err)
+	for index, transaction := range transactions {
+		if err = importService.processTransaction(transaction, summary); err != nil {
+			summary.Failed++
+			summary.Errors[index] = err
 		}
+	}
 
-		if existing != nil {
-			if err := importService.transactionUseCase.Update(transaction); err != nil {
-				return fmt.Errorf("failed to update existing transaction: %w", err)
-			}
-		} else {
-			if err := importService.transactionUseCase.Add(transaction); err != nil {
-				return fmt.Errorf("failed to add new transaction: %w", err)
-			}
+	return summary, nil
+}
+
+func (importService *ImportService) processTransaction(transaction domain.Transaction, summary *ports.ImportSummary) error {
+	if transaction.Code == "" {
+		transaction.Code = transaction.GenerateCode()
+	}
+	existing, err := importService.transactionUseCase.GetByCode(transaction.Code)
+
+	if err != nil {
+		return fmt.Errorf("lookup failed: %w", err)
+	}
+
+	if existing != nil {
+		if err := importService.transactionUseCase.Update(transaction); err != nil {
+			return fmt.Errorf("update failed: %w", err)
 		}
+		summary.Updated++
+	} else {
+		if err := importService.transactionUseCase.Add(transaction); err != nil {
+			return fmt.Errorf("add failed: %w", err)
+		}
+		summary.Added++
 	}
 
 	return nil

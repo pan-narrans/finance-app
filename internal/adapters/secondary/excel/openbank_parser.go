@@ -74,11 +74,9 @@ func (p *OpenBankParser) Parse(filePath string) ([]domain.Transaction, error) {
 
 	var transactions []domain.Transaction
 	for _, row := range rows {
-		transaction, err := p.rowToTransaction(row)
-		if err != nil {
-			continue // Skip non-data or invalid rows
+		if transaction, err := p.rowToTransaction(row); err == nil {
+			transactions = append(transactions, *transaction)
 		}
-		transactions = append(transactions, *transaction)
 	}
 
 	return transactions, nil
@@ -176,26 +174,35 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 }
 
 func (p *OpenBankParser) resolveAccount(description string, amount float64) string {
-	descUpper := strings.ToUpper(description)
+	account := ""
+
+	if amount > 0 {
+		account = "Income:Unknown"
+	} else {
+		account = "Expenses:Unknown"
+	}
+
 	for _, keyword := range p.sortedKeywords {
-		if strings.Contains(descUpper, strings.ToUpper(keyword)) {
-			return p.accountMappings[keyword]
+		if strings.Contains(strings.ToUpper(description), strings.ToUpper(keyword)) {
+			account = p.accountMappings[keyword]
+			break
 		}
 	}
 
-	if amount > 0 {
-		return "Income:Unknown"
-	}
-	return "Expenses:Unknown"
+	return account
 }
 
 func (p *OpenBankParser) resolvePayer(fullDescription string) string {
+	payer := ""
+
 	for cardNumber, owner := range p.cardMappings {
 		if strings.Contains(fullDescription, cardNumber) {
-			return owner
+			payer = owner
+			break
 		}
 	}
-	return ""
+
+	return payer
 }
 
 func getInnerText(node *html.Node) string {

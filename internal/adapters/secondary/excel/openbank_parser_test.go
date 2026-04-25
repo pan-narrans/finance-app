@@ -51,13 +51,13 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	htmlPath := filepath.Join(tempDir, "test.xls")
 	htmlContent := `<html><body><table>
 		<tr>
-			<td>Valid</td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>COMPRA EN DIA</td><td></td><td>-10,50</td><td></td><td>200,00</td>
+			<td>Valid</td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>COMPRA EN DIA, MADRID</td><td></td><td>-10,50</td><td></td><td>200,00</td>
 		</tr>
 		<tr>
 			<td>Invalid (Too Short)</td><td>01/01/2026</td>
 		</tr>
 		<tr>
-			<td>Valid</td><td>18/04/2026</td><td></td><td>19/04/2026</td><td></td><td>ALEJANDRO PEREZ</td><td></td><td>50,00</td><td></td><td>250,00</td>
+			<td>Valid</td><td>18/04/2026</td><td></td><td>19/04/2026</td><td></td><td>ALEJANDRO PEREZ *1234</td><td></td><td>50,00</td><td></td><td>250,00</td>
 		</tr>
 	</table></body></html>`
 	_ = os.WriteFile(htmlPath, []byte(htmlContent), 0644)
@@ -65,7 +65,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	mappingPath := filepath.Join(tempDir, "mappings.json")
 	mappings := mappingsData{
 		Accounts: map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"},
-		Cards:    make(map[string]string),
+		Cards:    map[string]string{"1234": "Alex"},
 	}
 	mappingData, _ := json.Marshal(mappings)
 	_ = os.WriteFile(mappingPath, mappingData, 0644)
@@ -79,14 +79,52 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	require.NoError(t, err)
 	require.Len(t, transactions, 2)
 
+	// First Transaction
 	assert.Equal(t, "2026-04-17", transactions[0].Date.Format("2006-01-02"))
 	assert.Equal(t, "COMPRA EN DIA", transactions[0].Description)
 	assert.Equal(t, -10.50, *transactions[0].Postings[0].Amount)
 	assert.Equal(t, "Expenses:Supermarket", transactions[0].Postings[1].Account)
+	assert.Equal(t, "Openbank", transactions[0].Metadata["Origin"])
+	assert.Equal(t, "200,00", transactions[0].Metadata["Balance"])
 
+	// Second Transaction (Card resolution)
 	assert.Equal(t, "2026-04-19", transactions[1].Date.Format("2006-01-02"))
 	assert.Equal(t, 50.0, *transactions[1].Postings[0].Amount)
 	assert.Equal(t, "Income:Alex", transactions[1].Postings[1].Account)
+	assert.Equal(t, "Alex", transactions[1].Metadata["PayedBy"])
+}
+
+func TestOpenBankParser_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
+	// Arrange
+	tempDir := t.TempDir()
+	mappingPath := filepath.Join(tempDir, "mappings.json")
+	mappings := mappingsData{
+		Accounts: map[string]string{
+			"AMAZON":             "Expenses:General",
+			"AMAZON MARKETPLACE": "Expenses:Shopping",
+		},
+	}
+	data, _ := json.Marshal(mappings)
+	_ = os.WriteFile(mappingPath, data, 0644)
+	parser := NewOpenBankParser(mappingPath)
+
+	// Act
+	account := parser.resolveAccount("AMAZON MARKETPLACE LUX", -50.0)
+
+	// Assert
+	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
+}
+
+func TestOpenBankParser_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
+	// Arrange
+	parser := &OpenBankParser{
+		cardMappings: map[string]string{"*1234": "Alex", "*5678": "Maria"},
+	}
+
+	// Act & Assert
+	assert.Equal(t, "Alex", parser.resolvePayer("Purchase with card *1234"))
+	assert.Equal(t, "Maria", parser.resolvePayer("Transfer to *5678"))
+	assert.Equal(t, "", parser.resolvePayer("No card info here"))
 }
 
 func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *testing.T) {

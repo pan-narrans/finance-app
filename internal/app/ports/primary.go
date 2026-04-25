@@ -16,3 +16,17 @@ type TransactionUseCase interface {
 	Delete(code string) error
 	GetByCode(code string) (*domain.Transaction, error)
 }
+
+// ImportSummary tracks the outcome of an import process.
+type ImportSummary struct {
+	Total   int
+	Added   int
+	Updated int
+	Failed  int
+	Errors  map[int]error
+}
+
+// ImportUseCase defines the orchestrator for bank file imports.
+type ImportUseCase interface {
+	Import(parser BankParser, filePath string) (*ImportSummary, error)
+}
