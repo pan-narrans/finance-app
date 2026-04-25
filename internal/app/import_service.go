@@ -26,8 +26,24 @@ func (importService *ImportService) Import(parser ports.BankParser, filePath str
 	}
 
 	for _, transaction := range transactions {
-		if err := importService.transactionUseCase.Add(transaction); err != nil {
-			return fmt.Errorf("failed to process transaction: %w", err)
+		if transaction.Code == "" {
+			transaction.Code = transaction.GenerateCode()
+		}
+
+		// TODO I do not like this erorr management
+		existing, err := importService.transactionUseCase.GetByCode(transaction.Code)
+		if err != nil {
+			return fmt.Errorf("failed to check existing transaction: %w", err)
+		}
+
+		if existing != nil {
+			if err := importService.transactionUseCase.Update(transaction); err != nil {
+				return fmt.Errorf("failed to update existing transaction: %w", err)
+			}
+		} else {
+			if err := importService.transactionUseCase.Add(transaction); err != nil {
+				return fmt.Errorf("failed to add new transaction: %w", err)
+			}
 		}
 	}
 

@@ -3,10 +3,51 @@
 package domain
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 	"time"
 )
+
+/*
+GenerateCode creates a deterministic unique identifier for the transaction
+based on its date, description, and postings.
+
+It uses SHA-256 and pipe delimiters to prevent field-boundary collisions.
+Status is excluded as it is mutable. Specific stable metadata like "Balance"
+or "ExternalID" are included to differentiate otherwise identical transactions.
+*/
+func (transaction *Transaction) GenerateCode() string {
+	hasher := sha256.New()
+
+	hasher.Write([]byte(transaction.Date.Format("2006-01-02")))
+	hasher.Write([]byte("|"))
+	hasher.Write([]byte(transaction.Description))
+	hasher.Write([]byte("|"))
+
+	// Include stable natural keys from metadata if they exist
+	if val, ok := transaction.Metadata["Balance"]; ok {
+		hasher.Write([]byte(val))
+	}
+	hasher.Write([]byte("|"))
+	if val, ok := transaction.Metadata["ExternalID"]; ok {
+		hasher.Write([]byte(val))
+	}
+	hasher.Write([]byte("|"))
+
+	for _, posting := range transaction.Postings {
+		hasher.Write([]byte(posting.Account))
+		hasher.Write([]byte("|"))
+		if posting.Amount != nil {
+			hasher.Write([]byte(fmt.Sprintf("%.2f", *posting.Amount)))
+		}
+		hasher.Write([]byte("|"))
+		hasher.Write([]byte(posting.Currency))
+		hasher.Write([]byte("|"))
+	}
+
+	return fmt.Sprintf("%x", hasher.Sum(nil))
+}
 
 /*
 TransactionStatus represents the clearing status of a transaction.
@@ -47,6 +88,7 @@ Fields:
   - Status: The clearing status (* for cleared, ! for pending, or none).
   - Code: Optional unique identifier or reference number in parentheses.
   - Description: Human-readable description, usually storing the payee.
+  - Metadata: Key-value pairs stored as comments (e.g., "PayedBy": "Alex").
   - Postings: Detailed line items (at least two required).
 */
 type Transaction struct {
@@ -54,6 +96,7 @@ type Transaction struct {
 	Status      TransactionStatus
 	Code        string
 	Description string
+	Metadata    map[string]string
 	Postings    []Posting
 }
 
@@ -77,6 +120,7 @@ Format returns a multi-line string compatible with Ledger CLI.
 It applies the following formatting rules:
   - Dates use YYYY/MM/DD format.
   - Payees and descriptions are appended to the header.
+  - Metadata is stored as indented comments below the header.
   - Account names are indented by four spaces.
   - Amounts are right-aligned to a standard column (default 52).
   - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
@@ -101,6 +145,11 @@ func (transaction *Transaction) Format() string {
 	}
 
 	write(" %s\n", transaction.Description)
+
+	// Write metadata as comments
+	for k, v := range transaction.Metadata {
+		write("    ; %s: %s\n", k, v)
+	}
 
 	for _, posting := range transaction.Postings {
 		write("    %s", posting.Account)

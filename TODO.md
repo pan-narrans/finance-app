@@ -29,6 +29,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
       - [ ] ImaginBank
     - [ ] Create mapping logic to transform rows into ledger transactions.
     - [ ] Select target ledger file for the operation.
+- [ ] Devise a way to univocally add a code to transactions. Transactions added via file/bot/aggregator should not duplicate but update.
 - [ ] **Telegram Bot:**
     - [ ] Set up bot API integration.
     - [ ] Implement command parser for simple expense entry (e.g., `/expense 15 Lunch`).

@@ -14,4 +14,5 @@ type TransactionUseCase interface {
 	Add(transaction domain.Transaction) error
 	Update(transaction domain.Transaction) error
 	Delete(code string) error
+	GetByCode(code string) (*domain.Transaction, error)
 }

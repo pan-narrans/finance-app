@@ -14,9 +14,12 @@ func TestOpenBankParser_NewOpenBankParser_ShouldLoadMappings_WhenValidFileProvid
 	// Arrange
 	tempDir := t.TempDir()
 	mappingPath := filepath.Join(tempDir, "mappings.json")
-	mappings := map[string]string{"DIA": "Expenses:Supermarket"}
-	data, _ := json.Marshal(mappings)
-	_ = os.WriteFile(mappingPath, data, 0644)
+	mappings := mappingsData{
+		Accounts: map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"},
+		Cards:    make(map[string]string),
+	}
+	mappingData, _ := json.Marshal(mappings)
+	_ = os.WriteFile(mappingPath, mappingData, 0644)
 
 	// Act
 	parser := NewOpenBankParser(mappingPath)
@@ -60,9 +63,12 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	_ = os.WriteFile(htmlPath, []byte(htmlContent), 0644)
 
 	mappingPath := filepath.Join(tempDir, "mappings.json")
-	mappings := map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"}
-	data, _ := json.Marshal(mappings)
-	_ = os.WriteFile(mappingPath, data, 0644)
+	mappings := mappingsData{
+		Accounts: map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"},
+		Cards:    make(map[string]string),
+	}
+	mappingData, _ := json.Marshal(mappings)
+	_ = os.WriteFile(mappingPath, mappingData, 0644)
 
 	parser := NewOpenBankParser(mappingPath)
 

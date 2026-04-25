@@ -1,3 +1,4 @@
 .idea
 /ledger-files
 /sample-data
+.gemini/.env

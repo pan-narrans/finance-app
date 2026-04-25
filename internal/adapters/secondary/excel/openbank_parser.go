@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -17,20 +18,51 @@ import (
 // OpenBankParser handles OpenBank-specific HTML-based XLS format.
 type OpenBankParser struct {
 	accountMappings map[string]string
+	cardMappings    map[string]string
+	sortedKeywords  []string
+}
+
+type mappingsData struct {
+	Accounts map[string]string `json:"accounts"`
+	Cards    map[string]string `json:"cards"`
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser with optional mappings.
 func NewOpenBankParser(mappingsPath string) *OpenBankParser {
-	mappings := make(map[string]string)
+	// TODO this should be generic for other parsers, use composition
+	data := mappingsData{
+		Accounts: make(map[string]string),
+		Cards:    make(map[string]string),
+	}
+
 	if mappingsPath != "" {
-		data, err := os.ReadFile(mappingsPath)
+		fileData, err := os.ReadFile(mappingsPath)
 		if err == nil {
-			if err := json.Unmarshal(data, &mappings); err != nil {
+			if err := json.Unmarshal(fileData, &data); err != nil {
 				log.Printf("Error unmarshaling mappings: %v", err)
 			}
 		}
 	}
-	return &OpenBankParser{accountMappings: mappings}
+
+	// Pre-sort keywords by length descending for deterministic matching (longest first wins)
+	keywords := make([]string, 0, len(data.Accounts))
+	for k := range data.Accounts {
+		keywords = append(keywords, k)
+	}
+	sort.Slice(
+		keywords, func(i, j int) bool {
+			if len(keywords[i]) == len(keywords[j]) {
+				return keywords[i] < keywords[j]
+			}
+			return len(keywords[i]) > len(keywords[j])
+		},
+	)
+
+	return &OpenBankParser{
+		accountMappings: data.Accounts,
+		cardMappings:    data.Cards,
+		sortedKeywords:  keywords,
+	}
 }
 
 // Parse reads the HTML table and converts rows to domain transactions.
@@ -105,7 +137,6 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		return nil, domain.NewValidationErrors("Parser", "Row", "row too short")
 	}
 
-	// 3: Fecha Valor, 5: Concepto, 7: Importe
 	date, err := time.Parse("02/01/2006", strings.TrimSpace(row[3]))
 	if err != nil {
 		return nil, err
@@ -116,12 +147,27 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		return nil, err
 	}
 
-	description := strings.TrimSpace(row[5])
-	targetAccount := p.resolveAccount(description, amount)
+	fullDescription := strings.TrimSpace(row[5])
+	cleanDescription := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
+
+	metadata := make(map[string]string)
+	metadata["Origin"] = "Openbank"
+
+	if balance := strings.TrimSpace(row[9]); balance != "" {
+		metadata["Balance"] = balance
+	}
+
+	if payedBy := p.resolvePayer(fullDescription); payedBy != "" {
+		metadata["PayedBy"] = payedBy
+	}
+
+	targetAccount := p.resolveAccount(cleanDescription, amount)
 
 	return &domain.Transaction{
 		Date:        date,
-		Description: description,
+		Status:      domain.StatusPending,
+		Description: cleanDescription,
+		Metadata:    metadata,
 		Postings: []domain.Posting{
 			{Account: "Assets:Checking:OpenBank", Amount: &amount, Currency: "EUR"},
 			{Account: targetAccount},
@@ -130,17 +176,26 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 }
 
 func (p *OpenBankParser) resolveAccount(description string, amount float64) string {
-	for keyword, account := range p.accountMappings {
-		if strings.Contains(strings.ToUpper(description), strings.ToUpper(keyword)) {
-			return account
+	descUpper := strings.ToUpper(description)
+	for _, keyword := range p.sortedKeywords {
+		if strings.Contains(descUpper, strings.ToUpper(keyword)) {
+			return p.accountMappings[keyword]
 		}
 	}
 
 	if amount > 0 {
 		return "Income:Unknown"
 	}
-
 	return "Expenses:Unknown"
+}
+
+func (p *OpenBankParser) resolvePayer(fullDescription string) string {
+	for cardNumber, owner := range p.cardMappings {
+		if strings.Contains(fullDescription, cardNumber) {
+			return owner
+		}
+	}
+	return ""
 }
 
 func getInnerText(node *html.Node) string {

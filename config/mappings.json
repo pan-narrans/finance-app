@@ -1,59 +1,44 @@
 {
-  "ALEJANDRO PEREZ ALVAREZ": "Income:Alex",
-
-  "DIEGO SAEZ": "Expenses:Restaurante",
-
-  "ATIMO SL COPIAL": "Expenses:Otros",
-
-  "CORREOS": "Expenses:Correos",
-  "SOTO DEL REAL": "Expenses:Correos",
-
-  "FCIA.BASANTA": "Expenses:Salud:Farmacia",
-
-  "SP NATULIM": "Expenses:Hogar:Limpieza",
-  "FERRETERIA SOTO": "Expenses:Hogar:Ferreteria",
-  "GARDEN SOTO SIERRA": "Expenses:Hogar:Plantas",
-
-  "EUROLINE REGALOS": "Expenses:Chino",
-
-  "SOTO I": "Expenses:Transporte:Combustible",
-  "SOTO II": "Expenses:Transporte:Combustible",
-  "E. S. MANZANARES": "Expenses:Transporte:Combustible",
-  "PARKING UCM": "Expenses:Transporte:Parking",
-  "RENFE": "Expenses:Transporte:Tren",
-  "METRO DE MADRID": "Expenses:Transporte:Metro",
-
-  "DIA": "Expenses:Compra:Supermercado",
-  "ALDI": "Expenses:Compra:Supermercado",
-  "BM COLLADO MEDIANO": "Expenses:Compra:Supermercado",
-  "EXPSOTODELREAL": "Expenses:Compra:Supermercado",
-  "MIRASOTO": "Expenses:Compra:Supermercado",
-  "CARNICERIA LAZARO": "Expenses:Compra:Carnicería",
-  "PESCADOS SAN MIGUEL": "Expenses:Compra:Pescadería",
-  "FRUTERIA JARLY": "Expenses:Compra:Fruta y Verdura",
-  "TAHONA DE MARIO": "Expenses:Compra:Pan",
-
-  "MAS GALICIA": "Expenses:Ocio:Cultura",
-  "MUSEO DEL PRADO": "Expenses:Ocio:Cultura",
-  "MADRID CULTURA": "Expenses:Ocio:Cultura",
-
-  "PASTELERIA PICCOLA": "Expenses:Restaurante:Pastelería",
-  "ADRENALINA": "Expenses:Restaurante",
-  "ANTIGUA TERRAZA": "Expenses:Restaurante",
-  "ATALAYA BAR CAFETERIA": "Expenses:Restaurante",
-  "BAR 66": "Expenses:Restaurante",
-  "BAR ZEPPELIN": "Expenses:Restaurante",
-  "LA BOLA": "Expenses:Restaurante",
-  "LA NORIA": "Expenses:Restaurante",
-  "BAR REST. LA ESTRELLA": "Expenses:Restaurante",
-  "MOVHIDA": "Expenses:Restaurante",
-  "RESTAURANTE A CUCHILLO": "Expenses:Restaurante",
-  "ESTAURANTE ORIENTAL III": "Expenses:Restaurante",
-  "UNAGISUSHI": "Expenses:Restaurante",
-  "SUSHI YANGYANG": "Expenses:Restaurante",
-  "KASHIWA": "Expenses:Restaurante",
-  "YATAI MARKET": "Expenses:Restaurante",
-
-  "CENTRO VETERINARIO": "Expenses:Mascotas"
+  "accounts": {
+    "ALEJANDRO PEREZ ALVAREZ": "Income:Alex",
+    "FRUTERIA JARLY": "Expenses:Compra:Fruta y Verdura",
+    "DIA": "Expenses:Compra:Supermercado",
+    "DIEGO SAEZ": "Expenses:Restaurante",
+    "MIRASOTO": "Expenses:Compra:Supermercado",
+    "E. S. MANZANARES": "Expenses:Transporte:Combustible",
+    "BM COLLADO MEDIANO": "Expenses:Compra:Supermercado",
+    "SP NATULIM": "Expenses:Hogar:Limpieza",
+    "ANTIGUA TERRAZA": "Expenses:Restaurante",
+    "FERRETERIA SOTO": "Expenses:Hogar:Ferreteria",
+    "TAHONA DE MARIO": "Expenses:Compra:Pan",
+    "ATALAYA BAR CAFETERIA": "Expenses:Restaurante",
+    "BAR 66": "Expenses:Restaurante",
+    "SUSHI YANGYANG": "Expenses:Restaurante",
+    "RENFE": "Expenses:Transporte:Tren",
+    "MUSEO DEL PRADO": "Expenses:Ocio:Cultura",
+    "SOTO II": "Expenses:Compra:Supermercado",
+    "SOTO I": "Expenses:Compra:Supermercado",
+    "ADRENALINA": "Expenses:Ocio",
+    "RESTAURANTE A CUCHILLO": "Expenses:Restaurante",
+    "PARKING UCM": "Expenses:Transporte:Parking",
+    "METRO DE MADRID": "Expenses:Transporte:Metro",
+    "FCIA.BASANTA": "Expenses:Salud:Farmacia",
+    "MAS GALICIA": "Expenses:Restaurante",
+    "MADRID CULTURA": "Expenses:Ocio:Cultura",
+    "LA BOLA": "Expenses:Restaurante",
+    "LA NORIA": "Expenses:Restaurante",
+    "CENTRO VETERINARIO": "Expenses:Mascotas",
+    "BAR ZEPPELIN": "Expenses:Restaurante",
+    "YATAI MARKET": "Expenses:Restaurante",
+    "UNAGISUSHI": "Expenses:Restaurante",
+    "ATIMO SL COPIAL": "Expenses:Otros",
+    "CORREOS": "Expenses:Otros",
+    "SOTO DEL REAL": "Expenses:Restaurante",
+    "MOVHIDA": "Expenses:Restaurante",
+    "ALDI": "Expenses:Compra:Supermercado"
+  },
+  "cards": {
+    "5489133216624203": "Alex",
+    "5489133217345204": "Pilar"
   }
-
+}
