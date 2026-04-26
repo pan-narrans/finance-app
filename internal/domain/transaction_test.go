@@ -118,83 +118,66 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 	}
 }
 
-func TestTransaction_Samples_ShouldBeHandledCorrectly(t *testing.T) {
+func TestTransaction_GenerateCode_ShouldBeUnique_WhenFieldsOverlap(t *testing.T) {
 	// Arrange
-	date := time.Date(2026, 4, 18, 0, 0, 0, 0, time.UTC)
-	val100 := 100.0
-	val50 := 50.0
+	date := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
 
-	tests := []struct {
-		name        string
-		transaction Transaction
-		isValid     bool
-	}{
-		{
-			name: "Valid: Simple balanced transaction",
-			transaction: Transaction{
-				Date: date, Description: "Grocery",
-				Postings: []Posting{
-					{Account: "Expenses:Food", Amount: &val50, Currency: "USD"},
-					{Account: "Assets:Checking", Amount: nil},
-				},
-			},
-			isValid: true,
+	// Transaction 1: Description "A", Account "BC"
+	t1 := Transaction{
+		Date: date, Description: "A",
+		Postings: []Posting{{Account: "BC"}},
+	}
+
+	// Transaction 2: Description "AB", Account "C"
+	t2 := Transaction{
+		Date: date, Description: "AB",
+		Postings: []Posting{{Account: "C"}},
+	}
+
+	// Act
+	code1 := t1.GenerateCode()
+	code2 := t2.GenerateCode()
+
+	// Assert
+	assert.NotEqual(t, code1, code2, "Codes should be different even if concatenated fields overlap")
+}
+
+func TestTransaction_GenerateCode_ShouldBeDeterministic(t *testing.T) {
+	// Arrange
+	date := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
+	transaction := Transaction{
+		Date: date, Description: "Test",
+		Postings: []Posting{{Account: "Expenses:Food"}},
+	}
+
+	// Act
+	code1 := transaction.GenerateCode()
+	code2 := transaction.GenerateCode()
+
+	// Assert
+	assert.Equal(t, code1, code2)
+}
+
+func TestTransaction_Format_ShouldSortMetadataAlphabetically(t *testing.T) {
+	// Arrange
+	transaction := Transaction{
+		Date:        time.Date(2026, 4, 26, 0, 0, 0, 0, time.UTC),
+		Description: "Test",
+		Metadata: map[string]string{
+			"Zen":    "Last",
+			"Apple":  "First",
+			"Banana": "Middle",
 		},
-		{
-			name: "Valid: Multi-posting split",
-			transaction: Transaction{
-				Date: date, Description: "Split Bill",
-				Postings: []Posting{
-					{Account: "Expenses:Rent", Amount: &val100, Currency: "EUR"},
-					{Account: "Expenses:Internet", Amount: &val50, Currency: "EUR"},
-					{Account: "Assets:Checking", Amount: nil},
-				},
-			},
-			isValid: true,
-		},
-		{
-			name: "Invalid: No postings",
-			transaction: Transaction{
-				Date: date, Description: "Empty",
-				Postings: []Posting{},
-			},
-			isValid: false,
-		},
-		{
-			name: "Invalid: All implicit amounts",
-			transaction: Transaction{
-				Date: date, Description: "Guess work",
-				Postings: []Posting{
-					{Account: "Assets:Checking", Amount: nil},
-					{Account: "Expenses:Unknown", Amount: nil},
-				},
-			},
-			isValid: false,
-		},
-		{
-			name: "Invalid: Missing account name",
-			transaction: Transaction{
-				Date: date, Description: "No account",
-				Postings: []Posting{
-					{Account: "", Amount: &val50, Currency: "USD"},
-					{Account: "Assets:Cash", Amount: nil},
-				},
-			},
-			isValid: false,
+		Postings: []Posting{
+			{Account: "Assets:Cash", Amount: new(10.0), Currency: "USD"},
+			{Account: "Expenses:Food", Amount: nil},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Act
-			err := tt.transaction.Validate()
+	// Act
+	got := transaction.Format()
 
-			// Assert
-			if tt.isValid {
-				assert.NoError(t, err)
-			} else {
-				assert.Error(t, err)
-			}
-		})
-	}
+	// Assert
+	expectedMetadata := "    ; Apple: First\n    ; Banana: Middle\n    ; Zen: Last\n"
+	assert.Contains(t, got, expectedMetadata)
 }
