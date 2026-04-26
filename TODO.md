@@ -21,13 +21,13 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 
 ## Phase 3: Input Integrations
 - [ ] **Excel/CSV Parser:**
-    - [ ] CLI tool for manual import.
+    - [X] CLI tool for manual import.
     - [ ] Hotfolder watcher for automated import (`LEDGER_ROOT/imports`).
-    - [ ] Bank identification via filename (e.g., `openbank.xlsx` -> Openbank parser).
+    - [X] Bank identification via filename (e.g., `openbank.xlsx` -> Openbank parser).
     - [ ] Analyze bank-specific CSV/XLSX formats:
-      - [ ] Openbank
+      - [X] Openbank
       - [ ] ImaginBank
-    - [ ] Create mapping logic to transform rows into ledger transactions.
+    - [X] Create mapping logic to transform rows into ledger transactions.
     - [ ] Select target ledger file for the operation.
 - [ ] Devise a way to univocally add a code to transactions. Transactions added via file/bot/aggregator should not duplicate but update.
 - [ ] **Telegram Bot:**
