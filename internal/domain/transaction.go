@@ -11,40 +11,6 @@ import (
 )
 
 /*
-GenerateCode creates a deterministic unique identifier for the transaction
-based on its date, description, and postings.
-
-It uses SHA-256 and pipe delimiters to prevent field-boundary collisions.
-Status is excluded as it is mutable. Specific stable metadata like "Balance"
-or "ExternalID" are included to differentiate otherwise identical transactions.
-*/
-func (transaction *Transaction) GenerateCode() string {
-	hasher := sha256.New()
-	hash := func(data string) {
-		hasher.Write([]byte(data))
-		hasher.Write([]byte("|"))
-	}
-
-	hash(transaction.Date.Format("2006-01-02"))
-	hash(transaction.Description)
-
-	if val, ok := transaction.Metadata["ID"]; ok {
-		hash(val)
-	}
-
-	for _, posting := range transaction.Postings {
-		hash(posting.Account)
-		if posting.Amount != nil {
-			hash(fmt.Sprintf("%.2f", *posting.Amount))
-			hash(posting.Currency)
-		}
-	}
-
-	fullHash := fmt.Sprintf("%x", hasher.Sum(nil))
-	return fullHash[:16]
-}
-
-/*
 TransactionStatus represents the clearing status of a transaction.
 
 Values:
@@ -107,6 +73,40 @@ type Posting struct {
 	Account  string
 	Amount   *float64
 	Currency string
+}
+
+/*
+GenerateCode creates a deterministic unique identifier for the transaction
+based on its date, description, and postings.
+
+It uses SHA-256 and pipe delimiters to prevent field-boundary collisions.
+Status is excluded as it is mutable. Specific stable metadata like "Balance"
+or "ExternalID" are included to differentiate otherwise identical transactions.
+*/
+func (transaction *Transaction) GenerateCode() string {
+	hasher := sha256.New()
+	hash := func(data string) {
+		hasher.Write([]byte(data))
+		hasher.Write([]byte("|"))
+	}
+
+	hash(transaction.Date.Format("2006-01-02"))
+	hash(transaction.Description)
+
+	if val, ok := transaction.Metadata["ID"]; ok {
+		hash(val)
+	}
+
+	for _, posting := range transaction.Postings {
+		hash(posting.Account)
+		if posting.Amount != nil {
+			hash(fmt.Sprintf("%.2f", *posting.Amount))
+			hash(posting.Currency)
+		}
+	}
+
+	fullHash := fmt.Sprintf("%x", hasher.Sum(nil))
+	return fullHash[:16]
 }
 
 /*
