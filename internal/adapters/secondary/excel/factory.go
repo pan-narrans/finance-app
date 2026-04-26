@@ -27,7 +27,7 @@ func (f *ParserFactory) GetParser(filePath string) (ports.BankParser, error) {
 	case strings.Contains(fileName, "openbank"):
 		return NewOpenBankParser(mappingsPath), nil
 	case strings.Contains(fileName, "imaginbank"):
-		return NewImaginBankParser(), nil
+		return NewImaginBankParser(mappingsPath), nil
 	default:
 		return nil, fmt.Errorf("no parser found for file: %s", fileName)
 	}

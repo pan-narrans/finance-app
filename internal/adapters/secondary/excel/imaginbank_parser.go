@@ -5,11 +5,15 @@ import (
 )
 
 // ImaginBankParser handles ImaginBank-specific file formats.
-type ImaginBankParser struct{}
+type ImaginBankParser struct {
+	*BaseParser
+}
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser() *ImaginBankParser {
-	return &ImaginBankParser{}
+func NewImaginBankParser(mappingsPath string) *ImaginBankParser {
+	return &ImaginBankParser{
+		BaseParser: NewBaseParser(mappingsPath),
+	}
 }
 
 // Parse implements ports.BankParser.

@@ -26,24 +26,28 @@ func TestOpenBankParser_NewOpenBankParser_ShouldLoadMappings_WhenValidFileProvid
 	parser := NewOpenBankParser(mappingPath)
 
 	// Assert
-	assert.Equal(t, "Expenses:Supermarket", parser.accountMappings["DIA"])
+	assert.Equal(t, "Expenses:Supermarket", parser.BaseParser.accountMappings["DIA"])
 }
 
 func TestOpenBankParser_NewOpenBankParser_ShouldHandleErrors(t *testing.T) {
 	// Act & Assert
-	t.Run("Should handle missing file", func(t *testing.T) {
-		parser := NewOpenBankParser("non-existent.json")
-		assert.NotNil(t, parser)
-		assert.Empty(t, parser.accountMappings)
-	})
+	t.Run(
+		"Should handle missing file", func(t *testing.T) {
+			parser := NewOpenBankParser("non-existent.json")
+			assert.NotNil(t, parser)
+			assert.Empty(t, parser.BaseParser.accountMappings)
+		},
+	)
 
-	t.Run("Should handle invalid JSON", func(t *testing.T) {
-		tempDir := t.TempDir()
-		mappingPath := filepath.Join(tempDir, "invalid.json")
-		_ = os.WriteFile(mappingPath, []byte("invalid-json"), 0644)
-		parser := NewOpenBankParser(mappingPath)
-		assert.Empty(t, parser.accountMappings)
-	})
+	t.Run(
+		"Should handle invalid JSON", func(t *testing.T) {
+			tempDir := t.TempDir()
+			mappingPath := filepath.Join(tempDir, "invalid.json")
+			_ = os.WriteFile(mappingPath, []byte("invalid-json"), 0644)
+			parser := NewOpenBankParser(mappingPath)
+			assert.Empty(t, parser.BaseParser.accountMappings)
+		},
+	)
 }
 
 func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *testing.T) {
@@ -111,7 +115,7 @@ func TestOpenBankParser_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 	parser := NewOpenBankParser(mappingPath)
 
 	// Act
-	account := parser.resolveAccount("AMAZON MARKETPLACE LUX", -50.0)
+	account := parser.ResolveAccount("AMAZON MARKETPLACE LUX", -50.0)
 
 	// Assert
 	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
@@ -120,7 +124,9 @@ func TestOpenBankParser_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 func TestOpenBankParser_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	// Arrange
 	parser := &OpenBankParser{
-		cardMappings: map[string]string{"*1234": "Alex", "*5678": "Maria"},
+		BaseParser: &BaseParser{
+			cardMappings: map[string]string{"*1234": "Alex", "*5678": "Maria"},
+		},
 	}
 
 	// Act & Assert
@@ -165,8 +171,8 @@ func TestOpenBankParser_ResolveAccount_ShouldReturnUnknown_WhenNoMatchFound(t *t
 	parser := NewOpenBankParser("")
 
 	// Act & Assert
-	assert.Equal(t, "Expenses:Unknown", parser.resolveAccount("Some unknown expense", -10.0))
-	assert.Equal(t, "Income:Unknown", parser.resolveAccount("Some unknown income", 10.0))
+	assert.Equal(t, "Expenses:Unknown", parser.ResolveAccount("Some unknown expense", -10.0))
+	assert.Equal(t, "Income:Unknown", parser.ResolveAccount("Some unknown income", 10.0))
 }
 
 func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *testing.T) {
@@ -174,28 +180,34 @@ func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *test
 	parser := NewOpenBankParser("")
 
 	// Act & Assert
-	t.Run("Should fail when row is too short", func(t *testing.T) {
-		tx, err := parser.rowToTransaction([]string{"too", "short"})
-		assert.Error(t, err)
-		assert.Nil(t, tx)
-	})
+	t.Run(
+		"Should fail when row is too short", func(t *testing.T) {
+			tx, err := parser.rowToTransaction([]string{"too", "short"})
+			assert.Error(t, err)
+			assert.Nil(t, tx)
+		},
+	)
 
-	t.Run("Should fail when date is invalid", func(t *testing.T) {
-		row := make([]string, 10)
-		row[3] = "invalid-date"
-		tx, err := parser.rowToTransaction(row)
-		assert.Error(t, err)
-		assert.Nil(t, tx)
-	})
+	t.Run(
+		"Should fail when date is invalid", func(t *testing.T) {
+			row := make([]string, 10)
+			row[3] = "invalid-date"
+			tx, err := parser.rowToTransaction(row)
+			assert.Error(t, err)
+			assert.Nil(t, tx)
+		},
+	)
 
-	t.Run("Should fail when amount is invalid", func(t *testing.T) {
-		row := make([]string, 10)
-		row[3] = "16/04/2026"
-		row[7] = "invalid-amount"
-		tx, err := parser.rowToTransaction(row)
-		assert.Error(t, err)
-		assert.Nil(t, tx)
-	})
+	t.Run(
+		"Should fail when amount is invalid", func(t *testing.T) {
+			row := make([]string, 10)
+			row[3] = "16/04/2026"
+			row[7] = "invalid-amount"
+			tx, err := parser.rowToTransaction(row)
+			assert.Error(t, err)
+			assert.Nil(t, tx)
+		},
+	)
 }
 
 func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
@@ -229,7 +241,7 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 
 func TestParseSpanishAmount_ShouldHandleThousandsSeparator(t *testing.T) {
 	// Act
-	amount, err := parseSpanishAmount("1.234,56")
+	amount, err := ParseSpanishAmount("1.234,56")
 
 	// Assert
 	assert.NoError(t, err)

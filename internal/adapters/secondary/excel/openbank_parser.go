@@ -2,13 +2,8 @@ package excel
 
 import (
 	"crypto/md5"
-	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,64 +15,13 @@ import (
 
 // OpenBankParser handles OpenBank-specific HTML-based XLS format.
 type OpenBankParser struct {
-	accountMappings map[string]string
-	cardMappings    map[string]string
-	sortedKeywords  []string
-	prefixRegexes   []*regexp.Regexp
-}
-
-type mappingsData struct {
-	Accounts map[string]string `json:"accounts"`
-	Cards    map[string]string `json:"cards"`
-	Prefixes []string          `json:"prefixes"`
+	*BaseParser
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser with optional mappings.
 func NewOpenBankParser(mappingsPath string) *OpenBankParser {
-	// TODO this should be generic for other parsers, use composition
-	data := mappingsData{
-		Accounts: make(map[string]string),
-		Cards:    make(map[string]string),
-		Prefixes: make([]string, 0),
-	}
-
-	if mappingsPath != "" {
-		fileData, err := os.ReadFile(mappingsPath)
-		if err == nil {
-			if err := json.Unmarshal(fileData, &data); err != nil {
-				log.Printf("Error unmarshaling mappings: %v", err)
-			}
-		}
-	}
-
-	// Pre-sort keywords by length descending for deterministic matching (longest first wins)
-	keywords := make([]string, 0, len(data.Accounts))
-	for k := range data.Accounts {
-		keywords = append(keywords, k)
-	}
-	sort.Slice(
-		keywords, func(i, j int) bool {
-			if len(keywords[i]) == len(keywords[j]) {
-				return keywords[i] < keywords[j]
-			}
-			return len(keywords[i]) > len(keywords[j])
-		},
-	)
-
-	// Compile prefixes into case-insensitive regexes anchored to start
-	prefixRegexes := make([]*regexp.Regexp, 0, len(data.Prefixes))
-	for _, prefix := range data.Prefixes {
-		pattern := "(?i)^" + regexp.QuoteMeta(prefix) + `\s*`
-		if regex, err := regexp.Compile(pattern); err == nil {
-			prefixRegexes = append(prefixRegexes, regex)
-		}
-	}
-
 	return &OpenBankParser{
-		accountMappings: data.Accounts,
-		cardMappings:    data.Cards,
-		sortedKeywords:  keywords,
-		prefixRegexes:   prefixRegexes,
+		BaseParser: NewBaseParser(mappingsPath),
 	}
 }
 
@@ -156,17 +100,14 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		return nil, err
 	}
 
-	amount, err := parseSpanishAmount(strings.TrimSpace(row[7]))
+	amount, err := ParseSpanishAmount(strings.TrimSpace(row[7]))
 	if err != nil {
 		return nil, err
 	}
 
 	fullDescription := strings.TrimSpace(row[5])
-	cleanDescription := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
-
-	for _, re := range p.prefixRegexes {
-		cleanDescription = re.ReplaceAllString(cleanDescription, "")
-	}
+	description := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
+	cleanDescription := p.CleanDescription(description)
 
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Openbank"
@@ -181,7 +122,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata["PayedBy"] = payedBy
 	}
 
-	targetAccount := p.resolveAccount(cleanDescription, amount)
+	targetAccount := p.ResolveAccount(cleanDescription, amount)
 
 	return &domain.Transaction{
 		Date:        date,
@@ -195,25 +136,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 	}, nil
 }
 
-func (p *OpenBankParser) resolveAccount(description string, amount float64) string {
-	account := ""
-
-	if amount > 0 {
-		account = "Income:Unknown"
-	} else {
-		account = "Expenses:Unknown"
-	}
-
-	for _, keyword := range p.sortedKeywords {
-		if strings.Contains(strings.ToUpper(description), strings.ToUpper(keyword)) {
-			account = p.accountMappings[keyword]
-			break
-		}
-	}
-
-	return account
-}
-
+// ResolvePayer matches card numbers in the full description to their owners.
 func (p *OpenBankParser) resolvePayer(fullDescription string) string {
 	payer := ""
 
@@ -242,10 +165,4 @@ func getInnerText(node *html.Node) string {
 	collectText(node)
 
 	return sb.String()
-}
-
-func parseSpanishAmount(s string) (float64, error) {
-	s = strings.ReplaceAll(s, ".", "")
-	s = strings.ReplaceAll(s, ",", ".")
-	return strconv.ParseFloat(s, 64)
 }
