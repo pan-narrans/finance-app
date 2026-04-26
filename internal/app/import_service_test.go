@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
@@ -132,4 +133,41 @@ func TestImportService_Import_ShouldHandleLookupErrorAsRowFailure(t *testing.T) 
 	assert.NoError(t, err)
 	assert.Equal(t, 1, summary.Failed)
 	assert.Contains(t, summary.Errors[0].Error(), "lookup failed")
+}
+
+func TestImportService_Import_ShouldSortTransactionsChronologically(t *testing.T) {
+	// Arrange
+	mockUseCase := new(MockTransactionUseCase)
+	mockParser := new(MockBankParser)
+	service := NewImportService(mockUseCase)
+
+	date1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	date2 := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
+	date3 := time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)
+
+	// Unsorted input (newest first)
+	transactions := []domain.Transaction{
+		{Date: date3, Description: "Newest", Code: "CODE3"},
+		{Date: date2, Description: "Middle", Code: "CODE2"},
+		{Date: date1, Description: "Oldest", Code: "CODE1"},
+	}
+
+	mockParser.On("Parse", "file.xls").Return(transactions, nil)
+
+	// Expect calls in chronological order: CODE1, CODE2, CODE3
+	mockUseCase.On("GetByCode", "CODE1").Return(nil, nil).Once()
+	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE1" })).Return(nil).Once()
+
+	mockUseCase.On("GetByCode", "CODE2").Return(nil, nil).Once()
+	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE2" })).Return(nil).Once()
+
+	mockUseCase.On("GetByCode", "CODE3").Return(nil, nil).Once()
+	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE3" })).Return(nil).Once()
+
+	// Act
+	_, err := service.Import(mockParser, "file.xls")
+
+	// Assert
+	assert.NoError(t, err)
+	mockUseCase.AssertExpectations(t)
 }
