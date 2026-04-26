@@ -19,31 +19,28 @@ or "ExternalID" are included to differentiate otherwise identical transactions.
 */
 func (transaction *Transaction) GenerateCode() string {
 	hasher := sha256.New()
+	hash := func(data string) {
+		hasher.Write([]byte(data))
+		hasher.Write([]byte("|"))
+	}
 
-	hasher.Write([]byte(transaction.Date.Format("2006-01-02")))
-	hasher.Write([]byte("|"))
-	hasher.Write([]byte(transaction.Description))
-	hasher.Write([]byte("|"))
+	hash(transaction.Date.Format("2006-01-02"))
+	hash(transaction.Description)
 
 	// Include stable natural keys from metadata if they exist
 	if val, ok := transaction.Metadata["Balance"]; ok {
-		hasher.Write([]byte(val))
+		hash(val)
 	}
-	hasher.Write([]byte("|"))
 	if val, ok := transaction.Metadata["ExternalID"]; ok {
-		hasher.Write([]byte(val))
+		hash(val)
 	}
-	hasher.Write([]byte("|"))
 
 	for _, posting := range transaction.Postings {
-		hasher.Write([]byte(posting.Account))
-		hasher.Write([]byte("|"))
+		hash(posting.Account)
 		if posting.Amount != nil {
-			hasher.Write([]byte(fmt.Sprintf("%.2f", *posting.Amount)))
+			hash(fmt.Sprintf("%.2f", *posting.Amount))
+			hash(posting.Currency)
 		}
-		hasher.Write([]byte("|"))
-		hasher.Write([]byte(posting.Currency))
-		hasher.Write([]byte("|"))
 	}
 
 	return fmt.Sprintf("%x", hasher.Sum(nil))
