@@ -2,3 +2,8 @@
 /ledger-files
 /sample-data
 .gemini/.env
+
+# Binaries
+bin/
+*.exe
+*.test
