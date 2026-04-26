@@ -17,6 +17,7 @@ func TestOpenBankParser_NewOpenBankParser_ShouldLoadMappings_WhenValidFileProvid
 	mappings := mappingsData{
 		Accounts: map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"},
 		Cards:    make(map[string]string),
+		Prefixes: make([]string, 0),
 	}
 	mappingData, _ := json.Marshal(mappings)
 	_ = os.WriteFile(mappingPath, mappingData, 0644)
@@ -51,7 +52,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	htmlPath := filepath.Join(tempDir, "test.xls")
 	htmlContent := `<html><body><table>
 		<tr>
-			<td>Valid</td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>COMPRA EN DIA, MADRID</td><td></td><td>-10,50</td><td></td><td>200,00</td>
+			<td>Valid</td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>Apple pay: COMPRA EN DIA, MADRID</td><td></td><td>-10,50</td><td></td><td>200,00</td>
 		</tr>
 		<tr>
 			<td>Invalid (Too Short)</td><td>01/01/2026</td>
@@ -66,6 +67,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	mappings := mappingsData{
 		Accounts: map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"},
 		Cards:    map[string]string{"1234": "Alex"},
+		Prefixes: []string{"Apple pay:"},
 	}
 	mappingData, _ := json.Marshal(mappings)
 	_ = os.WriteFile(mappingPath, mappingData, 0644)
@@ -79,7 +81,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	require.NoError(t, err)
 	require.Len(t, transactions, 2)
 
-	// First Transaction
+	// First Transaction (Prefix stripping)
 	assert.Equal(t, "2026-04-17", transactions[0].Date.Format("2006-01-02"))
 	assert.Equal(t, "COMPRA EN DIA", transactions[0].Description)
 	assert.Equal(t, -10.50, *transactions[0].Postings[0].Amount)
@@ -194,6 +196,35 @@ func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *test
 		assert.Error(t, err)
 		assert.Nil(t, tx)
 	})
+}
+
+func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
+	// Arrange
+	tempDir := t.TempDir()
+	mappingPath := filepath.Join(tempDir, "mappings.json")
+	mappings := mappingsData{
+		Prefixes: []string{"Apple pay:", "Tarjeta:"},
+	}
+	data, _ := json.Marshal(mappings)
+	_ = os.WriteFile(mappingPath, data, 0644)
+	parser := NewOpenBankParser(mappingPath)
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Apple pay: Starbucks", "Starbucks"},
+		{"APPLE PAY: McDonald's", "McDonald's"},
+		{"Tarjeta: Amazon", "Amazon"},
+		{"Regular Purchase", "Regular Purchase"},
+	}
+
+	for _, tt := range tests {
+		row := []string{"", "", "", "01/01/2026", "", tt.input, "", "10,00", "", "100,00"}
+		tx, err := parser.rowToTransaction(row)
+		assert.NoError(t, err)
+		assert.Equal(t, tt.expected, tx.Description)
+	}
 }
 
 func TestParseSpanishAmount_ShouldHandleThousandsSeparator(t *testing.T) {

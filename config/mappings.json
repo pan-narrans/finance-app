@@ -40,5 +40,9 @@
   "cards": {
     "5489133216624203": "Alex",
     "5489133217345204": "Pilar"
-  }
+  },
+  "prefixes": [
+    "Apple pay:",
+    "TRANSFERENCIA INMEDIATA DE"
+  ]
 }

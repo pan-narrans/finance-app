@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,11 +21,13 @@ type OpenBankParser struct {
 	accountMappings map[string]string
 	cardMappings    map[string]string
 	sortedKeywords  []string
+	prefixRegexes   []*regexp.Regexp
 }
 
 type mappingsData struct {
 	Accounts map[string]string `json:"accounts"`
 	Cards    map[string]string `json:"cards"`
+	Prefixes []string          `json:"prefixes"`
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser with optional mappings.
@@ -33,6 +36,7 @@ func NewOpenBankParser(mappingsPath string) *OpenBankParser {
 	data := mappingsData{
 		Accounts: make(map[string]string),
 		Cards:    make(map[string]string),
+		Prefixes: make([]string, 0),
 	}
 
 	if mappingsPath != "" {
@@ -58,10 +62,20 @@ func NewOpenBankParser(mappingsPath string) *OpenBankParser {
 		},
 	)
 
+	// Compile prefixes into case-insensitive regexes anchored to start
+	prefixRegexes := make([]*regexp.Regexp, 0, len(data.Prefixes))
+	for _, prefix := range data.Prefixes {
+		pattern := "(?i)^" + regexp.QuoteMeta(prefix) + `\s*`
+		if regex, err := regexp.Compile(pattern); err == nil {
+			prefixRegexes = append(prefixRegexes, regex)
+		}
+	}
+
 	return &OpenBankParser{
 		accountMappings: data.Accounts,
 		cardMappings:    data.Cards,
 		sortedKeywords:  keywords,
+		prefixRegexes:   prefixRegexes,
 	}
 }
 
@@ -147,6 +161,10 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 
 	fullDescription := strings.TrimSpace(row[5])
 	cleanDescription := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
+
+	for _, re := range p.prefixRegexes {
+		cleanDescription = re.ReplaceAllString(cleanDescription, "")
+	}
 
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Openbank"
