@@ -43,7 +43,8 @@ func (transaction *Transaction) GenerateCode() string {
 		}
 	}
 
-	return fmt.Sprintf("%x", hasher.Sum(nil))
+	fullHash := fmt.Sprintf("%x", hasher.Sum(nil))
+	return fullHash[:16]
 }
 
 /*
