@@ -1,7 +1,9 @@
 package excel
 
 import (
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -100,6 +102,17 @@ func (b *BaseParser) ResolveAccount(description string, amount float64) string {
 	}
 
 	return account
+}
+
+// HashID returns an 8-character MD5 hash of the provided string.
+// Used for bank-provided balances to create stable external IDs.
+func (b *BaseParser) HashID(data string) string {
+	if data == "" {
+		return ""
+	}
+	hasher := md5.New()
+	hasher.Write([]byte(data))
+	return fmt.Sprintf("%x", hasher.Sum(nil))[:8]
 }
 
 func ParseSpanishAmount(s string) (float64, error) {

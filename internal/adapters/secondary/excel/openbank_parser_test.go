@@ -130,9 +130,9 @@ func TestOpenBankParser_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	}
 
 	// Act & Assert
-	assert.Equal(t, "Alex", parser.resolvePayer("Purchase with card *1234"))
-	assert.Equal(t, "Maria", parser.resolvePayer("Transfer to *5678"))
-	assert.Equal(t, "", parser.resolvePayer("No card info here"))
+	assert.Equal(t, "Alex", parser.ResolvePayer("Purchase with card *1234"))
+	assert.Equal(t, "Maria", parser.ResolvePayer("Transfer to *5678"))
+	assert.Equal(t, "", parser.ResolvePayer("No card info here"))
 }
 
 func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *testing.T) {

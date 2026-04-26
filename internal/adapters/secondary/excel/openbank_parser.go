@@ -1,8 +1,6 @@
 package excel
 
 import (
-	"crypto/md5"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -113,12 +111,11 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 	metadata["Origin"] = "Openbank"
 
 	if balance := strings.TrimSpace(row[9]); balance != "" {
-		hasher := md5.New()
-		hasher.Write([]byte(balance))
-		metadata["ID"] = fmt.Sprintf("%x", hasher.Sum(nil))[:8]
+		metadata["ID"] = p.HashID(balance)
 	}
 
-	if payedBy := p.resolvePayer(fullDescription); payedBy != "" {
+	if payedBy := p.ResolvePayer(fullDescription); payedBy != "" {
+
 		metadata["PayedBy"] = payedBy
 	}
 
@@ -137,7 +134,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 }
 
 // ResolvePayer matches card numbers in the full description to their owners.
-func (p *OpenBankParser) resolvePayer(fullDescription string) string {
+func (p *OpenBankParser) ResolvePayer(fullDescription string) string {
 	payer := ""
 
 	for cardNumber, owner := range p.cardMappings {

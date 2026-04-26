@@ -26,7 +26,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
     - [X] Bank identification via filename (e.g., `openbank.xlsx` -> Openbank parser).
     - [ ] Analyze bank-specific CSV/XLSX formats:
       - [X] Openbank
-      - [ ] ImaginBank
+      - [X] ImaginBank
     - [X] Create mapping logic to transform rows into ledger transactions.
     - [ ] Select target ledger file for the operation.
 - [X] Devise a way to univocally add a code to transactions. Transactions added via file/bot/aggregator should not duplicate but update.
