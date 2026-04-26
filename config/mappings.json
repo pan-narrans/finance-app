@@ -1,4 +1,8 @@
 {
+  "descriptions": {
+    "FCIA MåDOLORES BA": "Farmacia Basanta",
+    "FCIA.BASANTA": "Farmacia Basanta"
+  },
   "accounts": {
     "ALEJANDRO PEREZ ALVAREZ": "Income:Alex",
     "PILAR NOGALES GARCIA": "Income:Pilar",
@@ -23,8 +27,7 @@
     "E. S. MANZANARES": "Expenses:Transporte:Combustible",
     "ESTAURANTE ORIENTAL III": "Expenses:Restaurante",
     "EXPSOTODELREAL": "Expenses:Compra:Supermercado",
-    "FCIA.BASANTA": "Expenses:Salud:Farmacia",
-    "FCIA MåDOLORES BA": "Expenses:Salud:Farmacia",
+    "Farmacia Basanta": "Expenses:Salud:Farmacia",
     "FERRETERIA SOTO": "Expenses:Hogar:Ferreteria",
     "FRUTERIA JARLY": "Expenses:Compra:Fruta y Verdura",
     "GARDEN SOTO SIERRA": "Expenses:Hogar:Plantas",

@@ -239,6 +239,37 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 	}
 }
 
+func TestOpenBankParser_RowToTransaction_ShouldApplyDescriptionMappings(t *testing.T) {
+	// Arrange
+	tempDir := t.TempDir()
+	mappingPath := filepath.Join(tempDir, "mappings.json")
+	mappings := mappingsData{
+		Descriptions: map[string]string{
+			"SQ *BEN AND JERRY": "Ben & Jerry's",
+			"AMZN MKTP":         "Amazon",
+		},
+	}
+	data, _ := json.Marshal(mappings)
+	_ = os.WriteFile(mappingPath, data, 0644)
+	parser := NewOpenBankParser(mappingPath)
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"SQ *BEN AND JERRY MADRID", "Ben & Jerry's"},
+		{"AMZN MKTP LUXEMBOURG", "Amazon"},
+		{"Regular Purchase", "Regular Purchase"},
+	}
+
+	for _, tt := range tests {
+		row := []string{"", "", "", "01/01/2026", "", tt.input, "", "10,00", "", "100,00"}
+		tx, err := parser.rowToTransaction(row)
+		assert.NoError(t, err)
+		assert.Equal(t, tt.expected, tx.Description)
+	}
+}
+
 func TestParseSpanishAmount_ShouldHandleThousandsSeparator(t *testing.T) {
 	// Act
 	amount, err := ParseSpanishAmount("1.234,56")
