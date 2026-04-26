@@ -87,7 +87,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	assert.Equal(t, -10.50, *transactions[0].Postings[0].Amount)
 	assert.Equal(t, "Expenses:Supermarket", transactions[0].Postings[1].Account)
 	assert.Equal(t, "Openbank", transactions[0].Metadata["Origin"])
-	assert.Equal(t, "200,00", transactions[0].Metadata["Balance"])
+	assert.Equal(t, "72c8aa47", transactions[0].Metadata["ID"])
 
 	// Second Transaction (Card resolution)
 	assert.Equal(t, "2026-04-19", transactions[1].Date.Format("2006-01-02"))

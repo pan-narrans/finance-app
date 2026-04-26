@@ -27,11 +27,7 @@ func (transaction *Transaction) GenerateCode() string {
 	hash(transaction.Date.Format("2006-01-02"))
 	hash(transaction.Description)
 
-	// Include stable natural keys from metadata if they exist
-	if val, ok := transaction.Metadata["Balance"]; ok {
-		hash(val)
-	}
-	if val, ok := transaction.Metadata["ExternalID"]; ok {
+	if val, ok := transaction.Metadata["ID"]; ok {
 		hash(val)
 	}
 

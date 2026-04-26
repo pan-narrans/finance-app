@@ -1,7 +1,9 @@
 package excel
 
 import (
+	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"regexp"
@@ -170,7 +172,9 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 	metadata["Origin"] = "Openbank"
 
 	if balance := strings.TrimSpace(row[9]); balance != "" {
-		metadata["Balance"] = balance
+		hasher := md5.New()
+		hasher.Write([]byte(balance))
+		metadata["ID"] = fmt.Sprintf("%x", hasher.Sum(nil))[:8]
 	}
 
 	if payedBy := p.resolvePayer(fullDescription); payedBy != "" {
