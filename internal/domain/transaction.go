@@ -5,6 +5,7 @@ package domain
 import (
 	"crypto/sha256"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -140,9 +141,15 @@ func (transaction *Transaction) Format() string {
 
 	write(" %s\n", transaction.Description)
 
-	// Write metadata as comments
-	for k, v := range transaction.Metadata {
-		write("    ; %s: %s\n", k, v)
+	// Write metadata as comments in alphabetical order
+	keys := make([]string, 0, len(transaction.Metadata))
+	for k := range transaction.Metadata {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		write("    ; %s: %s\n", k, transaction.Metadata[k])
 	}
 
 	for _, posting := range transaction.Postings {

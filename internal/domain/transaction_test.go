@@ -157,3 +157,27 @@ func TestTransaction_GenerateCode_ShouldBeDeterministic(t *testing.T) {
 	// Assert
 	assert.Equal(t, code1, code2)
 }
+
+func TestTransaction_Format_ShouldSortMetadataAlphabetically(t *testing.T) {
+	// Arrange
+	transaction := Transaction{
+		Date:        time.Date(2026, 4, 26, 0, 0, 0, 0, time.UTC),
+		Description: "Test",
+		Metadata: map[string]string{
+			"Zen":    "Last",
+			"Apple":  "First",
+			"Banana": "Middle",
+		},
+		Postings: []Posting{
+			{Account: "Assets:Cash", Amount: new(10.0), Currency: "USD"},
+			{Account: "Expenses:Food", Amount: nil},
+		},
+	}
+
+	// Act
+	got := transaction.Format()
+
+	// Assert
+	expectedMetadata := "    ; Apple: First\n    ; Banana: Middle\n    ; Zen: Last\n"
+	assert.Contains(t, got, expectedMetadata)
+}
