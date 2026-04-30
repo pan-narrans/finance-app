@@ -7,3 +7,7 @@
 bin/
 *.exe
 *.test
+
+# App generated files
+backups/
+imports.log

@@ -27,3 +27,17 @@ Methods:
 type BankParser interface {
 	Parse(filePath string) ([]domain.Transaction, error)
 }
+
+/*
+BackupService defines the contract for creating and restoring backups of the ledger file.
+
+Methods:
+  - CreateBackup: Creates a compressed backup of the specified file. Returns a session ID.
+  - RestoreLast: Restores the most recent backup to the target path.
+  - SaveDiff: Generates and saves a unified diff between the backup and the current file.
+*/
+type BackupService interface {
+	CreateBackup(filePath string) (sessionID string, err error)
+	RestoreLast(targetPath string) error
+	SaveDiff(sessionID string, currentPath string) error
+}

@@ -23,7 +23,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 - [ ] **Excel/CSV Parser:**
     - [X] CLI tool for manual import.
     - [ ] Hotfolder watcher for automated import (`LEDGER_ROOT/imports`).
-    - [ ] Persistent logger for imports
+    - [X] Persistent logger for imports
     - [X] Bank identification via filename (e.g., `openbank.xlsx` -> Openbank parser).
     - [X] Analyze bank-specific CSV/XLSX formats:
       - [X] Openbank
@@ -38,5 +38,5 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 
 ## Phase 4: Refinement
 - [ ] Ensure full compatibility with Paisa GUI.
-- [ ] Add logging and error reporting.
+- [X] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.

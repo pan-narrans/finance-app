@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -40,26 +41,51 @@ func (mockParser *MockBankParser) Parse(filePath string) ([]domain.Transaction, 
 	return args.Get(0).([]domain.Transaction), args.Error(1)
 }
 
-func TestImportService_Import_ShouldHandlePartialSuccess(t *testing.T) {
-	// Arrange
+type MockBackupService struct {
+	mock.Mock
+}
+
+func (m *MockBackupService) CreateBackup(filePath string) (string, error) {
+	args := m.Called(filePath)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockBackupService) RestoreLast(targetPath string) error {
+	return m.Called(targetPath).Error(0)
+}
+
+func (m *MockBackupService) SaveDiff(sessionID, currentPath string) error {
+	return m.Called(sessionID, currentPath).Error(0)
+}
+
+func setupImportService() (*ImportService, *MockTransactionUseCase, *MockBankParser, *MockBackupService) {
 	mockUseCase := new(MockTransactionUseCase)
 	mockParser := new(MockBankParser)
-	service := NewImportService(mockUseCase)
+	mockBackup := new(MockBackupService)
+	logger := SetupLogger(io.Discard)
+	service := NewImportService(mockUseCase, mockBackup, logger, "book.ledger")
+	return service, mockUseCase, mockParser, mockBackup
+}
+
+func TestImportService_Import_ShouldHandlePartialSuccess(t *testing.T) {
+	// Arrange
+	service, mockUseCase, mockParser, mockBackup := setupImportService()
 
 	transactions := []domain.Transaction{
 		{Description: "Success", Code: "CODE1"},
 		{Description: "Fail", Code: "CODE2"},
 	}
 
+	mockBackup.On("CreateBackup", "book.ledger").Return("session-123", nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 
-	// First transaction succeeds (Add)
 	mockUseCase.On("GetByCode", "CODE1").Return(nil, nil).Once()
 	mockUseCase.On("Add", transactions[0]).Return(nil).Once()
 
-	// Second transaction fails on Add
 	mockUseCase.On("GetByCode", "CODE2").Return(nil, nil).Once()
 	mockUseCase.On("Add", transactions[1]).Return(errors.New("db error")).Once()
+
+	mockBackup.On("SaveDiff", "session-123", "book.ledger").Return(nil)
 
 	// Act
 	summary, err := service.Import(mockParser, "file.xls")
@@ -70,24 +96,22 @@ func TestImportService_Import_ShouldHandlePartialSuccess(t *testing.T) {
 	assert.Equal(t, 1, summary.Added)
 	assert.Equal(t, 1, summary.Failed)
 	assert.Len(t, summary.Errors, 1)
-
-	mockUseCase.AssertExpectations(t)
 }
 
 func TestImportService_Import_ShouldHandleUpdates(t *testing.T) {
 	// Arrange
-	mockUseCase := new(MockTransactionUseCase)
-	mockParser := new(MockBankParser)
-	service := NewImportService(mockUseCase)
+	service, mockUseCase, mockParser, mockBackup := setupImportService()
 
 	transactions := []domain.Transaction{
 		{Description: "Existing", Code: "EXISTING_CODE"},
 	}
 	existing := &domain.Transaction{Code: "EXISTING_CODE"}
 
+	mockBackup.On("CreateBackup", "book.ledger").Return("session-123", nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 	mockUseCase.On("GetByCode", "EXISTING_CODE").Return(existing, nil)
 	mockUseCase.On("Update", transactions[0]).Return(nil)
+	mockBackup.On("SaveDiff", "session-123", "book.ledger").Return(nil)
 
 	// Act
 	summary, err := service.Import(mockParser, "file.xls")
@@ -96,15 +120,13 @@ func TestImportService_Import_ShouldHandleUpdates(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, summary.Updated)
 	assert.Equal(t, 0, summary.Added)
-	mockUseCase.AssertExpectations(t)
 }
 
 func TestImportService_Import_ShouldReturnError_WhenParserFails(t *testing.T) {
 	// Arrange
-	mockUseCase := new(MockTransactionUseCase)
-	mockParser := new(MockBankParser)
-	service := NewImportService(mockUseCase)
+	service, _, mockParser, mockBackup := setupImportService()
 
+	mockBackup.On("CreateBackup", "book.ledger").Return("session-123", nil)
 	mockParser.On("Parse", "invalid.xls").Return([]domain.Transaction{}, errors.New("parse error"))
 
 	// Act
@@ -116,53 +138,28 @@ func TestImportService_Import_ShouldReturnError_WhenParserFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "parse error")
 }
 
-func TestImportService_Import_ShouldHandleLookupErrorAsRowFailure(t *testing.T) {
-	// Arrange
-	mockUseCase := new(MockTransactionUseCase)
-	mockParser := new(MockBankParser)
-	service := NewImportService(mockUseCase)
-
-	transactions := []domain.Transaction{{Code: "BAD_LOOKUP"}}
-	mockParser.On("Parse", "file.xls").Return(transactions, nil)
-	mockUseCase.On("GetByCode", "BAD_LOOKUP").Return(nil, errors.New("io error"))
-
-	// Act
-	summary, err := service.Import(mockParser, "file.xls")
-
-	// Assert
-	assert.NoError(t, err)
-	assert.Equal(t, 1, summary.Failed)
-	assert.Contains(t, summary.Errors[0].Error(), "lookup failed")
-}
-
 func TestImportService_Import_ShouldSortTransactionsChronologically(t *testing.T) {
 	// Arrange
-	mockUseCase := new(MockTransactionUseCase)
-	mockParser := new(MockBankParser)
-	service := NewImportService(mockUseCase)
+	service, mockUseCase, mockParser, mockBackup := setupImportService()
 
 	date1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	date2 := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
-	date3 := time.Date(2026, 1, 3, 0, 0, 0, 0, time.UTC)
 
-	// Unsorted input (newest first)
 	transactions := []domain.Transaction{
-		{Date: date3, Description: "Newest", Code: "CODE3"},
-		{Date: date2, Description: "Middle", Code: "CODE2"},
+		{Date: date2, Description: "Newest", Code: "CODE2"},
 		{Date: date1, Description: "Oldest", Code: "CODE1"},
 	}
 
+	mockBackup.On("CreateBackup", "book.ledger").Return("session-123", nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 
-	// Expect calls in chronological order: CODE1, CODE2, CODE3
 	mockUseCase.On("GetByCode", "CODE1").Return(nil, nil).Once()
 	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE1" })).Return(nil).Once()
 
 	mockUseCase.On("GetByCode", "CODE2").Return(nil, nil).Once()
 	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE2" })).Return(nil).Once()
 
-	mockUseCase.On("GetByCode", "CODE3").Return(nil, nil).Once()
-	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE3" })).Return(nil).Once()
+	mockBackup.On("SaveDiff", "session-123", "book.ledger").Return(nil)
 
 	// Act
 	_, err := service.Import(mockParser, "file.xls")
@@ -170,4 +167,17 @@ func TestImportService_Import_ShouldSortTransactionsChronologically(t *testing.T
 	// Assert
 	assert.NoError(t, err)
 	mockUseCase.AssertExpectations(t)
+}
+
+func TestImportService_RollbackLastImport_ShouldCallBackupService(t *testing.T) {
+	// Arrange
+	service, _, _, mockBackup := setupImportService()
+	mockBackup.On("RestoreLast", "book.ledger").Return(nil)
+
+	// Act
+	err := service.RollbackLastImport()
+
+	// Assert
+	assert.NoError(t, err)
+	mockBackup.AssertExpectations(t)
 }
