@@ -26,24 +26,28 @@ func TestOpenBankParser_NewOpenBankParser_ShouldLoadMappings_WhenValidFileProvid
 	parser := NewOpenBankParser(mappingPath)
 
 	// Assert
-	assert.Equal(t, "Expenses:Supermarket", parser.accountMappings["DIA"])
+	assert.Equal(t, "Expenses:Supermarket", parser.BaseParser.accountMappings["DIA"])
 }
 
 func TestOpenBankParser_NewOpenBankParser_ShouldHandleErrors(t *testing.T) {
 	// Act & Assert
-	t.Run("Should handle missing file", func(t *testing.T) {
-		parser := NewOpenBankParser("non-existent.json")
-		assert.NotNil(t, parser)
-		assert.Empty(t, parser.accountMappings)
-	})
+	t.Run(
+		"Should handle missing file", func(t *testing.T) {
+			parser := NewOpenBankParser("non-existent.json")
+			assert.NotNil(t, parser)
+			assert.Empty(t, parser.BaseParser.accountMappings)
+		},
+	)
 
-	t.Run("Should handle invalid JSON", func(t *testing.T) {
-		tempDir := t.TempDir()
-		mappingPath := filepath.Join(tempDir, "invalid.json")
-		_ = os.WriteFile(mappingPath, []byte("invalid-json"), 0644)
-		parser := NewOpenBankParser(mappingPath)
-		assert.Empty(t, parser.accountMappings)
-	})
+	t.Run(
+		"Should handle invalid JSON", func(t *testing.T) {
+			tempDir := t.TempDir()
+			mappingPath := filepath.Join(tempDir, "invalid.json")
+			_ = os.WriteFile(mappingPath, []byte("invalid-json"), 0644)
+			parser := NewOpenBankParser(mappingPath)
+			assert.Empty(t, parser.BaseParser.accountMappings)
+		},
+	)
 }
 
 func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *testing.T) {
@@ -52,13 +56,13 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	htmlPath := filepath.Join(tempDir, "test.xls")
 	htmlContent := `<html><body><table>
 		<tr>
-			<td>Valid</td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>Apple pay: COMPRA EN DIA, MADRID</td><td></td><td>-10,50</td><td></td><td>200,00</td>
+			<td>Valid</td><td>18/04/2026</td><td></td><td>19/04/2026</td><td></td><td>ALEJANDRO PEREZ *1234</td><td></td><td>50,00</td><td></td><td>250,00</td>
 		</tr>
 		<tr>
 			<td>Invalid (Too Short)</td><td>01/01/2026</td>
 		</tr>
 		<tr>
-			<td>Valid</td><td>18/04/2026</td><td></td><td>19/04/2026</td><td></td><td>ALEJANDRO PEREZ *1234</td><td></td><td>50,00</td><td></td><td>250,00</td>
+			<td>Valid</td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>Apple pay: COMPRA EN DIA, MADRID</td><td></td><td>-10,50</td><td></td><td>200,00</td>
 		</tr>
 	</table></body></html>`
 	_ = os.WriteFile(htmlPath, []byte(htmlContent), 0644)
@@ -81,19 +85,19 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	require.NoError(t, err)
 	require.Len(t, transactions, 2)
 
-	// First Transaction (Prefix stripping)
-	assert.Equal(t, "2026-04-17", transactions[0].Date.Format("2006-01-02"))
-	assert.Equal(t, "COMPRA EN DIA", transactions[0].Description)
-	assert.Equal(t, -10.50, *transactions[0].Postings[0].Amount)
-	assert.Equal(t, "Expenses:Supermarket", transactions[0].Postings[1].Account)
-	assert.Equal(t, "Openbank", transactions[0].Metadata["Origin"])
-	assert.Equal(t, "72c8aa47", transactions[0].Metadata["ID"])
+	// First Transaction (18/04/2026 - Newest)
+	assert.Equal(t, "2026-04-19", transactions[0].Date.Format("2006-01-02"))
+	assert.Equal(t, 50.0, *transactions[0].Postings[0].Amount)
+	assert.Equal(t, "Income:Alex", transactions[0].Postings[1].Account)
+	assert.Equal(t, "Alex", transactions[0].Metadata["PayedBy"])
 
-	// Second Transaction (Card resolution)
-	assert.Equal(t, "2026-04-19", transactions[1].Date.Format("2006-01-02"))
-	assert.Equal(t, 50.0, *transactions[1].Postings[0].Amount)
-	assert.Equal(t, "Income:Alex", transactions[1].Postings[1].Account)
-	assert.Equal(t, "Alex", transactions[1].Metadata["PayedBy"])
+	// Second Transaction (16/04/2026 - Oldest)
+	assert.Equal(t, "2026-04-17", transactions[1].Date.Format("2006-01-02"))
+	assert.Equal(t, "COMPRA EN DIA", transactions[1].Description)
+	assert.Equal(t, -10.50, *transactions[1].Postings[0].Amount)
+	assert.Equal(t, "Expenses:Supermarket", transactions[1].Postings[1].Account)
+	assert.Equal(t, "Openbank", transactions[1].Metadata["Origin"])
+	assert.Equal(t, "72c8aa47", transactions[1].Metadata["ID"])
 }
 
 func TestOpenBankParser_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
@@ -111,7 +115,7 @@ func TestOpenBankParser_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 	parser := NewOpenBankParser(mappingPath)
 
 	// Act
-	account := parser.resolveAccount("AMAZON MARKETPLACE LUX", -50.0)
+	account := parser.ResolveAccount("AMAZON MARKETPLACE LUX", -50.0)
 
 	// Assert
 	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
@@ -120,13 +124,15 @@ func TestOpenBankParser_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 func TestOpenBankParser_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	// Arrange
 	parser := &OpenBankParser{
-		cardMappings: map[string]string{"*1234": "Alex", "*5678": "Maria"},
+		BaseParser: &BaseParser{
+			cardMappings: map[string]string{"*1234": "Alex", "*5678": "Maria"},
+		},
 	}
 
 	// Act & Assert
-	assert.Equal(t, "Alex", parser.resolvePayer("Purchase with card *1234"))
-	assert.Equal(t, "Maria", parser.resolvePayer("Transfer to *5678"))
-	assert.Equal(t, "", parser.resolvePayer("No card info here"))
+	assert.Equal(t, "Alex", parser.ResolvePayer("Purchase with card *1234"))
+	assert.Equal(t, "Maria", parser.ResolvePayer("Transfer to *5678"))
+	assert.Equal(t, "", parser.ResolvePayer("No card info here"))
 }
 
 func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *testing.T) {
@@ -165,8 +171,8 @@ func TestOpenBankParser_ResolveAccount_ShouldReturnUnknown_WhenNoMatchFound(t *t
 	parser := NewOpenBankParser("")
 
 	// Act & Assert
-	assert.Equal(t, "Expenses:Unknown", parser.resolveAccount("Some unknown expense", -10.0))
-	assert.Equal(t, "Income:Unknown", parser.resolveAccount("Some unknown income", 10.0))
+	assert.Equal(t, "Expenses:Unknown", parser.ResolveAccount("Some unknown expense", -10.0))
+	assert.Equal(t, "Income:Unknown", parser.ResolveAccount("Some unknown income", 10.0))
 }
 
 func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *testing.T) {
@@ -174,28 +180,34 @@ func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *test
 	parser := NewOpenBankParser("")
 
 	// Act & Assert
-	t.Run("Should fail when row is too short", func(t *testing.T) {
-		tx, err := parser.rowToTransaction([]string{"too", "short"})
-		assert.Error(t, err)
-		assert.Nil(t, tx)
-	})
+	t.Run(
+		"Should fail when row is too short", func(t *testing.T) {
+			tx, err := parser.rowToTransaction([]string{"too", "short"})
+			assert.Error(t, err)
+			assert.Nil(t, tx)
+		},
+	)
 
-	t.Run("Should fail when date is invalid", func(t *testing.T) {
-		row := make([]string, 10)
-		row[3] = "invalid-date"
-		tx, err := parser.rowToTransaction(row)
-		assert.Error(t, err)
-		assert.Nil(t, tx)
-	})
+	t.Run(
+		"Should fail when date is invalid", func(t *testing.T) {
+			row := make([]string, 10)
+			row[3] = "invalid-date"
+			tx, err := parser.rowToTransaction(row)
+			assert.Error(t, err)
+			assert.Nil(t, tx)
+		},
+	)
 
-	t.Run("Should fail when amount is invalid", func(t *testing.T) {
-		row := make([]string, 10)
-		row[3] = "16/04/2026"
-		row[7] = "invalid-amount"
-		tx, err := parser.rowToTransaction(row)
-		assert.Error(t, err)
-		assert.Nil(t, tx)
-	})
+	t.Run(
+		"Should fail when amount is invalid", func(t *testing.T) {
+			row := make([]string, 10)
+			row[3] = "16/04/2026"
+			row[7] = "invalid-amount"
+			tx, err := parser.rowToTransaction(row)
+			assert.Error(t, err)
+			assert.Nil(t, tx)
+		},
+	)
 }
 
 func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
@@ -227,9 +239,40 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 	}
 }
 
+func TestOpenBankParser_RowToTransaction_ShouldApplyDescriptionMappings(t *testing.T) {
+	// Arrange
+	tempDir := t.TempDir()
+	mappingPath := filepath.Join(tempDir, "mappings.json")
+	mappings := mappingsData{
+		Descriptions: map[string]string{
+			"SQ *BEN AND JERRY": "Ben & Jerry's",
+			"AMZN MKTP":         "Amazon",
+		},
+	}
+	data, _ := json.Marshal(mappings)
+	_ = os.WriteFile(mappingPath, data, 0644)
+	parser := NewOpenBankParser(mappingPath)
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"SQ *BEN AND JERRY MADRID", "Ben & Jerry's"},
+		{"AMZN MKTP LUXEMBOURG", "Amazon"},
+		{"Regular Purchase", "Regular Purchase"},
+	}
+
+	for _, tt := range tests {
+		row := []string{"", "", "", "01/01/2026", "", tt.input, "", "10,00", "", "100,00"}
+		tx, err := parser.rowToTransaction(row)
+		assert.NoError(t, err)
+		assert.Equal(t, tt.expected, tx.Description)
+	}
+}
+
 func TestParseSpanishAmount_ShouldHandleThousandsSeparator(t *testing.T) {
 	// Act
-	amount, err := parseSpanishAmount("1.234,56")
+	amount, err := ParseSpanishAmount("1.234,56")
 
 	// Assert
 	assert.NoError(t, err)

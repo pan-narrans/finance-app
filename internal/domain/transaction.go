@@ -5,7 +5,7 @@ package domain
 import (
 	"crypto/sha256"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -80,8 +80,11 @@ GenerateCode creates a deterministic unique identifier for the transaction
 based on its date, description, and postings.
 
 It uses SHA-256 and pipe delimiters to prevent field-boundary collisions.
-Status is excluded as it is mutable. Specific stable metadata like "Balance"
-or "ExternalID" are included to differentiate otherwise identical transactions.
+Status is excluded as it is mutable. Specific stable metadata "ID" is
+included to differentiate otherwise identical transactions.
+
+Since the account is dependent on the description, it is excluded from code generation.
+This ensures that changes to the account mappings file do not alter existing transaction codes.
 */
 func (transaction *Transaction) GenerateCode() string {
 	hasher := sha256.New()
@@ -98,7 +101,6 @@ func (transaction *Transaction) GenerateCode() string {
 	}
 
 	for _, posting := range transaction.Postings {
-		hash(posting.Account)
 		if posting.Amount != nil {
 			hash(fmt.Sprintf("%.2f", *posting.Amount))
 			hash(posting.Currency)
@@ -146,7 +148,7 @@ func (transaction *Transaction) Format() string {
 	for k := range transaction.Metadata {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		write("    ; %s: %s\n", k, transaction.Metadata[k])

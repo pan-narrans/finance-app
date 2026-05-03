@@ -1,7 +1,9 @@
 package app
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -28,6 +30,14 @@ func (importService *ImportService) Import(parser ports.BankParser, filePath str
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
+
+	// Sort transactions chronologically (oldest first).
+	// Use Stable sort to preserve original order for transactions on the same day.
+	slices.SortStableFunc(
+		transactions, func(a, b domain.Transaction) int {
+			return cmp.Compare(a.Date.Unix(), b.Date.Unix())
+		},
+	)
 
 	summary := &ports.ImportSummary{
 		Total:  len(transactions),
