@@ -1,13 +1,14 @@
 package excel
 
 import (
+	"cmp"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -77,11 +78,8 @@ func (b *BaseParser) CleanDescription(description string) string {
 	}
 	clean = strings.TrimSpace(clean)
 
-	upperClean := strings.ToUpper(clean)
-	for _, keyword := range b.sortedDescriptionKeywords {
-		if strings.Contains(upperClean, strings.ToUpper(keyword)) {
-			return b.descriptionMappings[keyword]
-		}
+	if match, ok := b.findMatch(clean, b.sortedDescriptionKeywords, b.descriptionMappings); ok {
+		return match
 	}
 
 	return clean
@@ -91,25 +89,21 @@ func (b *BaseParser) CleanDescription(description string) string {
 func (b *BaseParser) ResolveAccount(description string, amount float64) string {
 	account := ""
 
-	if amount > 0 {
+	if match, ok := b.findMatch(description, b.sortedAccountKeywords, b.accountMappings); ok {
+		account = match
+	} else if amount > 0 {
 		account = "Income:Unknown"
 	} else {
 		account = "Expenses:Unknown"
 	}
 
-	upperDesc := strings.ToUpper(description)
-	for _, keyword := range b.sortedAccountKeywords {
-		if strings.Contains(upperDesc, strings.ToUpper(keyword)) {
-			account = b.accountMappings[keyword]
-			break
-		}
-	}
-
 	return account
 }
 
-// HashID returns an 8-character MD5 hash of the provided string.
-// Used for bank-provided balances to create stable external IDs.
+/*
+HashID returns an 8-character MD5 hash of the provided string.
+Used for bank-provided balances to create stable external IDs.
+*/
 func (b *BaseParser) HashID(data string) string {
 	if data == "" {
 		return ""
@@ -119,23 +113,50 @@ func (b *BaseParser) HashID(data string) string {
 	return fmt.Sprintf("%x", hasher.Sum(nil))[:8]
 }
 
+/*
+ParseSpanishAmount converts a Spanish-formatted currency string (e.g., "1.234,56")
+to a float64. It removes thousands separators (dots) and replaces the
+decimal comma with a dot before parsing.
+*/
 func ParseSpanishAmount(s string) (float64, error) {
 	s = strings.ReplaceAll(s, ".", "")
 	s = strings.ReplaceAll(s, ",", ".")
 	return strconv.ParseFloat(s, 64)
 }
 
+/*
+findMatch performs a case-insensitive keyword search within the provided text.
+It iterates through the sorted keywords and returns the mapped value for the
+first match found.
+
+Returns (value, true) if found, or ("", false) otherwise.
+*/
+func (b *BaseParser) findMatch(text string, keywords []string, mappings map[string]string) (string, bool) {
+	upperText := strings.ToUpper(text)
+	for _, keyword := range keywords {
+		if strings.Contains(upperText, strings.ToUpper(keyword)) {
+			return mappings[keyword], true
+		}
+	}
+	return "", false
+}
+
+/*
+sortKeywords returns a slice of keys from the provided map, sorted by length
+in descending order (longest first) to ensure deterministic keyword matching.
+Keys of equal length are sorted alphabetically.
+*/
 func sortKeywords(m map[string]string) []string {
 	keywords := make([]string, 0, len(m))
 	for k := range m {
 		keywords = append(keywords, k)
 	}
-	sort.Slice(
-		keywords, func(i, j int) bool {
-			if len(keywords[i]) == len(keywords[j]) {
-				return keywords[i] < keywords[j]
+	slices.SortFunc(
+		keywords, func(a, b string) int {
+			if len(a) != len(b) {
+				return cmp.Compare(len(b), len(a))
 			}
-			return len(keywords[i]) > len(keywords[j])
+			return cmp.Compare(a, b)
 		},
 	)
 	return keywords
