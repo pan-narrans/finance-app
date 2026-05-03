@@ -3,7 +3,9 @@
 package domain
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -47,6 +49,7 @@ Fields:
   - Status: The clearing status (* for cleared, ! for pending, or none).
   - Code: Optional unique identifier or reference number in parentheses.
   - Description: Human-readable description, usually storing the payee.
+  - Metadata: Key-value pairs stored as comments (e.g., "PayedBy": "Alex").
   - Postings: Detailed line items (at least two required).
 */
 type Transaction struct {
@@ -54,6 +57,7 @@ type Transaction struct {
 	Status      TransactionStatus
 	Code        string
 	Description string
+	Metadata    map[string]string
 	Postings    []Posting
 }
 
@@ -72,11 +76,48 @@ type Posting struct {
 }
 
 /*
+GenerateCode creates a deterministic unique identifier for the transaction
+based on its date, description, and postings.
+
+It uses SHA-256 and pipe delimiters to prevent field-boundary collisions.
+Status is excluded as it is mutable. Specific stable metadata "ID" is
+included to differentiate otherwise identical transactions.
+
+Since the account is dependent on the description, it is excluded from code generation.
+This ensures that changes to the account mappings file do not alter existing transaction codes.
+*/
+func (transaction *Transaction) GenerateCode() string {
+	hasher := sha256.New()
+	hash := func(data string) {
+		hasher.Write([]byte(data))
+		hasher.Write([]byte("|"))
+	}
+
+	hash(transaction.Date.Format("2006-01-02"))
+	hash(transaction.Description)
+
+	if val, ok := transaction.Metadata["ID"]; ok {
+		hash(val)
+	}
+
+	for _, posting := range transaction.Postings {
+		if posting.Amount != nil {
+			hash(fmt.Sprintf("%.2f", *posting.Amount))
+			hash(posting.Currency)
+		}
+	}
+
+	fullHash := fmt.Sprintf("%x", hasher.Sum(nil))
+	return fullHash[:16]
+}
+
+/*
 Format returns a multi-line string compatible with Ledger CLI.
 
 It applies the following formatting rules:
   - Dates use YYYY/MM/DD format.
   - Payees and descriptions are appended to the header.
+  - Metadata is stored as indented comments below the header.
   - Account names are indented by four spaces.
   - Amounts are right-aligned to a standard column (default 52).
   - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
@@ -101,6 +142,17 @@ func (transaction *Transaction) Format() string {
 	}
 
 	write(" %s\n", transaction.Description)
+
+	// Write metadata as comments in alphabetical order
+	keys := make([]string, 0, len(transaction.Metadata))
+	for k := range transaction.Metadata {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	for _, k := range keys {
+		write("    ; %s: %s\n", k, transaction.Metadata[k])
+	}
 
 	for _, posting := range transaction.Postings {
 		write("    %s", posting.Account)

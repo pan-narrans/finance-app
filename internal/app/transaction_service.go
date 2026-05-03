@@ -71,3 +71,8 @@ func (transactionService *TransactionService) Delete(code string) error {
 
 	return nil
 }
+
+// GetByCode Finds a transaction by its code.
+func (transactionService *TransactionService) GetByCode(code string) (*domain.Transaction, error) {
+	return transactionService.repository.FindByCode(code)
+}

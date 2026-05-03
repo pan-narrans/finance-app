@@ -126,6 +126,8 @@ transactionRegex compiles a regular expression to match a transaction block
 by its unique code. It looks for the DATE followed by the (CODE) marker.
 */
 func (fileRepository *TransactionFileRepository) transactionRegex(code string) *regexp.Regexp {
+	// (?m) enables multi-line mode.
+	// We match from the date line to the next blank line or end of file.
 	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
 	return regexp.MustCompile(pattern)
 }
