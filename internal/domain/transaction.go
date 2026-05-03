@@ -5,7 +5,7 @@ package domain
 import (
 	"crypto/sha256"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -148,7 +148,7 @@ func (transaction *Transaction) Format() string {
 	for k := range transaction.Metadata {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 
 	for _, k := range keys {
 		write("    ; %s: %s\n", k, transaction.Metadata[k])

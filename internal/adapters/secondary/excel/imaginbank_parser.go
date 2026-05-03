@@ -34,7 +34,6 @@ func (p *ImaginBankParser) Parse(filePath string) ([]domain.Transaction, error) 
 	reader.Comma = ';'
 	reader.LazyQuotes = true
 
-	// Read header
 	_, err = reader.Read()
 	if err != nil {
 		return nil, err
@@ -46,8 +45,9 @@ func (p *ImaginBankParser) Parse(filePath string) ([]domain.Transaction, error) 
 		if err == io.EOF {
 			break
 		}
+
 		if err != nil {
-			continue // Skip malformed rows
+			continue
 		}
 
 		if transaction, err := p.rowToTransaction(row); err == nil {
@@ -63,7 +63,6 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		return nil, domain.NewValidationErrors("Parser", "Row", "row too short")
 	}
 
-	// Format: Concepto;Fecha;Importe;Saldo
 	fullDescription := strings.TrimSpace(row[0])
 	dateStr := strings.TrimSpace(row[1])
 	amountStr := strings.TrimSpace(row[2])
