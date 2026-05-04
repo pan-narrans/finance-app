@@ -16,9 +16,9 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingsPath string) *ImaginBankParser {
+func NewImaginBankParser(mappingSvc *domain.MappingService) *ImaginBankParser {
 	return &ImaginBankParser{
-		BaseParser: NewBaseParser(mappingsPath),
+		BaseParser: NewBaseParser(mappingSvc),
 	}
 }
 
@@ -80,8 +80,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		return nil, err
 	}
 
-	cleanDescription := p.CleanDescription(fullDescription)
-	targetAccount := p.ResolveAccount(cleanDescription, amount)
+	cleanDescription := p.mappingSvc.CleanDescription(fullDescription)
+	targetAccount := p.mappingSvc.ResolveAccount(cleanDescription, amount)
 
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Imaginbank"

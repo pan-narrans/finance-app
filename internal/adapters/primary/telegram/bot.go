@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,7 +27,7 @@ type Bot struct {
 	transactionUC  ports.TransactionUseCase
 	importService  *app.ImportService
 	parserFactory  *excel.ParserFactory
-	baseParser     *excel.BaseParser
+	mappingSvc     *domain.MappingService
 	ledgerFilePath string
 
 	// Simple session storage for drafts
@@ -37,7 +36,15 @@ type Bot struct {
 }
 
 // NewBot creates a new Telegram bot instance.
-func NewBot(token string, allowedIDs []int64, txUC ports.TransactionUseCase, importSvc *app.ImportService, factory *excel.ParserFactory, ledgerPath string, configRoot string) (*Bot, error) {
+func NewBot(
+	token string,
+	allowedIDs []int64,
+	txUC ports.TransactionUseCase,
+	importSvc *app.ImportService,
+	factory *excel.ParserFactory,
+	mappingSvc *domain.MappingService,
+	ledgerPath string,
+) (*Bot, error) {
 	pref := telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
@@ -53,15 +60,13 @@ func NewBot(token string, allowedIDs []int64, txUC ports.TransactionUseCase, imp
 		allowedMap[id] = struct{}{}
 	}
 
-	mappingsPath := filepath.Join(configRoot, "mappings.json")
-
 	return &Bot{
 		teleBot:        b,
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
 		importService:  importSvc,
 		parserFactory:  factory,
-		baseParser:     excel.NewBaseParser(mappingsPath),
+		mappingSvc:     mappingSvc,
 		ledgerFilePath: ledgerPath,
 		drafts:         make(map[int64]domain.Transaction),
 	}, nil
@@ -70,19 +75,23 @@ func NewBot(token string, allowedIDs []int64, txUC ports.TransactionUseCase, imp
 // Start initializes the bot handlers and starts polling.
 func (b *Bot) Start() {
 	// Middleware: Auth
-	b.teleBot.Use(func(next telebot.HandlerFunc) telebot.HandlerFunc {
-		return func(c telebot.Context) error {
-			if _, ok := b.allowedIDs[c.Sender().ID]; !ok {
-				log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
-				return nil
+	b.teleBot.Use(
+		func(next telebot.HandlerFunc) telebot.HandlerFunc {
+			return func(c telebot.Context) error {
+				if _, ok := b.allowedIDs[c.Sender().ID]; !ok {
+					log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
+					return nil
+				}
+				return next(c)
 			}
-			return next(c)
-		}
-	})
+		},
+	)
 
-	b.teleBot.Handle("/start", func(c telebot.Context) error {
-		return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
-	})
+	b.teleBot.Handle(
+		"/start", func(c telebot.Context) error {
+			return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
+		},
+	)
 
 	// Handle Manual Text Entries
 	b.teleBot.Handle(telebot.OnText, b.handleText)
@@ -112,8 +121,8 @@ func (b *Bot) handleText(c telebot.Context) error {
 	}
 
 	description := matches[3]
-	cleanDescription := b.baseParser.CleanDescription(description)
-	targetAccount := b.baseParser.ResolveAccount(cleanDescription, amount)
+	cleanDescription := b.mappingSvc.CleanDescription(description)
+	targetAccount := b.mappingSvc.ResolveAccount(cleanDescription, amount)
 
 	// Add Metadata
 	metadata := make(map[string]string)
@@ -209,8 +218,10 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}
 
-	response := fmt.Sprintf("Import Complete!\nTotal: %d\nAdded: %d\nUpdated: %d\nFailed: %d",
-		summary.Total, summary.Added, summary.Updated, summary.Failed)
+	response := fmt.Sprintf(
+		"Import Complete!\nTotal: %d\nAdded: %d\nUpdated: %d\nFailed: %d",
+		summary.Total, summary.Added, summary.Updated, summary.Failed,
+	)
 
 	return c.Send(response)
 }

@@ -16,10 +16,10 @@ type OpenBankParser struct {
 	*BaseParser
 }
 
-// NewOpenBankParser creates a new instance of OpenBankParser with optional mappings.
-func NewOpenBankParser(mappingsPath string) *OpenBankParser {
+// NewOpenBankParser creates a new instance of OpenBankParser.
+func NewOpenBankParser(mappingSvc *domain.MappingService) *OpenBankParser {
 	return &OpenBankParser{
-		BaseParser: NewBaseParser(mappingsPath),
+		BaseParser: NewBaseParser(mappingSvc),
 	}
 }
 
@@ -105,7 +105,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 
 	fullDescription := strings.TrimSpace(row[5])
 	description := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
-	cleanDescription := p.CleanDescription(description)
+	cleanDescription := p.mappingSvc.CleanDescription(description)
 
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Openbank"
@@ -114,12 +114,11 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata["ID"] = p.HashID(balance)
 	}
 
-	if payedBy := p.ResolvePayer(fullDescription); payedBy != "" {
-
+	if payedBy := p.mappingSvc.ResolvePayer(fullDescription); payedBy != "" {
 		metadata["PayedBy"] = payedBy
 	}
 
-	targetAccount := p.ResolveAccount(cleanDescription, amount)
+	targetAccount := p.mappingSvc.ResolveAccount(cleanDescription, amount)
 
 	return &domain.Transaction{
 		Date:        date,
@@ -131,20 +130,6 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 			{Account: targetAccount},
 		},
 	}, nil
-}
-
-// ResolvePayer matches card numbers in the full description to their owners.
-func (p *OpenBankParser) ResolvePayer(fullDescription string) string {
-	payer := ""
-
-	for cardNumber, owner := range p.cardMappings {
-		if strings.Contains(fullDescription, cardNumber) {
-			payer = owner
-			break
-		}
-	}
-
-	return payer
 }
 
 func getInnerText(node *html.Node) string {
