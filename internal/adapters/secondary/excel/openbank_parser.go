@@ -5,11 +5,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 	"golang.org/x/net/html"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/text/transform"
 )
+
+// Ensure OpenBankParser implements ports.BankParser at compile time.
+var _ ports.BankParser = (*OpenBankParser)(nil)
 
 // OpenBankParser handles OpenBank-specific HTML-based XLS format.
 type OpenBankParser struct {

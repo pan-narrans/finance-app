@@ -9,6 +9,9 @@ import (
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
+// Ensure ImaginBankParser implements ports.BankParser at compile time.
+var _ ports.FileParserProvider = (*ParserFactory)(nil)
+
 // ParserFactory identifies the correct parser based on the filename.
 type ParserFactory struct {
 	mappingSvc *domain.MappingService

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/a-perez/finance-app/internal/adapters/secondary/excel"
 	"github.com/a-perez/finance-app/internal/app"
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -26,7 +25,6 @@ type Bot struct {
 	allowedIDs     map[int64]struct{}
 	transactionUC  ports.TransactionUseCase
 	importService  *app.ImportService
-	parserFactory  *excel.ParserFactory
 	mappingSvc     *domain.MappingService
 	ledgerFilePath string
 
@@ -41,7 +39,6 @@ func NewBot(
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
 	importSvc *app.ImportService,
-	factory *excel.ParserFactory,
 	mappingSvc *domain.MappingService,
 	ledgerPath string,
 ) (*Bot, error) {
@@ -65,7 +62,6 @@ func NewBot(
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
 		importService:  importSvc,
-		parserFactory:  factory,
 		mappingSvc:     mappingSvc,
 		ledgerFilePath: ledgerPath,
 		drafts:         make(map[int64]domain.Transaction),
@@ -208,12 +204,7 @@ func (b *Bot) handleDocument(c telebot.Context) error {
 	}
 	defer os.Remove(tmpFile)
 
-	parser, err := b.parserFactory.GetParser(tmpFile)
-	if err != nil {
-		return c.Send(fmt.Sprintf("Unsupported file: %v", err))
-	}
-
-	summary, err := b.importService.Import(parser, tmpFile)
+	summary, err := b.importService.Import(tmpFile)
 	if err != nil {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}

@@ -7,8 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
+// Ensure ImaginBankParser implements ports.BankParser at compile time.
+var _ ports.BankParser = (*ImaginBankParser)(nil)
 
 // ImaginBankParser handles ImaginBank-specific CSV file format.
 type ImaginBankParser struct {
