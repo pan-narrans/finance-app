@@ -6,6 +6,7 @@
 
 /ledger-files
 /sample-data
+/config
 .env
 
 # Binaries
