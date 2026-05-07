@@ -14,6 +14,20 @@ Reduce friction when recording daily expenses by providing multiple input channe
 - **Excel File Parser:** Custom parsers for bank-specific statement formats.
 - **Bank Aggregator API:** Potential integration with banking APIs for automated syncing.
 
+## Setup
+
+1. **Environment Variables:**
+   Copy the `.env.example` file to `.env` and fill in the required values:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Configuration Properties:**
+   - `LEDGER_ROOT`: The directory where your `.ledger` files are located (Default: `.`).
+   - `CONFIG_ROOT`: The directory for application configuration (Default: `./config`).
+   - `TELEGRAM_TOKEN`: The API token for your Telegram Bot.
+   - `TELEGRAM_USER_IDS`: A comma-separated list of authorized Telegram User IDs.
+
 ## Architecture & Design Principles
 
 The application is built following **Hexagonal Architecture (Ports and Adapters)** to ensure strict isolation between core business logic and external dependencies.

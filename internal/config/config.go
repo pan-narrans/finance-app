@@ -9,8 +9,10 @@ import (
 
 // Config represents application configuration.
 type Config struct {
-	LedgerRoot string `env:"LEDGER_ROOT" envDefault:"."`
-	ConfigRoot string `env:"CONFIG_ROOT" envDefault:"./config"`
+	LedgerRoot      string  `env:"LEDGER_ROOT" envDefault:"."`
+	ConfigRoot      string  `env:"CONFIG_ROOT" envDefault:"./config"`
+	TelegramToken   string  `env:"TELEGRAM_TOKEN"`
+	TelegramUserIDs []int64 `env:"TELEGRAM_USER_IDS" envSeparator:","`
 }
 
 // Load loads configuration from .env file and environment variables.

@@ -12,20 +12,26 @@ import (
 // ImportService orchestrates the process of parsing and persisting transactions from external files.
 type ImportService struct {
 	transactionUseCase ports.TransactionUseCase
+	parserProvider     ports.FileParserProvider
 }
 
 // NewImportService creates a new instance of ImportService.
-func NewImportService(transactionUseCase ports.TransactionUseCase) *ImportService {
+func NewImportService(transactionUseCase ports.TransactionUseCase, parserProvider ports.FileParserProvider) *ImportService {
 	return &ImportService{
 		transactionUseCase: transactionUseCase,
+		parserProvider:     parserProvider,
 	}
 }
 
 /*
-Import parses a file using the provided parser and saves the resulting transactions.
-It continues processing even if individual transactions fail to save.
+Import finds correct parser for file, parses it, and saves resulting transactions.
 */
-func (importService *ImportService) Import(parser ports.BankParser, filePath string) (*ports.ImportSummary, error) {
+func (importService *ImportService) Import(filePath string) (*ports.ImportSummary, error) {
+	parser, err := importService.parserProvider.GetParser(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get parser: %w", err)
+	}
+
 	transactions, err := parser.Parse(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse file: %w", err)

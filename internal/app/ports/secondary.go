@@ -27,3 +27,10 @@ Methods:
 type BankParser interface {
 	Parse(filePath string) ([]domain.Transaction, error)
 }
+
+/*
+FileParserProvider defines the contract for obtaining the correct parser for a file.
+*/
+type FileParserProvider interface {
+	GetParser(filePath string) (BankParser, error)
+}
