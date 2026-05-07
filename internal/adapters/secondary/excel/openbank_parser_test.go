@@ -32,8 +32,8 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 		Cards:    map[string]string{"1234": "Alex"},
 		Prefixes: []string{"Apple pay:"},
 	}
-	mappingSvc := domain.NewMappingService(mappingData)
-	parser := NewOpenBankParser(mappingSvc)
+	mappingService := domain.NewMappingService(mappingData)
+	parser := NewOpenBankParser(mappingService)
 
 	// Act
 	transactions, err := parser.Parse(htmlPath)
@@ -128,8 +128,8 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 	mappingData := domain.MappingData{
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
-	mappingSvc := domain.NewMappingService(mappingData)
-	parser := NewOpenBankParser(mappingSvc)
+	mappingService := domain.NewMappingService(mappingData)
+	parser := NewOpenBankParser(mappingService)
 
 	tests := []struct {
 		input    string
@@ -157,8 +157,8 @@ func TestOpenBankParser_RowToTransaction_ShouldApplyDescriptionMappings(t *testi
 			"AMZN MKTP":         "Amazon",
 		},
 	}
-	mappingSvc := domain.NewMappingService(mappingData)
-	parser := NewOpenBankParser(mappingSvc)
+	mappingService := domain.NewMappingService(mappingData)
+	parser := NewOpenBankParser(mappingService)
 
 	tests := []struct {
 		input    string

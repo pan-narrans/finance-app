@@ -21,9 +21,9 @@ type OpenBankParser struct {
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser.
-func NewOpenBankParser(mappingSvc *domain.MappingService) *OpenBankParser {
+func NewOpenBankParser(mappingService *domain.MappingService) *OpenBankParser {
 	return &OpenBankParser{
-		BaseParser: NewBaseParser(mappingSvc),
+		BaseParser: NewBaseParser(mappingService),
 	}
 }
 

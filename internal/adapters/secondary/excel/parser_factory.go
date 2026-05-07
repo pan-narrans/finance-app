@@ -18,8 +18,8 @@ type ParserFactory struct {
 }
 
 // NewParserFactory creates a new instance of ParserFactory.
-func NewParserFactory(mappingSvc *domain.MappingService) *ParserFactory {
-	return &ParserFactory{mappingService: mappingSvc}
+func NewParserFactory(mappingService *domain.MappingService) *ParserFactory {
+	return &ParserFactory{mappingService: mappingService}
 }
 
 // GetParser returns a BankParser implementation matched by filename keyword.

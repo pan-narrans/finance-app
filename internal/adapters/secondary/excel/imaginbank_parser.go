@@ -20,9 +20,9 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingSvc *domain.MappingService) *ImaginBankParser {
+func NewImaginBankParser(mappingService *domain.MappingService) *ImaginBankParser {
 	return &ImaginBankParser{
-		BaseParser: NewBaseParser(mappingSvc),
+		BaseParser: NewBaseParser(mappingService),
 	}
 }
 

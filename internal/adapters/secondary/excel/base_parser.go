@@ -15,9 +15,9 @@ type BaseParser struct {
 }
 
 // NewBaseParser creates a new BaseParser instance.
-func NewBaseParser(mappingSvc *domain.MappingService) *BaseParser {
+func NewBaseParser(mappingService *domain.MappingService) *BaseParser {
 	return &BaseParser{
-		mappingService: mappingSvc,
+		mappingService: mappingService,
 	}
 }
 
