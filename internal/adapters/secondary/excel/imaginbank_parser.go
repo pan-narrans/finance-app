@@ -84,8 +84,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		return nil, err
 	}
 
-	cleanDescription := p.mappingSvc.CleanDescription(fullDescription)
-	targetAccount := p.mappingSvc.ResolveAccount(cleanDescription, amount)
+	cleanDescription := p.mappingService.CleanDescription(fullDescription)
+	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
 
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Imaginbank"

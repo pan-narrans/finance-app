@@ -11,13 +11,13 @@ import (
 
 // BaseParser encapsulates shared utility logic for all Excel-based parsers.
 type BaseParser struct {
-	mappingSvc *domain.MappingService
+	mappingService *domain.MappingService
 }
 
 // NewBaseParser creates a new BaseParser instance.
 func NewBaseParser(mappingSvc *domain.MappingService) *BaseParser {
 	return &BaseParser{
-		mappingSvc: mappingSvc,
+		mappingService: mappingSvc,
 	}
 }
 

@@ -14,12 +14,12 @@ var _ ports.FileParserProvider = (*ParserFactory)(nil)
 
 // ParserFactory identifies the correct parser based on the filename.
 type ParserFactory struct {
-	mappingSvc *domain.MappingService
+	mappingService *domain.MappingService
 }
 
 // NewParserFactory creates a new instance of ParserFactory.
 func NewParserFactory(mappingSvc *domain.MappingService) *ParserFactory {
-	return &ParserFactory{mappingSvc: mappingSvc}
+	return &ParserFactory{mappingService: mappingSvc}
 }
 
 // GetParser returns a BankParser implementation matched by filename keyword.
@@ -28,9 +28,9 @@ func (f *ParserFactory) GetParser(filePath string) (ports.BankParser, error) {
 
 	switch {
 	case strings.Contains(fileName, "openbank"):
-		return NewOpenBankParser(f.mappingSvc), nil
+		return NewOpenBankParser(f.mappingService), nil
 	case strings.Contains(fileName, "imaginbank"):
-		return NewImaginBankParser(f.mappingSvc), nil
+		return NewImaginBankParser(f.mappingService), nil
 	default:
 		return nil, fmt.Errorf("no parser found for file: %s", fileName)
 	}

@@ -19,8 +19,8 @@ import (
 
 var entryRegex = regexp.MustCompile(`^(\d+([.,]\d+)?)\s+(.+)$`)
 
-// Bot handles Telegram interactions.
-type Bot struct {
+// TelegramAdapter handles Telegram interactions.
+type TelegramAdapter struct {
 	teleBot        *telebot.Bot
 	allowedIDs     map[int64]struct{}
 	transactionUC  ports.TransactionUseCase
@@ -33,21 +33,21 @@ type Bot struct {
 	drafts map[int64]domain.Transaction
 }
 
-// NewBot creates a new Telegram bot instance.
-func NewBot(
+// NewTelegramAdapter creates a new Telegram adapter instance.
+func NewTelegramAdapter(
 	token string,
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
 	importSvc *app.ImportService,
 	mappingSvc *domain.MappingService,
 	ledgerPath string,
-) (*Bot, error) {
+) (*TelegramAdapter, error) {
 	pref := telebot.Settings{
 		Token:  token,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	}
 
-	b, err := telebot.NewBot(pref)
+	bot, err := telebot.NewBot(pref)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +57,8 @@ func NewBot(
 		allowedMap[id] = struct{}{}
 	}
 
-	return &Bot{
-		teleBot:        b,
+	return &TelegramAdapter{
+		teleBot:        bot,
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
 		importService:  importSvc,
@@ -69,12 +69,12 @@ func NewBot(
 }
 
 // Start initializes the bot handlers and starts polling.
-func (b *Bot) Start() {
+func (adapter *TelegramAdapter) Start() {
 	// Middleware: Auth
-	b.teleBot.Use(
+	adapter.teleBot.Use(
 		func(next telebot.HandlerFunc) telebot.HandlerFunc {
 			return func(c telebot.Context) error {
-				if _, ok := b.allowedIDs[c.Sender().ID]; !ok {
+				if _, ok := adapter.allowedIDs[c.Sender().ID]; !ok {
 					log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
 					return nil
 				}
@@ -83,27 +83,27 @@ func (b *Bot) Start() {
 		},
 	)
 
-	b.teleBot.Handle(
+	adapter.teleBot.Handle(
 		"/start", func(c telebot.Context) error {
 			return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
 		},
 	)
 
 	// Handle Manual Text Entries
-	b.teleBot.Handle(telebot.OnText, b.handleText)
+	adapter.teleBot.Handle(telebot.OnText, adapter.handleText)
 
 	// Handle File Uploads
-	b.teleBot.Handle(telebot.OnDocument, b.handleDocument)
+	adapter.teleBot.Handle(telebot.OnDocument, adapter.handleDocument)
 
 	// Handle Confirmation Callbacks
-	b.teleBot.Handle("\fconfirm", b.handleConfirm)
-	b.teleBot.Handle("\fdiscard", b.handleDiscard)
+	adapter.teleBot.Handle("\fconfirm", adapter.handleConfirm)
+	adapter.teleBot.Handle("\fdiscard", adapter.handleDiscard)
 
-	log.Printf("Bot started as @%s", b.teleBot.Me.Username)
-	b.teleBot.Start()
+	log.Printf("Bot started as @%s", adapter.teleBot.Me.Username)
+	adapter.teleBot.Start()
 }
 
-func (b *Bot) handleText(c telebot.Context) error {
+func (adapter *TelegramAdapter) handleText(c telebot.Context) error {
 	text := c.Text()
 	matches := entryRegex.FindStringSubmatch(text)
 	if len(matches) < 4 {
@@ -117,13 +117,13 @@ func (b *Bot) handleText(c telebot.Context) error {
 	}
 
 	description := matches[3]
-	cleanDescription := b.mappingSvc.CleanDescription(description)
-	targetAccount := b.mappingSvc.ResolveAccount(cleanDescription, amount)
+	cleanDescription := adapter.mappingSvc.CleanDescription(description)
+	targetAccount := adapter.mappingSvc.ResolveAccount(cleanDescription, amount)
 
 	// Add Metadata
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Bot"
-	metadata["ID"] = b.hashID(fmt.Sprintf("%d", time.Now().UnixNano()))
+	metadata["ID"] = adapter.hashID(fmt.Sprintf("%d", time.Now().UnixNano()))
 
 	// Create a draft transaction for confirmation
 	tx := domain.Transaction{
@@ -139,9 +139,9 @@ func (b *Bot) handleText(c telebot.Context) error {
 	tx.Code = tx.GenerateCode()
 
 	// Store draft in session
-	b.mu.Lock()
-	b.drafts[c.Sender().ID] = tx
-	b.mu.Unlock()
+	adapter.mu.Lock()
+	adapter.drafts[c.Sender().ID] = tx
+	adapter.mu.Unlock()
 
 	// Inline keyboard for confirmation
 	selector := &telebot.ReplyMarkup{}
@@ -154,17 +154,17 @@ func (b *Bot) handleText(c telebot.Context) error {
 	return c.Send(fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>\nConfirm?", formatted), selector, telebot.ModeHTML)
 }
 
-func (b *Bot) handleConfirm(c telebot.Context) error {
-	b.mu.Lock()
-	tx, ok := b.drafts[c.Sender().ID]
-	delete(b.drafts, c.Sender().ID)
-	b.mu.Unlock()
+func (adapter *TelegramAdapter) handleConfirm(c telebot.Context) error {
+	adapter.mu.Lock()
+	tx, ok := adapter.drafts[c.Sender().ID]
+	delete(adapter.drafts, c.Sender().ID)
+	adapter.mu.Unlock()
 
 	if !ok {
 		return c.Edit("Session expired. Please send the transaction again.")
 	}
 
-	if err := b.transactionUC.Add(tx); err != nil {
+	if err := adapter.transactionUC.Add(tx); err != nil {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
@@ -176,7 +176,7 @@ func (b *Bot) handleConfirm(c telebot.Context) error {
 hashID returns an 8-character MD5 hash of the provided string.
 Used for generating stable external IDs for bot transactions.
 */
-func (b *Bot) hashID(data string) string {
+func (adapter *TelegramAdapter) hashID(data string) string {
 	result := ""
 	if data != "" {
 		hasher := md5.New()
@@ -186,25 +186,25 @@ func (b *Bot) hashID(data string) string {
 	return result
 }
 
-func (b *Bot) handleDiscard(c telebot.Context) error {
-	b.mu.Lock()
-	delete(b.drafts, c.Sender().ID)
-	b.mu.Unlock()
+func (adapter *TelegramAdapter) handleDiscard(c telebot.Context) error {
+	adapter.mu.Lock()
+	delete(adapter.drafts, c.Sender().ID)
+	adapter.mu.Unlock()
 	return c.Edit("Transaction discarded. ❌")
 }
 
-func (b *Bot) handleDocument(c telebot.Context) error {
+func (adapter *TelegramAdapter) handleDocument(c telebot.Context) error {
 	doc := c.Message().Document
 
 	// Create a temporary file to save the download
 	tmpFile := doc.FileName
-	err := b.teleBot.Download(&doc.File, tmpFile)
+	err := adapter.teleBot.Download(&doc.File, tmpFile)
 	if err != nil {
 		return c.Send("Failed to download file.")
 	}
 	defer os.Remove(tmpFile)
 
-	summary, err := b.importService.Import(tmpFile)
+	summary, err := adapter.importService.Import(tmpFile)
 	if err != nil {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}
