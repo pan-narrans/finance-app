@@ -121,9 +121,8 @@ It applies the following formatting rules:
   - Account names are indented by four spaces.
   - Amounts are right-aligned to a standard column (default 52).
   - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
-
-(TODO) Make alignment value (now 52) configurable.
 */
+//TODO Make alignment value (now 52) configurable.
 func (transaction *Transaction) Format() string {
 	var sb strings.Builder
 

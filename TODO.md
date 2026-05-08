@@ -44,6 +44,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 ## Phase 5: Refinement
 - [ ] Ensure full compatibility with Paisa GUI.
 - [ ] Refactor app architecture to use domain (try and see how it feels).
+- [ ] Fix TODO comments.
 - [ ] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.
 

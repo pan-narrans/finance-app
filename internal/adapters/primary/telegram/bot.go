@@ -18,6 +18,14 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+/*
+ * TODO Refactor the whole file.
+ * - Too many magic strings.
+ * - Too many responsibilities.
+ * - Unable to extend functionality.
+ * - Extract business logic to app or domain.
+ */
+
 var entryRegex = regexp.MustCompile(`^(\d+([.,]\d+)?)\s+(.+)$`)
 
 type SearchState string

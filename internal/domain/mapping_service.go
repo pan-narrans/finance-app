@@ -96,7 +96,7 @@ func (s *MappingService) ResolvePayer(fullDescription string) string {
 }
 
 // SearchAccounts returns ranked account matches for a query.
-
+// TODO refactor, this method is way too big
 func (s *MappingService) SearchAccounts(query string, limit int) []string {
 	if query == "" {
 		return nil
