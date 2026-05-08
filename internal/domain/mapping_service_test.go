@@ -107,3 +107,100 @@ func TestSortKeywords_ShouldSortByLengthDescending(t *testing.T) {
 	// Assert
 	assert.Equal(t, []string{"ABC", "AB", "A"}, result)
 }
+
+func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *testing.T) {
+	// Arrange
+	data := MappingData{
+		Accounts: map[string]string{
+			"key1": "Expenses:Food",
+			"key2": "Expenses:Food",
+			"key3": "Expenses:Transport",
+			"key4": "Assets:Cash",
+		},
+	}
+	svc := NewMappingService(data)
+
+	// Act
+	results := svc.accounts
+
+	// Assert
+	expected := []string{"Assets:Cash", "Expenses:Food", "Expenses:Transport"}
+	assert.Equal(t, expected, results, "Should deduplicate and sort accounts")
+}
+
+func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
+	// Arrange
+	data := MappingData{
+		Accounts: map[string]string{
+			"key1": "Expenses:Food:Restaurante",
+			"key2": "Expenses:Food:Supermercado",
+			"key3": "Expenses:Transporte:Combustible",
+			"key4": "Expenses:Transporte:Parking",
+			"key5": "Income:Salary",
+		},
+	}
+	svc := NewMappingService(data)
+
+	tests := []struct {
+		name     string
+		query    string
+		limit    int
+		expected []string
+	}{
+		{
+			name:     "Exact match",
+			query:    "Income:Salary",
+			limit:    5,
+			expected: []string{"Income:Salary"},
+		},
+		{
+			name:     "Substring match",
+			query:    "Food",
+			limit:    5,
+			expected: []string{"Expenses:Food:Restaurante", "Expenses:Food:Supermercado"},
+		},
+		{
+			name:     "Case insensitive",
+			query:    "transport",
+			limit:    5,
+			expected: []string{"Expenses:Transporte:Combustible", "Expenses:Transporte:Parking"},
+		},
+		{
+			name:     "Tokenized match",
+			query:    "Exp Park",
+			limit:    5,
+			expected: []string{"Expenses:Transporte:Parking"},
+		},
+		{
+			name:     "Ranking: prefix first",
+			query:    "Exp",
+			limit:    2,
+			expected: []string{"Expenses:Food:Restaurante", "Expenses:Food:Supermercado"},
+		},
+		{
+			name:     "Limit results",
+			query:    "Expenses",
+			limit:    1,
+			expected: []string{"Expenses:Food:Restaurante"},
+		},
+		{
+			name:     "No match",
+			query:    "UnknownAccount",
+			limit:    5,
+			expected: []string{},
+		},
+		{
+			name:     "Match via mapping key",
+			query:    "Salary",
+			limit:    5,
+			expected: []string{"Income:Salary"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := svc.SearchAccounts(tt.query, tt.limit)
+			assert.Equal(t, tt.expected, results)
+		})
+	}
+}

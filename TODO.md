@@ -32,8 +32,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
     - [X] Set up bot API integration (using `telebot v3`).
     - [X] Implement manual entry with confirmation (Hybrid approach).
     - [X] Implement bank file upload/import via bot.
-    - [ ] Manually edit accounts. Select from predefided selection or add new one.
-    - [ ] If no exact match perform fuzzy search and validate result or results.
+    - [x] If no exact match for account perform fuzzy and partial search. Give user option to manually edit the account.
 - [ ] **Bank Aggregator API:**
   - [ ] Research possible API providers (e.g., Salt Edge, Nordigen, or local alternatives).
 

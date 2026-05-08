@@ -2,6 +2,7 @@ package domain
 
 import (
 	"cmp"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -23,6 +24,7 @@ type MappingService struct {
 	sortedDescriptionKeywords []string
 	cardMappings              map[string]string
 	prefixRegexes             []*regexp.Regexp
+	accounts                  []string
 }
 
 // NewMappingService creates and initializes a MappingService.
@@ -38,6 +40,9 @@ func NewMappingService(data MappingData) *MappingService {
 		}
 	}
 
+	uniqueAccounts := slices.Sorted(maps.Values(data.Accounts))
+	uniqueAccounts = slices.Compact(uniqueAccounts)
+
 	return &MappingService{
 		accountMappings:           data.Accounts,
 		descriptionMappings:       data.Descriptions,
@@ -45,6 +50,7 @@ func NewMappingService(data MappingData) *MappingService {
 		sortedDescriptionKeywords: sortedDescriptionKeywords,
 		cardMappings:              data.Cards,
 		prefixRegexes:             prefixRegexes,
+		accounts:                  uniqueAccounts,
 	}
 }
 
@@ -91,6 +97,95 @@ func (s *MappingService) ResolvePayer(fullDescription string) string {
 	}
 
 	return payer
+}
+
+// SearchAccounts returns ranked account matches for a query.
+
+func (s *MappingService) SearchAccounts(query string, limit int) []string {
+	if query == "" {
+		return nil
+	}
+
+	queryUpper := strings.ToUpper(query)
+	tokens := strings.Fields(queryUpper)
+
+	type scoredAccount struct {
+		name  string
+		score int
+	}
+
+	// map[accountName]maxScore
+	scores := make(map[string]int)
+
+	// Helper to calculate score for a string
+	calcScore := func(text string) (int, bool) {
+		textUpper := strings.ToUpper(text)
+		score := 0
+		matchesAll := true
+		for _, token := range tokens {
+			if strings.Contains(textUpper, token) {
+				score += len(token)
+			} else {
+				matchesAll = false
+			}
+		}
+		if !matchesAll {
+			return 0, false
+		}
+		if strings.Contains(textUpper, queryUpper) {
+			score += 100
+		}
+		if strings.HasPrefix(textUpper, queryUpper) {
+			score += 50
+		}
+		return score, true
+	}
+
+	// 1. Search in unique account names
+	for _, acc := range s.accounts {
+		if score, ok := calcScore(acc); ok {
+			scores[acc] = score
+		}
+	}
+
+	// 2. Search in mapping keys
+	for key, acc := range s.accountMappings {
+		if score, ok := calcScore(key); ok {
+			// Mapping key matches are slightly penalized vs direct name matches
+			// to prioritize names if both match.
+			mappingScore := score - 1
+			if mappingScore > scores[acc] {
+				scores[acc] = mappingScore
+			}
+		}
+	}
+
+	scored := make([]scoredAccount, 0, len(scores))
+	for acc, score := range scores {
+		scored = append(scored, scoredAccount{acc, score})
+	}
+
+	// Sort by score (desc), then name (asc)
+	slices.SortFunc(
+		scored, func(a, b scoredAccount) int {
+			if a.score != b.score {
+				return cmp.Compare(b.score, a.score)
+			}
+			return cmp.Compare(a.name, b.name)
+		},
+	)
+
+	resultCount := len(scored)
+	if limit > 0 && limit < resultCount {
+		resultCount = limit
+	}
+
+	results := make([]string, resultCount)
+	for i := 0; i < resultCount; i++ {
+		results[i] = scored[i].name
+	}
+
+	return results
 }
 
 func (s *MappingService) findMatch(text string, keywords []string, mappings map[string]string) (string, bool) {
