@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,12 +28,12 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
         </table></body></html>`
 	_ = os.WriteFile(htmlPath, []byte(htmlContent), 0644)
 
-	mappingData := domain.MappingData{
+	mappingData := config.MappingData{
 		Accounts: map[string]string{"DIA": "Expenses:Supermarket", "ALEJANDRO": "Income:Alex"},
 		Cards:    map[string]string{"1234": "Alex"},
 		Prefixes: []string{"Apple pay:"},
 	}
-	mappingService := domain.NewMappingService(mappingData)
+	mappingService := domain.NewMappingService(mappingData, config.Config{})
 	parser := NewOpenBankParser(mappingService)
 
 	// Act
@@ -65,7 +66,7 @@ func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *te
 	htmlContent := []byte("<html><body><table><tr><td></td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>ESPA\xF1A</td><td></td><td>-10,50</td><td></td><td>200,00</td></tr></table></body></html>")
 	_ = os.WriteFile(htmlPath, htmlContent, 0644)
 
-	parser := NewOpenBankParser(domain.NewMappingService(domain.MappingData{}))
+	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
 
 	// Act
 	transactions, err := parser.Parse(htmlPath)
@@ -78,7 +79,7 @@ func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *te
 
 func TestOpenBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 	// Arrange
-	parser := NewOpenBankParser(domain.NewMappingService(domain.MappingData{}))
+	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
 
 	// Act
 	transactions, err := parser.Parse("non-existent.xls")
@@ -90,7 +91,7 @@ func TestOpenBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 
 func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *testing.T) {
 	// Arrange
-	parser := NewOpenBankParser(domain.NewMappingService(domain.MappingData{}))
+	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
 
 	// Act & Assert
 	t.Run(
@@ -125,10 +126,10 @@ func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *test
 
 func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 	// Arrange
-	mappingData := domain.MappingData{
+	mappingData := config.MappingData{
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
-	mappingService := domain.NewMappingService(mappingData)
+	mappingService := domain.NewMappingService(mappingData, config.Config{})
 	parser := NewOpenBankParser(mappingService)
 
 	tests := []struct {
@@ -151,13 +152,13 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 
 func TestOpenBankParser_RowToTransaction_ShouldApplyDescriptionMappings(t *testing.T) {
 	// Arrange
-	mappingData := domain.MappingData{
+	mappingData := config.MappingData{
 		Descriptions: map[string]string{
 			"SQ *BEN AND JERRY": "Ben & Jerry's",
 			"AMZN MKTP":         "Amazon",
 		},
 	}
-	mappingService := domain.NewMappingService(mappingData)
+	mappingService := domain.NewMappingService(mappingData, config.Config{})
 	parser := NewOpenBankParser(mappingService)
 
 	tests := []struct {

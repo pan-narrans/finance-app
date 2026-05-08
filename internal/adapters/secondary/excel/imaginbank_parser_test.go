@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestImaginBankParser_Parse_ShouldReturnTransactions_WhenValidCsvProvided(t 
 		"BIZUM RECIBIDO;14/04/2026;3,50EUR;515,76EUR\n"
 	_ = os.WriteFile(csvPath, []byte(csvContent), 0644)
 
-	parser := NewImaginBankParser(domain.NewMappingService(domain.MappingData{}))
+	parser := NewImaginBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
 
 	// Act
 	transactions, err := parser.Parse(csvPath)
@@ -45,7 +46,7 @@ func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 	csvPath := filepath.Join(tempDir, "empty.csv")
 	_ = os.WriteFile(csvPath, []byte("Concepto;Fecha;Importe;Saldo\n"), 0644)
 
-	parser := NewImaginBankParser(domain.NewMappingService(domain.MappingData{}))
+	parser := NewImaginBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
 
 	// Act
 	transactions, err := parser.Parse(csvPath)
@@ -57,7 +58,7 @@ func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 
 func TestImaginBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 	// Arrange
-	parser := NewImaginBankParser(domain.NewMappingService(domain.MappingData{}))
+	parser := NewImaginBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
 
 	// Act
 	transactions, err := parser.Parse("non-existent.csv")

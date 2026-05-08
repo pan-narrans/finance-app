@@ -6,15 +6,9 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-)
 
-// MappingData holds the raw configuration for transaction mappings.
-type MappingData struct {
-	Accounts     map[string]string `json:"accounts"`
-	Descriptions map[string]string `json:"descriptions"`
-	Cards        map[string]string `json:"cards"`
-	Prefixes     []string          `json:"prefixes"`
-}
+	"github.com/a-perez/finance-app/internal/config"
+)
 
 // MappingService provides logic for cleaning descriptions and resolving accounts/payers.
 type MappingService struct {
@@ -25,10 +19,11 @@ type MappingService struct {
 	cardMappings              map[string]string
 	prefixRegexes             []*regexp.Regexp
 	accounts                  []string
+	cfg                       config.Config
 }
 
 // NewMappingService creates and initializes a MappingService.
-func NewMappingService(data MappingData) *MappingService {
+func NewMappingService(data config.MappingData, cfg config.Config) *MappingService {
 	sortedAccountKeywords := sortKeywords(data.Accounts)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
 
@@ -51,6 +46,7 @@ func NewMappingService(data MappingData) *MappingService {
 		cardMappings:              data.Cards,
 		prefixRegexes:             prefixRegexes,
 		accounts:                  uniqueAccounts,
+		cfg:                       cfg,
 	}
 }
 
@@ -77,9 +73,9 @@ func (s *MappingService) ResolveAccount(description string, amount float64) stri
 	if match, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
 		account = match
 	} else if amount > 0 {
-		account = "Income:Unknown"
+		account = s.cfg.DefaultIncomeAccount
 	} else {
-		account = "Expenses:Unknown"
+		account = s.cfg.DefaultExpenseAccount
 	}
 
 	return account

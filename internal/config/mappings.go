@@ -3,13 +3,19 @@ package config
 import (
 	"encoding/json"
 	"os"
-
-	"github.com/a-perez/finance-app/internal/domain"
 )
 
-// LoadMappings loads the mappings from a JSON file directly into domain.MappingData.
-func LoadMappings(path string) (domain.MappingData, error) {
-	data := domain.MappingData{
+// MappingData holds the raw configuration for transaction mappings.
+type MappingData struct {
+	Accounts     map[string]string `json:"accounts"`
+	Descriptions map[string]string `json:"descriptions"`
+	Cards        map[string]string `json:"cards"`
+	Prefixes     []string          `json:"prefixes"`
+}
+
+// LoadMappings loads the mappings from a JSON file directly into [MappingData].
+func LoadMappings(path string) (MappingData, error) {
+	data := MappingData{
 		Accounts:     make(map[string]string),
 		Descriptions: make(map[string]string),
 		Cards:        make(map[string]string),

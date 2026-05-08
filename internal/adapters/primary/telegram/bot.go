@@ -13,6 +13,7 @@ import (
 
 	"github.com/a-perez/finance-app/internal/app"
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
 )
@@ -37,7 +38,8 @@ type TelegramAdapter struct {
 	allowedIDs     map[int64]struct{}
 	transactionUC  ports.TransactionUseCase
 	importService  *app.ImportService
-	mappingSvc     *domain.MappingService
+	mappingService *domain.MappingService
+	cfg            config.Config
 	ledgerFilePath string
 
 	// Simple session storage for drafts and state
@@ -50,9 +52,10 @@ func NewTelegramAdapter(
 	token string,
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
-	importSvc *app.ImportService,
-	mappingSvc *domain.MappingService,
+	importService *app.ImportService,
+	mappingService *domain.MappingService,
 	ledgerPath string,
+	cfg config.Config,
 ) (*TelegramAdapter, error) {
 	pref := telebot.Settings{
 		Token:  token,
@@ -73,20 +76,21 @@ func NewTelegramAdapter(
 		teleBot:        bot,
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
-		importService:  importSvc,
-		mappingSvc:     mappingSvc,
+		importService:  importService,
+		mappingService: mappingService,
 		ledgerFilePath: ledgerPath,
 		sessions:       make(map[int64]*userSession),
+		cfg:            cfg,
 	}, nil
 }
 
 // Start initializes the bot handlers and starts polling.
-func (adapter *TelegramAdapter) Start() {
+func (a *TelegramAdapter) Start() {
 	// Middleware: Auth
-	adapter.teleBot.Use(
+	a.teleBot.Use(
 		func(next telebot.HandlerFunc) telebot.HandlerFunc {
 			return func(c telebot.Context) error {
-				if _, ok := adapter.allowedIDs[c.Sender().ID]; !ok {
+				if _, ok := a.allowedIDs[c.Sender().ID]; !ok {
 					log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
 					return nil
 				}
@@ -95,38 +99,38 @@ func (adapter *TelegramAdapter) Start() {
 		},
 	)
 
-	adapter.teleBot.Handle(
+	a.teleBot.Handle(
 		"/start", func(c telebot.Context) error {
 			return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
 		},
 	)
 
 	// Handle Manual Text Entries
-	adapter.teleBot.Handle(telebot.OnText, adapter.handleText)
+	a.teleBot.Handle(telebot.OnText, a.handleText)
 
 	// Handle File Uploads
-	adapter.teleBot.Handle(telebot.OnDocument, adapter.handleDocument)
+	a.teleBot.Handle(telebot.OnDocument, a.handleDocument)
 
 	// Handle Callbacks
-	adapter.teleBot.Handle("\fconfirm", adapter.handleConfirm)
-	adapter.teleBot.Handle("\fdiscard", adapter.handleDiscard)
-	adapter.teleBot.Handle("\fedit_acc", adapter.handleEditRequest)
-	adapter.teleBot.Handle("\fselect_acc", adapter.handleAccountSelect)
-	adapter.teleBot.Handle("\fcancel_edit", adapter.handleCancelEdit)
+	a.teleBot.Handle("\fconfirm", a.handleConfirm)
+	a.teleBot.Handle("\fdiscard", a.handleDiscard)
+	a.teleBot.Handle("\fedit_acc", a.handleEditRequest)
+	a.teleBot.Handle("\fselect_acc", a.handleAccountSelect)
+	a.teleBot.Handle("\fcancel_edit", a.handleCancelEdit)
 
-	log.Printf("Bot started as @%s", adapter.teleBot.Me.Username)
-	adapter.teleBot.Start()
+	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
+	a.teleBot.Start()
 }
 
-func (adapter *TelegramAdapter) handleText(c telebot.Context) error {
+func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	userID := c.Sender().ID
-	adapter.mu.Lock()
-	session, exists := adapter.sessions[userID]
-	adapter.mu.Unlock()
+	a.mu.Lock()
+	session, exists := a.sessions[userID]
+	a.mu.Unlock()
 
 	// If awaiting search query
 	if exists && session.state == StateAwaitingQuery {
-		return adapter.handleSearchQuery(c, session)
+		return a.handleSearchQuery(c, session)
 	}
 
 	// Else handle as new transaction entry
@@ -143,12 +147,12 @@ func (adapter *TelegramAdapter) handleText(c telebot.Context) error {
 	}
 
 	description := matches[3]
-	cleanDescription := adapter.mappingSvc.CleanDescription(description)
-	targetAccount := adapter.mappingSvc.ResolveAccount(cleanDescription, amount)
+	cleanDescription := a.mappingService.CleanDescription(description)
+	targetAccount := a.mappingService.ResolveAccount(cleanDescription, amount)
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(targetAccount, ":Unknown") {
-		matches := adapter.mappingSvc.SearchAccounts(cleanDescription, 1)
+		matches := a.mappingService.SearchAccounts(cleanDescription, 1)
 		if len(matches) > 0 {
 			targetAccount = matches[0]
 		}
@@ -157,7 +161,7 @@ func (adapter *TelegramAdapter) handleText(c telebot.Context) error {
 	// Add Metadata
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Bot"
-	metadata["ID"] = adapter.hashID(fmt.Sprintf("%d", time.Now().UnixNano()))
+	metadata["ID"] = a.hashID(fmt.Sprintf("%d", time.Now().UnixNano()))
 
 	// Create a draft transaction
 	tx := domain.Transaction{
@@ -166,21 +170,21 @@ func (adapter *TelegramAdapter) handleText(c telebot.Context) error {
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: "EUR"},
-			{Account: "Assets:Cash", Amount: nil},
+			{Account: targetAccount, Amount: &amount, Currency: a.cfg.DefaultCurrency},
+			{Account: a.cfg.DefaultBotAccount, Amount: nil},
 		},
 	}
 	tx.Code = tx.GenerateCode()
 
 	// Update session
-	adapter.mu.Lock()
-	adapter.sessions[userID] = &userSession{draft: tx, state: StateNone}
-	adapter.mu.Unlock()
+	a.mu.Lock()
+	a.sessions[userID] = &userSession{draft: tx, state: StateNone}
+	a.mu.Unlock()
 
-	return adapter.sendDraftMessage(c, tx)
+	return a.sendDraftMessage(c, tx)
 }
 
-func (adapter *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
+func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
 	selector := &telebot.ReplyMarkup{}
 	btnConfirm := selector.Data("Confirm ✅", "confirm")
 	btnEdit := selector.Data("Edit Account ✏️", "edit_acc")
@@ -193,7 +197,7 @@ func (adapter *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Tr
 	msgSuffix := ""
 	if strings.HasSuffix(targetAccount, ":Unknown") {
 		msgSuffix = "\n\nUnknown account. Suggestions:"
-		matches := adapter.mappingSvc.SearchAccounts(tx.Description, 5)
+		matches := a.mappingService.SearchAccounts(tx.Description, 5)
 		for _, match := range matches {
 			btn := selector.Data(match, "select_acc", match)
 			rows = append(rows, selector.Row(btn))
@@ -211,14 +215,14 @@ func (adapter *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Tr
 	return c.Send(msg, selector, telebot.ModeHTML)
 }
 
-func (adapter *TelegramAdapter) handleEditRequest(c telebot.Context) error {
+func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	userID := c.Sender().ID
-	adapter.mu.Lock()
-	session, ok := adapter.sessions[userID]
+	a.mu.Lock()
+	session, ok := a.sessions[userID]
 	if ok {
 		session.state = StateAwaitingQuery
 	}
-	adapter.mu.Unlock()
+	a.mu.Unlock()
 
 	if !ok {
 		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
@@ -231,25 +235,25 @@ func (adapter *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	return c.Edit("Send text to search for an account.", selector)
 }
 
-func (adapter *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
+func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 	userID := c.Sender().ID
-	adapter.mu.Lock()
-	session, ok := adapter.sessions[userID]
+	a.mu.Lock()
+	session, ok := a.sessions[userID]
 	if ok {
 		session.state = StateNone
 	}
-	adapter.mu.Unlock()
+	a.mu.Unlock()
 
 	if !ok {
 		return c.Edit("Session expired.")
 	}
 
-	return adapter.sendDraftMessage(c, session.draft)
+	return a.sendDraftMessage(c, session.draft)
 }
 
-func (adapter *TelegramAdapter) handleSearchQuery(c telebot.Context, session *userSession) error {
+func (a *TelegramAdapter) handleSearchQuery(c telebot.Context, session *userSession) error {
 	query := c.Text()
-	matches := adapter.mappingSvc.SearchAccounts(query, 8)
+	matches := a.mappingService.SearchAccounts(query, 8)
 
 	selector := &telebot.ReplyMarkup{}
 	rows := make([]telebot.Row, 0)
@@ -271,40 +275,40 @@ func (adapter *TelegramAdapter) handleSearchQuery(c telebot.Context, session *us
 	return c.Send(fmt.Sprintf("Search results for '%s':", query), selector)
 }
 
-func (adapter *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
+func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
 	newAccount := c.Data()
 
-	adapter.mu.Lock()
-	session, ok := adapter.sessions[userID]
+	a.mu.Lock()
+	session, ok := a.sessions[userID]
 	if ok {
 		session.draft.Postings[0].Account = newAccount
 		session.state = StateNone
 	}
-	adapter.mu.Unlock()
+	a.mu.Unlock()
 
 	if !ok {
 		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
 	}
 
 	c.Respond(&telebot.CallbackResponse{Text: "Account updated."})
-	return adapter.sendDraftMessage(c, session.draft)
+	return a.sendDraftMessage(c, session.draft)
 }
 
-func (adapter *TelegramAdapter) handleConfirm(c telebot.Context) error {
+func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	userID := c.Sender().ID
-	adapter.mu.Lock()
-	session, ok := adapter.sessions[userID]
+	a.mu.Lock()
+	session, ok := a.sessions[userID]
 	if ok {
-		delete(adapter.sessions, userID)
+		delete(a.sessions, userID)
 	}
-	adapter.mu.Unlock()
+	a.mu.Unlock()
 
 	if !ok {
 		return c.Edit("Session expired. Please send the transaction again.")
 	}
 
-	if err := adapter.transactionUC.Add(session.draft); err != nil {
+	if err := a.transactionUC.Add(session.draft); err != nil {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
@@ -312,26 +316,26 @@ func (adapter *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
-func (adapter *TelegramAdapter) handleDiscard(c telebot.Context) error {
+func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 	userID := c.Sender().ID
-	adapter.mu.Lock()
-	delete(adapter.sessions, userID)
-	adapter.mu.Unlock()
+	a.mu.Lock()
+	delete(a.sessions, userID)
+	a.mu.Unlock()
 	return c.Edit("Transaction discarded. ❌")
 }
 
-func (adapter *TelegramAdapter) handleDocument(c telebot.Context) error {
+func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	doc := c.Message().Document
 
 	// Create a temporary file to save the download
 	tmpFile := doc.FileName
-	err := adapter.teleBot.Download(&doc.File, tmpFile)
+	err := a.teleBot.Download(&doc.File, tmpFile)
 	if err != nil {
 		return c.Send("Failed to download file.")
 	}
 	defer os.Remove(tmpFile)
 
-	summary, err := adapter.importService.Import(tmpFile)
+	summary, err := a.importService.Import(tmpFile)
 	if err != nil {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}
@@ -348,7 +352,7 @@ func (adapter *TelegramAdapter) handleDocument(c telebot.Context) error {
 hashID returns an 8-character MD5 hash of the provided string.
 Used for generating stable external IDs for bot transactions.
 */
-func (adapter *TelegramAdapter) hashID(data string) string {
+func (a *TelegramAdapter) hashID(data string) string {
 	result := ""
 	if data != "" {
 		hasher := md5.New()
