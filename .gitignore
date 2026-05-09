@@ -1,9 +1,19 @@
+# IDE
 .idea
+
+# Gemini
+.gemini/.env
+
 /ledger-files
 /sample-data
-.gemini/.env
+/config
+.env
 
 # Binaries
 bin/
+tmp/
 *.exe
 *.test
+
+# Mac
+.DS_Store

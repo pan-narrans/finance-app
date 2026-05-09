@@ -7,8 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
+// Ensure ImaginBankParser implements ports.BankParser at compile time.
+var _ ports.BankParser = (*ImaginBankParser)(nil)
 
 // ImaginBankParser handles ImaginBank-specific CSV file format.
 type ImaginBankParser struct {
@@ -16,9 +20,9 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingsPath string) *ImaginBankParser {
+func NewImaginBankParser(mappingService *domain.MappingService) *ImaginBankParser {
 	return &ImaginBankParser{
-		BaseParser: NewBaseParser(mappingsPath),
+		BaseParser: NewBaseParser(mappingService),
 	}
 }
 
@@ -80,8 +84,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		return nil, err
 	}
 
-	cleanDescription := p.CleanDescription(fullDescription)
-	targetAccount := p.ResolveAccount(cleanDescription, amount)
+	cleanDescription := p.mappingService.CleanDescription(fullDescription)
+	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
 
 	metadata := make(map[string]string)
 	metadata["Origin"] = "Imaginbank"
