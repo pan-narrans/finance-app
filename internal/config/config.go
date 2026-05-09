@@ -1,29 +1,34 @@
 package config
 
 import (
-	"log"
-
-	"github.com/caarlos0/env/v11"
-	"github.com/joho/godotenv"
+	"encoding/json"
+	"os"
 )
 
-// Config represents application configuration.
+// Environment represents application configuration.
 type Config struct {
-	LedgerRoot      string  `env:"LEDGER_ROOT" envDefault:"."`
-	ConfigRoot      string  `env:"CONFIG_ROOT" envDefault:"./config"`
-	TelegramToken   string  `env:"TELEGRAM_TOKEN"`
-	TelegramUserIDs []int64 `env:"TELEGRAM_USER_IDS" envSeparator:","`
+	DefaultCurrency       string `json:"default_currency"`
+	DefaultBotAccount     string `json:"default_bot_account"`
+	DefaultIncomeAccount  string `json:"default_income_account"`
+	DefaultExpenseAccount string `json:"default_expense_account"`
 }
 
-// Load loads configuration from .env file and environment variables.
-func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found: %v", err)
+// LoadConfig loads the config from a JSON file directly into [Config].
+func LoadConfig(path string) (Config, error) {
+	config := Config{
+		DefaultCurrency:       "",
+		DefaultBotAccount:     "",
+		DefaultIncomeAccount:  "",
+		DefaultExpenseAccount: "",
 	}
 
-	config := &Config{}
-	if err := env.Parse(config); err != nil {
-		return nil, err
+	fileData, err := os.ReadFile(path)
+	if err != nil {
+		return config, err
+	}
+
+	if err := json.Unmarshal(fileData, &config); err != nil {
+		return config, err
 	}
 
 	return config, nil

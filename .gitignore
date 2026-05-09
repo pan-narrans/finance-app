@@ -11,6 +11,7 @@
 
 # Binaries
 bin/
+tmp/
 *.exe
 *.test
 
