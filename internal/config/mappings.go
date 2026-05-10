@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 )
 
@@ -13,7 +14,11 @@ type MappingData struct {
 	Prefixes     []string          `json:"prefixes"`
 }
 
-// LoadMappings loads the mappings from a JSON file directly into [MappingData].
+/*
+LoadMappings loads the mappings from a JSON file directly into [MappingData].
+
+If the file is missing or invalid, it returns empty mappings and logs a warning.
+*/
 func LoadMappings(path string) (MappingData, error) {
 	data := MappingData{
 		Accounts:     make(map[string]string),
@@ -24,11 +29,16 @@ func LoadMappings(path string) (MappingData, error) {
 
 	fileData, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("Warning: Mappings file not found at %s. Starting with empty mappings.", path)
+			return data, nil
+		}
 		return data, err
 	}
 
 	if err := json.Unmarshal(fileData, &data); err != nil {
-		return data, err
+		log.Printf("Warning: Mappings file at %s is invalid. Starting with empty mappings. Error: %v", path, err)
+		return data, nil
 	}
 
 	return data, nil
