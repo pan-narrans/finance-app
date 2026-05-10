@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -335,11 +336,13 @@ func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	doc := c.Message().Document
 
-	// Create a temporary file to save the download
-	tmpFile := doc.FileName
+	// Create a temporary file to save the download in a writable directory
+	tmpDir := os.TempDir()
+	tmpFile := filepath.Join(tmpDir, doc.FileName)
+
 	err := a.teleBot.Download(&doc.File, tmpFile)
 	if err != nil {
-		return c.Send("Failed to download file.")
+		return c.Send(fmt.Sprintf("Failed to download file: %v", err))
 	}
 	defer os.Remove(tmpFile)
 

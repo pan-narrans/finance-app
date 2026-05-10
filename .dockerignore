@@ -1,0 +1,34 @@
+# Source Control
+.git
+.gitignore
+
+# IDEs and OS
+.idea
+.vscode
+.DS_Store
+
+# Environments and Secrets (CRITICAL)
+.env
+.env.example
+
+# Local Build Artifacts
+tmp/
+bin/
+*.test
+*.out
+
+# Documentation and Project Management
+README.md
+TODO.md
+GEMINI.md
+.gemini/
+.geminiignore
+
+# Docker files themselves
+docker/
+Dockerfile
+docker-compose.yaml
+
+# Local data (don't bake your private ledger into the image!)
+sample-data/
+ledger-data/

@@ -9,8 +9,8 @@ import (
 
 // Environment represents application configuration.
 type Environment struct {
-	LedgerRoot      string  `env:"LEDGER_ROOT" envDefault:"."`
-	LedgerFile      string  `env:"LEDGER_FILE" envDefault:"."`
+	LedgerRoot      string  `env:"LEDGER_ROOT" envDefault:"./sample-data/ledger-files"`
+	LedgerFile      string  `env:"LEDGER_FILE" envDefault:"main.ledger"`
 	ConfigRoot      string  `env:"CONFIG_ROOT" envDefault:"./config"`
 	TelegramToken   string  `env:"TELEGRAM_TOKEN"`
 	TelegramUserIDs []int64 `env:"TELEGRAM_USER_IDS" envSeparator:","`
