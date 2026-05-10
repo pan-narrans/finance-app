@@ -16,7 +16,7 @@ RUN adduser -D financeuser
 USER financeuser
 
 COPY --from=builder /app/finance-app .
-COPY config ./config
+COPY config/templates ./config
 
 # Default Env Vars (can be overridden)
 ENV LEDGER_ROOT=/app/ledger

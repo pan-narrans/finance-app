@@ -10,6 +10,8 @@
 # Environments and Secrets (CRITICAL)
 .env
 .env.example
+config/*.json
+!config/templates/
 
 # Local Build Artifacts
 tmp/
@@ -24,11 +26,10 @@ GEMINI.md
 .gemini/
 .geminiignore
 
-# Docker files themselves
+# Docker files
 docker/
 Dockerfile
 docker-compose.yaml
 
-# Local data (don't bake your private ledger into the image!)
+# Local data
 sample-data/
-ledger-data/

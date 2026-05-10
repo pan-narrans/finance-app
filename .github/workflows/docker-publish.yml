@@ -3,7 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     tags:
-      - 'v*' # Triggers on any tag starting with 'v', e.g., v0.1.0
+      - "v*"
 
 jobs:
   build-and-push:
@@ -12,7 +12,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Required for multi-platform builds (AMD64 and ARM64)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -25,7 +24,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Automatically extracts the version from the Git tag
       - name: Extract Metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -43,3 +41,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Recommended for modern Buildx
+          provenance: false

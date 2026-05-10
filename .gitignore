@@ -6,7 +6,9 @@
 
 /ledger-files
 /sample-data
-/config
+# Configuration
+/config/*.json
+!/config/templates/
 .env
 
 # Binaries
