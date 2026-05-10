@@ -1,0 +1,6 @@
+{
+  "default_currency": "EUR",
+  "default_bot_account": "Assets:Cash",
+  "default_income_account": "Income:Unknown",
+  "default_expense_account": "Expenses:Unknown"
+}

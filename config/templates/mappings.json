@@ -1,0 +1,12 @@
+{
+  "descriptions": {
+    "EXAMPLE_STORE": "Expenses:Food"
+  },
+  "accounts": {
+    "EMPLOYER_NAME": "Income:Salary"
+  },
+  "cards": {
+    "1234567890123456": "DefaultUser"
+  },
+  "prefixes": ["Purchase at"]
+}
