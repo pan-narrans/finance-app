@@ -14,6 +14,7 @@ import (
 type MappingService struct {
 	accountMappings           map[string]string
 	descriptionMappings       map[string]string
+	sourceMappings            map[string]string
 	sortedAccountKeywords     []string
 	sortedDescriptionKeywords []string
 	cardMappings              map[string]string
@@ -41,6 +42,7 @@ func NewMappingService(data config.MappingData, cfg config.Config) *MappingServi
 	return &MappingService{
 		accountMappings:           data.Accounts,
 		descriptionMappings:       data.Descriptions,
+		sourceMappings:            data.Sources,
 		sortedAccountKeywords:     sortedAccountKeywords,
 		sortedDescriptionKeywords: sortedDescriptionKeywords,
 		cardMappings:              data.Cards,
@@ -93,6 +95,17 @@ func (s *MappingService) ResolvePayer(fullDescription string) string {
 	}
 
 	return payer
+}
+
+// ResolveSource returns the account associated with a keyword (e.g., 'alex' -> 'Income:Alex').
+// It returns the account and true if found, otherwise empty string and false.
+func (s *MappingService) ResolveSource(keyword string) (string, bool) {
+	if keyword == "" {
+		return "", false
+	}
+
+	account, exists := s.sourceMappings[strings.ToLower(keyword)]
+	return account, exists
 }
 
 // SearchAccounts returns ranked account matches for a query.

@@ -5,6 +5,9 @@
   "accounts": {
     "EMPLOYER_NAME": "Income:Salary"
   },
+  "sources": {
+    "cash": "Assets:Cash"
+  },
   "cards": {
     "1234567890123456": "DefaultUser"
   },

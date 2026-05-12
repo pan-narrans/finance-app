@@ -27,7 +27,7 @@ import (
  * - Extract business logic to app or domain.
  */
 
-var entryRegex = regexp.MustCompile(`^(\d+([.,]\d+)?)\s+(.+)$`)
+var entryRegex = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
 
 type SearchState string
 
@@ -145,19 +145,31 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	// Else handle as new transaction entry
 	text := c.Text()
 	matches := entryRegex.FindStringSubmatch(text)
-	if len(matches) < 4 {
-		return c.Send("Format not recognized. Use: 'amount description' (e.g., '10 coffee')")
+	if len(matches) < 5 {
+		return c.Send("Format not recognized. Use: '[payer] amount description' (e.g., 'alex 10 coffee' or '10 coffee')")
 	}
 
-	amountStr := strings.Replace(matches[1], ",", ".", 1)
+	payerKeyword := matches[1]
+	amountStr := strings.Replace(matches[2], ",", ".", 1)
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
 		return c.Send("Invalid amount format.")
 	}
 
-	description := matches[3]
+	description := matches[4]
 	cleanDescription := a.mappingService.CleanDescription(description)
 	targetAccount := a.mappingService.ResolveAccount(cleanDescription, amount)
+
+	// Resolve income/source account
+	sourceAccount := a.cfg.DefaultBotAccount
+	if payerKeyword != "" {
+		if acc, found := a.mappingService.ResolveSource(payerKeyword); found {
+			sourceAccount = acc
+		} else {
+			// Fallback: if payer name provided but no mapping, use Income:[Payer]
+			sourceAccount = fmt.Sprintf("Income:%s", strings.Title(strings.ToLower(payerKeyword)))
+		}
+	}
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(targetAccount, ":Unknown") {
@@ -180,7 +192,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		Metadata:    metadata,
 		Postings: []domain.Posting{
 			{Account: targetAccount, Amount: &amount, Currency: a.cfg.DefaultCurrency},
-			{Account: a.cfg.DefaultBotAccount, Amount: nil},
+			{Account: sourceAccount, Amount: nil},
 		},
 	}
 	tx.Code = tx.GenerateCode()
