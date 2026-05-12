@@ -37,8 +37,9 @@ const (
 )
 
 type userSession struct {
-	draft domain.Transaction
-	state SearchState
+	draft          domain.Transaction
+	state          SearchState
+	editingPosting int
 }
 
 // TelegramAdapter handles Telegram interactions.
@@ -146,10 +147,10 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	text := c.Text()
 	matches := entryRegex.FindStringSubmatch(text)
 	if len(matches) < 5 {
-		return c.Send("Format not recognized. Use: '[payer] amount description' (e.g., 'alex 10 coffee' or '10 coffee')")
+		return c.Send("Format not recognized. Use: '[source] amount description' (e.g., 'cash 10 coffee' or '10 coffee')")
 	}
 
-	payerKeyword := matches[1]
+	sourceKeyword := matches[1]
 	amountStr := strings.Replace(matches[2], ",", ".", 1)
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
@@ -162,12 +163,12 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 
 	// Resolve income/source account
 	sourceAccount := a.cfg.DefaultBotAccount
-	if payerKeyword != "" {
-		if acc, found := a.mappingService.ResolveSource(payerKeyword); found {
+	if sourceKeyword != "" {
+		if acc, found := a.mappingService.ResolveSource(sourceKeyword); found {
 			sourceAccount = acc
 		} else {
-			// Fallback: if payer name provided but no mapping, use Income:[Payer]
-			sourceAccount = fmt.Sprintf("Income:%s", strings.Title(strings.ToLower(payerKeyword)))
+			// Fallback: if source name provided but no mapping, use Income:[Source]
+			sourceAccount = fmt.Sprintf("Income:%s", strings.Title(strings.ToLower(sourceKeyword)))
 		}
 	}
 
@@ -208,10 +209,15 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
 	selector := &telebot.ReplyMarkup{}
 	btnConfirm := selector.Data("Confirm ✅", "confirm")
-	btnEdit := selector.Data("Edit Account ✏️", "edit_acc")
+	btnEditTarget := selector.Data("Edit Target ✏️", "edit_acc", "0")
+	btnEditSource := selector.Data("Edit Source ✏️", "edit_acc", "1")
 	btnDiscard := selector.Data("Discard ❌", "discard")
 
-	rows := []telebot.Row{selector.Row(btnConfirm, btnEdit, btnDiscard)}
+	rows := []telebot.Row{
+		selector.Row(btnConfirm),
+		selector.Row(btnEditTarget, btnEditSource),
+		selector.Row(btnDiscard),
+	}
 
 	// Auto-suggestions if still Unknown
 	targetAccount := tx.Postings[0].Account
@@ -238,10 +244,13 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 
 func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	userID := c.Sender().ID
+	postingIndex, _ := strconv.Atoi(c.Data())
+
 	a.mu.Lock()
 	session, ok := a.sessions[userID]
 	if ok {
 		session.state = StateAwaitingQuery
+		session.editingPosting = postingIndex
 	}
 	a.mu.Unlock()
 
@@ -253,7 +262,12 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	btnCancel := selector.Data("Cancel 🔙", "cancel_edit")
 	selector.Inline(selector.Row(btnCancel))
 
-	return c.Edit("Send text to search for an account.", selector)
+	accountType := "target"
+	if postingIndex == 1 {
+		accountType = "source"
+	}
+
+	return c.Edit(fmt.Sprintf("Send text to search for a %s account.", accountType), selector)
 }
 
 func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
@@ -303,7 +317,9 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	a.mu.Lock()
 	session, ok := a.sessions[userID]
 	if ok {
-		session.draft.Postings[0].Account = newAccount
+		if len(session.draft.Postings) > session.editingPosting {
+			session.draft.Postings[session.editingPosting].Account = newAccount
+		}
 		session.state = StateNone
 	}
 	a.mu.Unlock()
