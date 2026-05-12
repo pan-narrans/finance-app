@@ -47,7 +47,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
   - [ ] Fix TODO comments.
 - [ ] New Features
   - [X] Add option to set source account on expeses (e.g. cash 10 coffee).
-  - [ ] Modify source account via telegram bot. Same concept as target account.
+  - [X] Modify source account via telegram bot. Same concept as target account.
   - [ ] Config/ live reload on changes.
   - [ ] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.
