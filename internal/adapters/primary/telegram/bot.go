@@ -27,7 +27,7 @@ import (
  * - Extract business logic to app or domain.
  */
 
-var entryRegex = regexp.MustCompile(`^(\d+([.,]\d+)?)\s+(.+)$`)
+var entryRegex = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
 
 type SearchState string
 
@@ -37,8 +37,9 @@ const (
 )
 
 type userSession struct {
-	draft domain.Transaction
-	state SearchState
+	draft          domain.Transaction
+	state          SearchState
+	editingPosting int
 }
 
 // TelegramAdapter handles Telegram interactions.
@@ -145,19 +146,31 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	// Else handle as new transaction entry
 	text := c.Text()
 	matches := entryRegex.FindStringSubmatch(text)
-	if len(matches) < 4 {
-		return c.Send("Format not recognized. Use: 'amount description' (e.g., '10 coffee')")
+	if len(matches) < 5 {
+		return c.Send("Format not recognized. Use: '[source] amount description' (e.g., 'cash 10 coffee' or '10 coffee')")
 	}
 
-	amountStr := strings.Replace(matches[1], ",", ".", 1)
+	sourceKeyword := matches[1]
+	amountStr := strings.Replace(matches[2], ",", ".", 1)
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
 		return c.Send("Invalid amount format.")
 	}
 
-	description := matches[3]
+	description := matches[4]
 	cleanDescription := a.mappingService.CleanDescription(description)
 	targetAccount := a.mappingService.ResolveAccount(cleanDescription, amount)
+
+	// Resolve income/source account
+	sourceAccount := a.cfg.DefaultBotAccount
+	if sourceKeyword != "" {
+		if acc, found := a.mappingService.ResolveSource(sourceKeyword); found {
+			sourceAccount = acc
+		} else {
+			// Fallback: if source name provided but no mapping, use Income:[Source]
+			sourceAccount = fmt.Sprintf("Income:%s", strings.Title(strings.ToLower(sourceKeyword)))
+		}
+	}
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(targetAccount, ":Unknown") {
@@ -180,7 +193,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		Metadata:    metadata,
 		Postings: []domain.Posting{
 			{Account: targetAccount, Amount: &amount, Currency: a.cfg.DefaultCurrency},
-			{Account: a.cfg.DefaultBotAccount, Amount: nil},
+			{Account: sourceAccount, Amount: nil},
 		},
 	}
 	tx.Code = tx.GenerateCode()
@@ -196,10 +209,15 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
 	selector := &telebot.ReplyMarkup{}
 	btnConfirm := selector.Data("Confirm ✅", "confirm")
-	btnEdit := selector.Data("Edit Account ✏️", "edit_acc")
+	btnEditTarget := selector.Data("Edit Target ✏️", "edit_acc", "0")
+	btnEditSource := selector.Data("Edit Source ✏️", "edit_acc", "1")
 	btnDiscard := selector.Data("Discard ❌", "discard")
 
-	rows := []telebot.Row{selector.Row(btnConfirm, btnEdit, btnDiscard)}
+	rows := []telebot.Row{
+		selector.Row(btnConfirm),
+		selector.Row(btnEditTarget, btnEditSource),
+		selector.Row(btnDiscard),
+	}
 
 	// Auto-suggestions if still Unknown
 	targetAccount := tx.Postings[0].Account
@@ -226,10 +244,13 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 
 func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	userID := c.Sender().ID
+	postingIndex, _ := strconv.Atoi(c.Data())
+
 	a.mu.Lock()
 	session, ok := a.sessions[userID]
 	if ok {
 		session.state = StateAwaitingQuery
+		session.editingPosting = postingIndex
 	}
 	a.mu.Unlock()
 
@@ -241,7 +262,12 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	btnCancel := selector.Data("Cancel 🔙", "cancel_edit")
 	selector.Inline(selector.Row(btnCancel))
 
-	return c.Edit("Send text to search for an account.", selector)
+	accountType := "target"
+	if postingIndex == 1 {
+		accountType = "source"
+	}
+
+	return c.Edit(fmt.Sprintf("Send text to search for a %s account.", accountType), selector)
 }
 
 func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
@@ -291,7 +317,9 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	a.mu.Lock()
 	session, ok := a.sessions[userID]
 	if ok {
-		session.draft.Postings[0].Account = newAccount
+		if len(session.draft.Postings) > session.editingPosting {
+			session.draft.Postings[session.editingPosting].Account = newAccount
+		}
 		session.state = StateNone
 	}
 	a.mu.Unlock()
