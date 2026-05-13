@@ -98,6 +98,35 @@ func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	assert.Equal(t, "", svc.ResolvePayer("No card info here"))
 }
 
+func TestMappingService_ResolveSource_ShouldReturnCorrectAccount(t *testing.T) {
+	// Arrange
+	data := config.MappingData{
+		Sources: map[string]string{
+			"alex":     "Income:Alex",
+			"pilar":    "Income:Pilar",
+			"efectivo": "Assets:Cash",
+		},
+	}
+	svc := NewMappingService(data, config.Config{})
+
+	// Act & Assert
+	acc, found := svc.ResolveSource("Alex")
+	assert.True(t, found)
+	assert.Equal(t, "Income:Alex", acc)
+
+	acc, found = svc.ResolveSource("efectivo")
+	assert.True(t, found)
+	assert.Equal(t, "Assets:Cash", acc)
+
+	acc, found = svc.ResolveSource("unknown")
+	assert.False(t, found)
+	assert.Equal(t, "", acc)
+
+	acc, found = svc.ResolveSource("")
+	assert.False(t, found)
+	assert.Equal(t, "", acc)
+}
+
 func TestSortKeywords_ShouldSortByLengthDescending(t *testing.T) {
 	// Arrange
 	m := map[string]string{

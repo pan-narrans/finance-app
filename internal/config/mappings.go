@@ -10,6 +10,7 @@ import (
 type MappingData struct {
 	Accounts     map[string]string `json:"accounts"`
 	Descriptions map[string]string `json:"descriptions"`
+	Sources      map[string]string `json:"sources"`
 	Cards        map[string]string `json:"cards"`
 	Prefixes     []string          `json:"prefixes"`
 }
@@ -23,6 +24,7 @@ func LoadMappings(path string) (MappingData, error) {
 	data := MappingData{
 		Accounts:     make(map[string]string),
 		Descriptions: make(map[string]string),
+		Sources:      make(map[string]string),
 		Cards:        make(map[string]string),
 		Prefixes:     make([]string, 0),
 	}

@@ -37,16 +37,21 @@ This file tracks the upcoming tasks and development milestones for the Finance A
   - [ ] Research possible API providers (e.g., Salt Edge, Nordigen, or local alternatives).
 
 ## Phase 4: Deployment
-- [ ] Dockerize app.
-  - [ ] Use versioning system to allow for continuous integration.
-- [ ] Deploy to server.
+- [X] Dockerize app.
+  - [X] Use versioning system to allow for continuous integration.
+- [X] Deploy to server.
 
 ## Phase 5: Refinement
-- [ ] Ensure full compatibility with Paisa GUI.
-- [ ] Refactor app architecture to use domain (try and see how it feels).
-- [ ] Fix TODO comments.
-- [ ] Add logging and error reporting.
+- [ ] Fixes and refactoring
+  - [ ] Refactor app architecture to use domain (try and see how it feels).
+  - [ ] Fix TODO comments.
+- [ ] New Features
+  - [X] Add option to set source account on expeses (e.g. cash 10 coffee).
+  - [X] Modify source account via telegram bot. Same concept as target account.
+  - [ ] Config/ live reload on changes.
+  - [ ] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.
+- [ ] Ensure full compatibility with Paisa GUI.
 
 ## Future ideas
 
