@@ -168,9 +168,10 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	}
 
 	// Add Metadata
-	metadata := make(map[string]string)
-	metadata["Origin"] = "Bot"
-	metadata["ID"] = a.hashID(fmt.Sprintf("%d", time.Now().UnixNano()))
+	metadata := domain.Metadata{
+		Origin: "Bot",
+		ID:     a.hashID(fmt.Sprintf("%d", time.Now().UnixNano())),
+	}
 
 	// Create a draft transaction
 	tx := domain.Transaction{

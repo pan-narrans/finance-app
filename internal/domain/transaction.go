@@ -42,6 +42,17 @@ func (transactionStatus TransactionStatus) String() string {
 }
 
 /*
+Metadata represents key-value pairs stored as comments in a Ledger transaction.
+Supports specific fields for identification and origin tracking, plus arbitrary extras.
+*/
+type Metadata struct {
+	ID      string
+	Origin  string
+	PayedBy string
+	Extras  map[string]string
+}
+
+/*
 Transaction represents a single financial entry in a Ledger file.
 
 Fields:
@@ -49,7 +60,7 @@ Fields:
   - Status: The clearing status (* for cleared, ! for pending, or none).
   - Code: Optional unique identifier or reference number in parentheses.
   - Description: Human-readable description, usually storing the payee.
-  - Metadata: Key-value pairs stored as comments (e.g., "PayedBy": "Alex").
+  - Metadata: Specific attributes stored as comments (e.g., ID, Origin, PayedBy).
   - Postings: Detailed line items (at least two required).
 */
 type Transaction struct {
@@ -57,7 +68,7 @@ type Transaction struct {
 	Status      TransactionStatus
 	Code        string
 	Description string
-	Metadata    map[string]string
+	Metadata    Metadata
 	Postings    []Posting
 }
 
@@ -96,8 +107,8 @@ func (transaction *Transaction) GenerateCode() string {
 	hash(transaction.Date.Format("2006-01-02"))
 	hash(transaction.Description)
 
-	if val, ok := transaction.Metadata["ID"]; ok {
-		hash(val)
+	if transaction.Metadata.ID != "" {
+		hash(transaction.Metadata.ID)
 	}
 
 	for _, posting := range transaction.Postings {
@@ -142,15 +153,28 @@ func (transaction *Transaction) Format() string {
 
 	write(" %s\n", transaction.Description)
 
-	// Write metadata as comments in alphabetical order
-	keys := make([]string, 0, len(transaction.Metadata))
-	for k := range transaction.Metadata {
-		keys = append(keys, k)
+	// Write metadata as comments
+	if transaction.Metadata.ID != "" {
+		write("    ; ID: %s\n", transaction.Metadata.ID)
 	}
-	slices.Sort(keys)
+	if transaction.Metadata.Origin != "" {
+		write("    ; Origin: %s\n", transaction.Metadata.Origin)
+	}
+	if transaction.Metadata.PayedBy != "" {
+		write("    ; PayedBy: %s\n", transaction.Metadata.PayedBy)
+	}
 
-	for _, k := range keys {
-		write("    ; %s: %s\n", k, transaction.Metadata[k])
+	// Write arbitrary metadata in alphabetical order for stability
+	if len(transaction.Metadata.Extras) > 0 {
+		keys := make([]string, 0, len(transaction.Metadata.Extras))
+		for k := range transaction.Metadata.Extras {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+
+		for _, k := range keys {
+			write("    ; %s: %s\n", k, transaction.Metadata.Extras[k])
+		}
 	}
 
 	for _, posting := range transaction.Postings {

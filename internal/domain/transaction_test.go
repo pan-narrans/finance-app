@@ -158,18 +158,20 @@ func TestTransaction_GenerateCode_ShouldBeDeterministic(t *testing.T) {
 	assert.Equal(t, code1, code2)
 }
 
-func TestTransaction_Format_ShouldSortMetadataAlphabetically(t *testing.T) {
+func TestTransaction_Format_ShouldIncludeArbitraryMetadataFromExtras(t *testing.T) {
 	// Arrange
 	transaction := Transaction{
 		Date:        time.Date(2026, 4, 26, 0, 0, 0, 0, time.UTC),
 		Description: "Test",
-		Metadata: map[string]string{
-			"Zen":    "Last",
-			"Apple":  "First",
-			"Banana": "Middle",
+		Metadata: Metadata{
+			ID: "123",
+			Extras: map[string]string{
+				"Category": "Groceries",
+				"Store":    "Mercadona",
+			},
 		},
 		Postings: []Posting{
-			{Account: "Assets:Cash", Amount: new(10.0), Currency: "USD"},
+			{Account: "Assets:Cash", Amount: new(10.0), Currency: "EUR"},
 			{Account: "Expenses:Food", Amount: nil},
 		},
 	}
@@ -178,6 +180,7 @@ func TestTransaction_Format_ShouldSortMetadataAlphabetically(t *testing.T) {
 	got := transaction.Format()
 
 	// Assert
-	expectedMetadata := "    ; Apple: First\n    ; Banana: Middle\n    ; Zen: Last\n"
-	assert.Contains(t, got, expectedMetadata)
+	assert.Contains(t, got, "    ; ID: 123\n")
+	assert.Contains(t, got, "    ; Category: Groceries\n")
+	assert.Contains(t, got, "    ; Store: Mercadona\n")
 }
