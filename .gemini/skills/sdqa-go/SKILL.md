@@ -58,7 +58,7 @@ func TestTransaction_Format_ShouldReturnValidLedgerString_WhenValidInputProvided
 	}
 
 	// Act
-	result := trans.Format()
+	result := trans.Format(52)
 
 	// Assert
 	if result != expected {

@@ -12,6 +12,7 @@ type Config struct {
 	DefaultBotAccount     string `json:"default_bot_account"`
 	DefaultIncomeAccount  string `json:"default_income_account"`
 	DefaultExpenseAccount string `json:"default_expense_account"`
+	LedgerAlignment       int    `json:"ledger_alignment"`
 }
 
 /*
@@ -25,6 +26,7 @@ func LoadConfig(path string) (Config, error) {
 		DefaultBotAccount:     "Assets:Cash",
 		DefaultIncomeAccount:  "Income:Unknown",
 		DefaultExpenseAccount: "Expenses:Unknown",
+		LedgerAlignment:       52,
 	}
 
 	fileData, err := os.ReadFile(path)

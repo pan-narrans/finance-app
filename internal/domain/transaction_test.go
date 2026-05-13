@@ -24,7 +24,7 @@ func TestTransaction_Format_ShouldReturnValidLedgerString_WhenValidInputProvided
 	}
 
 	// Act
-	got := transaction.Format()
+	got := transaction.Format(52)
 
 	// Assert
 	assert.Equal(t, expected, got)
@@ -177,7 +177,7 @@ func TestTransaction_Format_ShouldIncludeArbitraryMetadataFromExtras(t *testing.
 	}
 
 	// Act
-	got := transaction.Format()
+	got := transaction.Format(52)
 
 	// Assert
 	assert.Contains(t, got, "    ; ID: 123\n")

@@ -130,11 +130,10 @@ It applies the following formatting rules:
   - Payees and descriptions are appended to the header.
   - Metadata is stored as indented comments below the header.
   - Account names are indented by four spaces.
-  - Amounts are right-aligned to a standard column (default 52).
+  - Amounts are right-aligned to a standard column.
   - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
 */
-//TODO Make alignment value (now 52) configurable.
-func (transaction *Transaction) Format() string {
+func (transaction *Transaction) Format(alignment int) string {
 	var sb strings.Builder
 
 	write := func(format string, args ...any) {
@@ -153,6 +152,7 @@ func (transaction *Transaction) Format() string {
 
 	write(" %s\n", transaction.Description)
 
+	// TODO refactor this
 	// Write metadata as comments
 	if transaction.Metadata.ID != "" {
 		write("    ; ID: %s\n", transaction.Metadata.ID)
@@ -181,7 +181,7 @@ func (transaction *Transaction) Format() string {
 		write("    %s", posting.Account)
 
 		if posting.Amount != nil {
-			padding := 52 - len(posting.Account)
+			padding := alignment - len(posting.Account)
 			if padding < 2 {
 				padding = 2
 			}

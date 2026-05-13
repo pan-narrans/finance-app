@@ -19,10 +19,6 @@ func main() {
 		log.Fatalf("Fail load config: %v", err)
 	}
 
-	// Secondary Adapters
-	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
-	repo := ledger.NewTransactionFileRepository(ledgerPath)
-
 	// Services & Domain
 	rules, err := config.LoadMappings(filepath.Join(env.ConfigRoot, "mappings.json"))
 	if err != nil {
@@ -32,6 +28,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Fail load mappings: %v", err)
 	}
+
+	// Secondary Adapters
+	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
+	repo := ledger.NewTransactionFileRepository(ledgerPath, conf.LedgerAlignment)
 
 	mappingService := domain.NewMappingService(rules, conf)
 

@@ -234,7 +234,7 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 
 	selector.Inline(rows...)
 
-	formatted := tx.Format()
+	formatted := tx.Format(a.cfg.LedgerAlignment)
 	msg := fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>%s", formatted, msgSuffix)
 
 	if c.Callback() != nil {
@@ -350,7 +350,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
-	formatted := session.draft.Format()
+	formatted := session.draft.Format(a.cfg.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
