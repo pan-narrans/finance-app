@@ -136,33 +136,46 @@ It applies the following formatting rules:
 func (transaction *Transaction) Format(alignment int) string {
 	var sb strings.Builder
 
-	write := func(format string, args ...any) {
-		_, _ = fmt.Fprintf(&sb, format, args...)
-	}
+	transaction.writeLine(&sb, "%s", transaction.Date.Format("2006/01/02"))
+	transaction.writeLine(&sb, " %s", transaction.Status.String())
+	transaction.writeLine(&sb, " (%s)", transaction.Code)
+	transaction.writeLine(&sb, " %s", transaction.Description)
+	sb.WriteByte('\n')
 
-	sb.WriteString(transaction.Date.Format("2006/01/02"))
+	transaction.addMetadata(&sb)
+	transaction.addPostings(&sb, alignment)
 
-	if statusStr := transaction.Status.String(); statusStr != "" {
-		write(" %s", statusStr)
-	}
+	return sb.String()
+}
 
-	if transaction.Code != "" {
-		write(" (%s)", transaction.Code)
-	}
+/*
+writeLine prints to the buffer unless any provided string argument is empty.
 
-	write(" %s\n", transaction.Description)
+This allows handling optional segments (status, code, metadata) concisely by
+skipping the entire line if a required component is missing, ensuring that
+related parts stay together or die together.
+*/
+func (transaction *Transaction) writeLine(sb *strings.Builder, format string, args ...any) {
+	for _, arg := range args {
+		if s, ok := arg.(string); ok && s == "" {
+			return
+		}
+	}
+	_, _ = fmt.Fprintf(sb, format, args...)
+}
 
-	// TODO refactor this
-	// Write metadata as comments
-	if transaction.Metadata.ID != "" {
-		write("    ; ID: %s\n", transaction.Metadata.ID)
-	}
-	if transaction.Metadata.Origin != "" {
-		write("    ; Origin: %s\n", transaction.Metadata.Origin)
-	}
-	if transaction.Metadata.PayedBy != "" {
-		write("    ; PayedBy: %s\n", transaction.Metadata.PayedBy)
-	}
+/*
+addMetadata appends the transaction's metadata as comments to the builder.
+
+It processes ID, Origin, and PayedBy fields first, followed by any
+alphabetically sorted extra fields. Empty fields are omitted.
+*/
+func (transaction *Transaction) addMetadata(sb *strings.Builder) {
+	const metadataFormat = "    ; %s: %s\n"
+
+	transaction.writeLine(sb, metadataFormat, "ID", transaction.Metadata.ID)
+	transaction.writeLine(sb, metadataFormat, "Origin", transaction.Metadata.Origin)
+	transaction.writeLine(sb, metadataFormat, "PayedBy", transaction.Metadata.PayedBy)
 
 	// Write arbitrary metadata in alphabetical order for stability
 	if len(transaction.Metadata.Extras) > 0 {
@@ -170,34 +183,39 @@ func (transaction *Transaction) Format(alignment int) string {
 		for k := range transaction.Metadata.Extras {
 			keys = append(keys, k)
 		}
-		slices.Sort(keys)
 
+		slices.Sort(keys)
 		for _, k := range keys {
-			write("    ; %s: %s\n", k, transaction.Metadata.Extras[k])
+			transaction.writeLine(sb, metadataFormat, k, transaction.Metadata.Extras[k])
 		}
 	}
+}
 
+/*
+addPostings appends all transaction postings to the builder.
+
+It ensures account names are correctly indented and amounts are right-aligned
+according to the provided alignment column. Numeric formatting follows
+Ledger standards (prefix for 1-char symbols, suffix for others).
+*/
+func (transaction *Transaction) addPostings(sb *strings.Builder, alignment int) {
 	for _, posting := range transaction.Postings {
-		write("    %s", posting.Account)
+		transaction.writeLine(sb, "    %s", posting.Account)
 
 		if posting.Amount != nil {
 			padding := alignment - len(posting.Account)
-			if padding < 2 {
-				padding = 2
-			}
+			padding = max(padding, 2)
 			sb.WriteString(strings.Repeat(" ", padding))
 
 			if len(posting.Currency) == 1 {
-				write("%s%.2f", posting.Currency, *posting.Amount)
+				transaction.writeLine(sb, "%s%.2f", posting.Currency, *posting.Amount)
 			} else {
-				write("%.2f %s", *posting.Amount, posting.Currency)
+				transaction.writeLine(sb, "%.2f %s", *posting.Amount, posting.Currency)
 			}
 		}
 
 		sb.WriteByte('\n')
 	}
-
-	return sb.String()
 }
 
 /*
