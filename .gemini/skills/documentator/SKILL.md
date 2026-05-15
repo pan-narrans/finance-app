@@ -6,6 +6,10 @@ description: Technical documentation expert. Enforces godoc standards, manages b
 # Documentator
 
 Ensure technical documentation is clear, accurate, and follows Go standards.
+Document:
+- Both public and private functions.
+- Structs.
+
 
 ## Workflow
 
