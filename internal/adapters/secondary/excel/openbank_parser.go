@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"golang.org/x/net/html"
 	"golang.org/x/text/encoding/charmap"
@@ -21,9 +22,9 @@ type OpenBankParser struct {
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser.
-func NewOpenBankParser(mappingService *domain.MappingService) *OpenBankParser {
+func NewOpenBankParser(mappingService *domain.MappingService, cfg config.Config) *OpenBankParser {
 	return &OpenBankParser{
-		BaseParser: NewBaseParser(mappingService),
+		BaseParser: NewBaseParser(mappingService, cfg),
 	}
 }
 
@@ -131,7 +132,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: "Assets:Checking:OpenBank", Amount: &amount, Currency: "EUR"},
+			{Account: p.cfg.OpenBankAccount, Amount: &amount, Currency: p.cfg.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}, nil

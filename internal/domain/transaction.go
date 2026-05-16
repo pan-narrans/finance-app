@@ -97,21 +97,21 @@ included to differentiate otherwise identical transactions.
 Since the account is dependent on the description, it is excluded from code generation.
 This ensures that changes to the account mappings file do not alter existing transaction codes.
 */
-func (transaction *Transaction) GenerateCode() string {
+func (t *Transaction) GenerateCode() string {
 	hasher := sha256.New()
 	hash := func(data string) {
 		hasher.Write([]byte(data))
 		hasher.Write([]byte("|"))
 	}
 
-	hash(transaction.Date.Format("2006-01-02"))
-	hash(transaction.Description)
+	hash(t.Date.Format("2006-01-02"))
+	hash(t.Description)
 
-	if transaction.Metadata.ID != "" {
-		hash(transaction.Metadata.ID)
+	if t.Metadata.ID != "" {
+		hash(t.Metadata.ID)
 	}
 
-	for _, posting := range transaction.Postings {
+	for _, posting := range t.Postings {
 		if posting.Amount != nil {
 			hash(fmt.Sprintf("%.2f", *posting.Amount))
 			hash(posting.Currency)
@@ -133,17 +133,17 @@ It applies the following formatting rules:
   - Amounts are right-aligned to a standard column.
   - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
 */
-func (transaction *Transaction) Format(alignment int) string {
+func (t *Transaction) Format(alignment int) string {
 	var sb strings.Builder
 
-	transaction.writeLine(&sb, "%s", transaction.Date.Format("2006/01/02"))
-	transaction.writeLine(&sb, " %s", transaction.Status.String())
-	transaction.writeLine(&sb, " (%s)", transaction.Code)
-	transaction.writeLine(&sb, " %s", transaction.Description)
+	t.writeLine(&sb, "%s", t.Date.Format("2006/01/02"))
+	t.writeLine(&sb, " %s", t.Status.String())
+	t.writeLine(&sb, " (%s)", t.Code)
+	t.writeLine(&sb, " %s", t.Description)
 	sb.WriteByte('\n')
 
-	transaction.addMetadata(&sb)
-	transaction.addPostings(&sb, alignment)
+	t.addMetadata(&sb)
+	t.addPostings(&sb, alignment)
 
 	return sb.String()
 }
@@ -155,13 +155,13 @@ This allows handling optional segments (status, code, metadata) concisely by
 skipping the entire line if a required component is missing, ensuring that
 related parts stay together or die together.
 */
-func (transaction *Transaction) writeLine(sb *strings.Builder, format string, args ...any) {
+func (t *Transaction) writeLine(builder *strings.Builder, format string, args ...any) {
 	for _, arg := range args {
 		if s, ok := arg.(string); ok && s == "" {
 			return
 		}
 	}
-	_, _ = fmt.Fprintf(sb, format, args...)
+	_, _ = fmt.Fprintf(builder, format, args...)
 }
 
 /*
@@ -170,23 +170,23 @@ addMetadata appends the transaction's metadata as comments to the builder.
 It processes ID, Origin, and PayedBy fields first, followed by any
 alphabetically sorted extra fields. Empty fields are omitted.
 */
-func (transaction *Transaction) addMetadata(sb *strings.Builder) {
+func (t *Transaction) addMetadata(builder *strings.Builder) {
 	const metadataFormat = "    ; %s: %s\n"
 
-	transaction.writeLine(sb, metadataFormat, "ID", transaction.Metadata.ID)
-	transaction.writeLine(sb, metadataFormat, "Origin", transaction.Metadata.Origin)
-	transaction.writeLine(sb, metadataFormat, "PayedBy", transaction.Metadata.PayedBy)
+	t.writeLine(builder, metadataFormat, "ID", t.Metadata.ID)
+	t.writeLine(builder, metadataFormat, "Origin", t.Metadata.Origin)
+	t.writeLine(builder, metadataFormat, "PayedBy", t.Metadata.PayedBy)
 
 	// Write arbitrary metadata in alphabetical order for stability
-	if len(transaction.Metadata.Extras) > 0 {
-		keys := make([]string, 0, len(transaction.Metadata.Extras))
-		for k := range transaction.Metadata.Extras {
+	if len(t.Metadata.Extras) > 0 {
+		keys := make([]string, 0, len(t.Metadata.Extras))
+		for k := range t.Metadata.Extras {
 			keys = append(keys, k)
 		}
 
 		slices.Sort(keys)
 		for _, k := range keys {
-			transaction.writeLine(sb, metadataFormat, k, transaction.Metadata.Extras[k])
+			t.writeLine(builder, metadataFormat, k, t.Metadata.Extras[k])
 		}
 	}
 }
@@ -198,9 +198,9 @@ It ensures account names are correctly indented and amounts are right-aligned
 according to the provided alignment column. Numeric formatting follows
 Ledger standards (prefix for 1-char symbols, suffix for others).
 */
-func (transaction *Transaction) addPostings(sb *strings.Builder, alignment int) {
-	for _, posting := range transaction.Postings {
-		transaction.writeLine(sb, "    %s", posting.Account)
+func (t *Transaction) addPostings(sb *strings.Builder, alignment int) {
+	for _, posting := range t.Postings {
+		t.writeLine(sb, "    %s", posting.Account)
 
 		if posting.Amount != nil {
 			padding := alignment - len(posting.Account)
@@ -208,9 +208,9 @@ func (transaction *Transaction) addPostings(sb *strings.Builder, alignment int) 
 			sb.WriteString(strings.Repeat(" ", padding))
 
 			if len(posting.Currency) == 1 {
-				transaction.writeLine(sb, "%s%.2f", posting.Currency, *posting.Amount)
+				t.writeLine(sb, "%s%.2f", posting.Currency, *posting.Amount)
 			} else {
-				transaction.writeLine(sb, "%.2f %s", *posting.Amount, posting.Currency)
+				t.writeLine(sb, "%.2f %s", *posting.Amount, posting.Currency)
 			}
 		}
 
@@ -229,22 +229,22 @@ Validation checks:
 
 It returns a structured DomainError if any validation failures occur.
 */
-func (transaction *Transaction) Validate() error {
+func (t *Transaction) Validate() error {
 	validationErrors := &ValidationErrors{}
 	entity := "Transaction"
 
-	if transaction.Date.IsZero() {
+	if t.Date.IsZero() {
 		validationErrors.Add(entity, "Date", "transaction date is required")
 	}
-	if transaction.Description == "" {
+	if t.Description == "" {
 		validationErrors.Add(entity, "Description", "transaction description is required")
 	}
-	if len(transaction.Postings) < 2 {
+	if len(t.Postings) < 2 {
 		validationErrors.Add(entity, "Postings", "transaction must have at least two postings to balance")
 	}
 
 	nilCount := 0
-	for i, posting := range transaction.Postings {
+	for i, posting := range t.Postings {
 		if posting.Account == "" {
 			field := fmt.Sprintf("Postings[%d].Account", i)
 			validationErrors.Add(entity, field, "account name is required")

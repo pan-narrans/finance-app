@@ -35,7 +35,7 @@ func main() {
 
 	mappingService := domain.NewMappingService(rules, conf)
 
-	parserFactory := excel.NewParserFactory(mappingService)
+	parserFactory := excel.NewParserFactory(mappingService, conf)
 
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
