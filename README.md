@@ -8,13 +8,45 @@ This project aims to automate and simplify the process of adding expenses to a `
 ## Core Objective
 Reduce friction when recording daily expenses by providing multiple input channels that automatically format data for the ledger.
 
-## Planned Features / Ideas
-- **Ledger CRUD:** A core module to interact with the `.ledger` file programmatically.
-- **Telegram Bot:** For quick, on-the-go expense entry via chat.
-- **Excel File Parser:** Custom parsers for bank-specific statement formats.
-- **Bank Aggregator API:** Potential integration with banking APIs for automated syncing.
+## Usage
 
-## Setup
+The application primarily operates through a **Telegram Bot** that interfaces with your Ledger file.
+
+### 1. Manual Entry (Chat)
+Send a message to the bot in the following format:
+`[source] <amount> <description>`
+
+- **Format:** `cash 10.50 coffee` or `12.50 dinner`
+- **Source (Optional):** Keywords like `cash`, `visa`, or names map to specific asset accounts. If omitted, the default asset account is used.
+- **Amount:** Supports both `.` and `,` as decimal separators.
+- **Description:** Anything after the amount is used as the payee/description.
+
+**The Flow:**
+1. Send the command.
+2. The bot parses the text and shows a **Draft Transaction**.
+3. Use **Inline Buttons** to:
+   - ✅ **Confirm:** Save directly to the `.ledger` file.
+   - ✏️ **Edit Target/Source:** Search for a specific account if the suggestion is wrong.
+   - ❌ **Discard:** Cancel the entry.
+
+### 2. Bank Statement Import
+Upload a supported bank export file (CSV/XLS) directly to the chat.
+
+- **Auto-Detection:** The bot identifies the bank (e.g., OpenBank, ImaginBank) by the filename.
+- **Deduplication:** Uses stable MD5 hashing of transaction data to prevent duplicate entries in your ledger.
+- **Summary:** After processing, the bot returns a summary of added, updated, and failed rows.
+
+### 3. Configuration & Mappings
+The bot's behavior is driven by two JSON files in the `config/` directory:
+
+- **`config.json`**: Global settings like `default_currency`, `ledger_alignment`, and default fallback accounts.
+- **`mappings.json`**:
+  - `accounts`: Maps keywords in descriptions to specific expense accounts (e.g., `"MERCADONA": "Expenses:Groceries"`).
+  - `prefixes`: Junk text to strip from bank descriptions (e.g., `"TARJETA Apple Pay:"`).
+  - `sources`: Keywords to map manual entry sources to accounts (e.g., `"alex": "Assets:Cash:Alex"`).
+  - `cards`: Maps card numbers found in descriptions to owners for metadata tracking.
+
+## Architecture & Design Principles
 
 1. **Environment Variables:**
    Copy the `.env.example` file to `.env` and fill in the required values:
