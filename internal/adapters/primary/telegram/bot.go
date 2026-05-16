@@ -177,8 +177,7 @@ func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 
 func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 	query := c.Text()
-	appConfig := a.configManager.Get() // TODO Why not mappings =: a.configManager.Get().Mappings directly?
-	results := appConfig.Mappings.SearchAccounts(query, 8)
+	results := a.configManager.Get().Mappings.SearchAccounts(query, 8)
 
 	msg, selector := a.ui.BuildSearchResults(query, results)
 	return c.Send(msg, selector)
@@ -218,8 +217,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	a.sessionManager.Delete(userID)
 
-	appConfig := a.configManager.Get()
-	formatted := session.Draft.Format(appConfig.Settings.LedgerAlignment)
+	formatted := session.Draft.Format(a.configManager.Get().Settings.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
