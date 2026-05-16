@@ -23,6 +23,7 @@ Document:
 - **Top-Down**: Description first, then fields, then examples.
 - **Terse**: Keep sentences short and direct.
 - **Sync**: Ensure documentation matches the current state of the code.
+- **Private Functions**: Document internal helpers (unexported) if they contain non-trivial logic, domain rules, or critical orchestrations to ensure maintainability.
 
 ## Resources
 - [Examples](references/examples.md)
