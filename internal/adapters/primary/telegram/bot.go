@@ -134,8 +134,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 }
 
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
-	appConfig := a.configManager.Get()
-	msg, selector := a.ui.BuildDraftMessage(tx, appConfig.Mappings)
+	msg, selector := a.ui.BuildDraftMessage(tx, a.configManager.Get().Mappings)
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)

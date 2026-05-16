@@ -102,15 +102,17 @@ Resolution logic:
   - Fallback to defaultExpense if amount is negative or zero.
 */
 func (s *MappingService) ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string {
-	if account, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
-		return account
+	account := ""
+
+	if match, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
+		account = match
+	} else if amount > 0 {
+		account = defaultIncome
+	} else {
+		account = defaultExpense
 	}
 
-	if amount > 0 {
-		return defaultIncome
-	}
-
-	return defaultExpense
+	return account
 }
 
 /*
