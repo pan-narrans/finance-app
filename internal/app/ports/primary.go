@@ -43,7 +43,7 @@ MappingProvider defines the contract for description cleaning and account resolu
 */
 type MappingProvider interface {
 	CleanDescription(description string) string
-	ResolveAccount(description string) (string, bool)
+	ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string
 	ResolvePayer(fullDescription string) string
 	ResolveSource(keyword string) (string, bool)
 	SearchAccounts(query string, limit int) []string

@@ -124,7 +124,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata.PayedBy = payedBy
 	}
 
-	targetAccount := p.resolveAccount(cleanDescription, amount)
+	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
 
 	return &domain.Transaction{
 		Date:        date,
@@ -136,19 +136,6 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 			{Account: targetAccount},
 		},
 	}, nil
-}
-
-// TODO why is this here? before we had extracted this to mappingService.ResolveAccount
-func (p *OpenBankParser) resolveAccount(description string, amount float64) string {
-	if account, found := p.mappingProvider.ResolveAccount(description); found {
-		return account
-	}
-
-	if amount > 0 {
-		return p.settings.DefaultIncomeAccount
-	}
-
-	return p.settings.DefaultExpenseAccount
 }
 
 func getInnerText(node *html.Node) string {

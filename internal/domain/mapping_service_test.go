@@ -17,22 +17,19 @@ func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 	svc := NewMappingService(data)
 
 	// Act
-	account, found := svc.ResolveAccount("AMAZON MARKETPLACE LUX")
+	account := svc.ResolveAccount("AMAZON MARKETPLACE LUX", -10.0, "Income:Unknown", "Expenses:Unknown")
 
 	// Assert
-	assert.True(t, found)
 	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
 }
 
-func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *testing.T) {
+func TestMappingService_ResolveAccount_ShouldReturnFallback_WhenNoMatchFound(t *testing.T) {
 	// Arrange
 	svc := NewMappingService(MappingData{})
 
-	// Act
-	_, found := svc.ResolveAccount("Some unknown expense")
-
-	// Assert
-	assert.False(t, found)
+	// Act & Assert
+	assert.Equal(t, "Expenses:Unknown", svc.ResolveAccount("Some unknown expense", -10.0, "Income:Unknown", "Expenses:Unknown"))
+	assert.Equal(t, "Income:Unknown", svc.ResolveAccount("Some unknown income", 10.0, "Income:Unknown", "Expenses:Unknown"))
 }
 
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {

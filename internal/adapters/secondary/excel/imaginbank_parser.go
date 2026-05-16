@@ -86,7 +86,7 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 	}
 
 	cleanDescription := p.mappingProvider.CleanDescription(fullDescription)
-	targetAccount := p.resolveAccount(cleanDescription, amount)
+	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
 
 	metadata := domain.Metadata{
 		Origin: "Imaginbank",
@@ -106,18 +106,4 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 			{Account: targetAccount},
 		},
 	}, nil
-}
-
-// TODO why is this here? before we had extracted this to mappingService.ResolveAccount
-// TODO duplicated logic with openbank_parser.go
-func (p *ImaginBankParser) resolveAccount(description string, amount float64) string {
-	if account, found := p.mappingProvider.ResolveAccount(description); found {
-		return account
-	}
-
-	if amount > 0 {
-		return p.settings.DefaultIncomeAccount
-	}
-
-	return p.settings.DefaultExpenseAccount
 }

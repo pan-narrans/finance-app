@@ -98,12 +98,19 @@ ResolveAccount matches description against keywords to determine the target acco
 
 Resolution logic:
   - Return mapped account if description contains a known keyword.
-  - Returns empty string if no match found. Fallback logic should be handled by the caller
-    using configuration.
+  - Fallback to defaultIncome if amount is positive.
+  - Fallback to defaultExpense if amount is negative or zero.
 */
+func (s *MappingService) ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string {
+	if account, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
+		return account
+	}
 
-func (s *MappingService) ResolveAccount(description string) (string, bool) {
-	return s.findMatch(description, s.sortedAccountKeywords, s.accountMappings)
+	if amount > 0 {
+		return defaultIncome
+	}
+
+	return defaultExpense
 }
 
 /*
