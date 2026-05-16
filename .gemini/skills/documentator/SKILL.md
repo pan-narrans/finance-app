@@ -10,7 +10,6 @@ Document:
 - Both public and private functions.
 - Structs.
 
-
 ## Workflow
 
 1. **Review**: Check existing code comments for readability and compliance with Go standards.
