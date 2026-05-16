@@ -13,6 +13,8 @@ type Config struct {
 	DefaultIncomeAccount  string `json:"default_income_account"`
 	DefaultExpenseAccount string `json:"default_expense_account"`
 	LedgerAlignment       int    `json:"ledger_alignment"`
+	ImaginBankAccount     string `json:"imaginbank_account"`
+	OpenBankAccount       string `json:"openbank_account"`
 }
 
 /*
@@ -27,6 +29,8 @@ func LoadConfig(path string) (Config, error) {
 		DefaultIncomeAccount:  "Income:Unknown",
 		DefaultExpenseAccount: "Expenses:Unknown",
 		LedgerAlignment:       52,
+		ImaginBankAccount:     "Assets:Checking:ImaginBank",
+		OpenBankAccount:       "Assets:Checking:OpenBank",
 	}
 
 	fileData, err := os.ReadFile(path)

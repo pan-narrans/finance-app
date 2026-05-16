@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
@@ -20,9 +21,9 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingService *domain.MappingService) *ImaginBankParser {
+func NewImaginBankParser(mappingService *domain.MappingService, cfg config.Config) *ImaginBankParser {
 	return &ImaginBankParser{
-		BaseParser: NewBaseParser(mappingService),
+		BaseParser: NewBaseParser(mappingService, cfg),
 	}
 }
 
@@ -101,7 +102,7 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: "Assets:Checking:ImaginBank", Amount: &amount, Currency: "EUR"},
+			{Account: p.cfg.ImaginBankAccount, Amount: &amount, Currency: p.cfg.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}, nil

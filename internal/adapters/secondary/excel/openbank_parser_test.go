@@ -34,7 +34,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 		Prefixes: []string{"Apple pay:"},
 	}
 	mappingService := domain.NewMappingService(mappingData, config.Config{})
-	parser := NewOpenBankParser(mappingService)
+	parser := NewOpenBankParser(mappingService, config.Config{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"})
 
 	// Act
 	transactions, err := parser.Parse(htmlPath)
@@ -66,7 +66,7 @@ func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *te
 	htmlContent := []byte("<html><body><table><tr><td></td><td>16/04/2026</td><td></td><td>17/04/2026</td><td></td><td>ESPA\xF1A</td><td></td><td>-10,50</td><td></td><td>200,00</td></tr></table></body></html>")
 	_ = os.WriteFile(htmlPath, htmlContent, 0644)
 
-	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
+	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}), config.Config{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"})
 
 	// Act
 	transactions, err := parser.Parse(htmlPath)
@@ -79,7 +79,7 @@ func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *te
 
 func TestOpenBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 	// Arrange
-	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
+	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}), config.Config{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"})
 
 	// Act
 	transactions, err := parser.Parse("non-existent.xls")
@@ -91,7 +91,7 @@ func TestOpenBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 
 func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *testing.T) {
 	// Arrange
-	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}))
+	parser := NewOpenBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}), config.Config{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"})
 
 	// Act & Assert
 	t.Run(
@@ -130,7 +130,7 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
 	mappingService := domain.NewMappingService(mappingData, config.Config{})
-	parser := NewOpenBankParser(mappingService)
+	parser := NewOpenBankParser(mappingService, config.Config{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"})
 
 	tests := []struct {
 		input    string
@@ -159,7 +159,7 @@ func TestOpenBankParser_RowToTransaction_ShouldApplyDescriptionMappings(t *testi
 		},
 	}
 	mappingService := domain.NewMappingService(mappingData, config.Config{})
-	parser := NewOpenBankParser(mappingService)
+	parser := NewOpenBankParser(mappingService, config.Config{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"})
 
 	tests := []struct {
 		input    string
