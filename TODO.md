@@ -51,7 +51,9 @@ This file tracks the upcoming tasks and development milestones for the Finance A
   - [ ] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.
 - [ ] Ensure full compatibility with Paisa GUI.
-- [ ] Document how to use the app.
+- [x] Document how to use the app.
+- [ ] Gemini
+  - [ ] Add full dev team skills architect / po / sdqa / dev / reviewer / llm_expert
 
 ## Future ideas and features
 
