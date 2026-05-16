@@ -91,4 +91,9 @@ The project uses `godoc` for documentation. You can view it in the terminal or b
 - **Terminal:** `go doc -all`
 - **Browser:** Run `godoc -http=:6060` and navigate to `http://localhost:6060/pkg/github.com/a-perez/finance-app/`
 
+## Technical Documentation
+For deep dives into the system's design and logic, see the following documents:
+- [Architecture](docs/architecture.md): Hexagonal design, layers, and data flow.
+- [Mappings & Scoring](docs/mappings.md): Details on keyword resolution and search ranking algorithms.
+
 > **Note:** If `godoc` is not installed, run `go install golang.org/x/tools/cmd/godoc@latest`.
