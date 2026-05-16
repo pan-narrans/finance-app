@@ -120,7 +120,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 
 	// 2. Otherwise, treat as a new transaction entry
 	text := c.Text()
-	tx, err := a.textParserUC.ParseText(text)
+	tx, err := a.textParserUC.ParseText(text, "Telegram")
 	if err != nil {
 		return c.Send(err.Error())
 	}

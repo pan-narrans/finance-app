@@ -35,5 +35,5 @@ type ImportUseCase interface {
 TextParserUseCase defines the logic for converting raw input strings into domain transactions.
 */
 type TextParserUseCase interface {
-	ParseText(text string) (domain.Transaction, error)
+	ParseText(text, origin string) (domain.Transaction, error)
 }

@@ -43,7 +43,7 @@ Format: "[source] amount description"
 
 It uses MappingService to clean the description and resolve accounts.
 */
-func (s *TextParserService) ParseText(text string) (domain.Transaction, error) {
+func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, error) {
 	matches := entryRegex.FindStringSubmatch(text)
 	if len(matches) < 5 {
 		return domain.Transaction{}, fmt.Errorf("format not recognized; use: '[source] amount description'")
@@ -79,9 +79,8 @@ func (s *TextParserService) ParseText(text string) (domain.Transaction, error) {
 	}
 
 	// Add Metadata
-	// TODO should this be adapter specific?
 	metadata := domain.Metadata{
-		Origin: "Bot",
+		Origin: origin,
 		ID:     s.hashID(fmt.Sprintf("%d", time.Now().UnixNano())),
 	}
 
