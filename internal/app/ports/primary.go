@@ -28,7 +28,7 @@ type ImportSummary struct {
 
 // ImportUseCase defines the orchestrator for bank file imports.
 type ImportUseCase interface {
-	Import(parser BankParser, filePath string) (*ImportSummary, error)
+	Import(filePath string) (*ImportSummary, error)
 }
 
 /*

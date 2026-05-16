@@ -7,6 +7,9 @@ import (
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
+// Ensure TransactionService implements ports.TransactionUseCase at compile time.
+var _ ports.TransactionUseCase = (*TransactionService)(nil)
+
 /*
 TransactionService coordinates transaction-related business logic.
 

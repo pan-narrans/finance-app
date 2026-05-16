@@ -63,6 +63,10 @@ Code/commits/PRs: write normal.
     - Test functions should follow the format: `Test<Subject>_<Method>_Should<ExpectedBehavior>_When<Condition>`.
 - **Error Handling:** Graceful failure is mandatory; never leave the `.ledger` file in a corrupted or half-written state.
 - **Testing:** New features must include tests that verify the generated ledger entries are valid Ledger CLI transactions.
+- **Interface Checks:** All port implementations (Adapters and Application Services) must include a compile-time satisfaction check:
+    ```go
+    var _ ports.PortName = (*ImplementationStruct)(nil)
+    ```
 - **Function Structure:**
     - Prefer a **single return point** per function to improve readability and traceability.
     - **Guard clauses** and early returns for validation are encouraged exceptions.

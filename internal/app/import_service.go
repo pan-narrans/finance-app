@@ -9,6 +9,9 @@ import (
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
+// Ensure ImportService implements ports.ImportUseCase at compile time.
+var _ ports.ImportUseCase = (*ImportService)(nil)
+
 // ImportService orchestrates the process of parsing and persisting transactions from external files.
 type ImportService struct {
 	transactionUseCase ports.TransactionUseCase

@@ -8,9 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
+// Ensure TextParserService implements ports.TextParserUseCase at compile time.
+var _ ports.TextParserUseCase = (*TextParserService)(nil)
 
 var entryRegex = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
 
