@@ -33,8 +33,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
     - [X] Implement manual entry with confirmation (Hybrid approach).
     - [X] Implement bank file upload/import via bot.
     - [x] If no exact match for account perform fuzzy and partial search. Give user option to manually edit the account.
-- [ ] **Bank Aggregator API:**
-  - [ ] Research possible API providers (e.g., Salt Edge, Nordigen, or local alternatives).
+
 
 ## Phase 4: Deployment
 - [X] Dockerize app.
@@ -44,7 +43,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 ## Phase 5: Refinement
 - [ ] Fixes and refactoring
   - [ ] Refactor app architecture to use domain (try and see how it feels).
-  - [ ] Fix TODO comments.
+  - [X] Fix TODO comments.
 - [ ] New Features
   - [X] Add option to set source account on expeses (e.g. cash 10 coffee).
   - [X] Modify source account via telegram bot. Same concept as target account.
@@ -52,7 +51,11 @@ This file tracks the upcoming tasks and development milestones for the Finance A
   - [ ] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.
 - [ ] Ensure full compatibility with Paisa GUI.
+- [ ] Document how to use the app.
 
-## Future ideas
+## Future ideas and features
 
-- Ticket photo analyser
+- [ ] Modify mappings.json via Telegram Bot when editing accounts.
+- [ ] Ticket photo analyser
+- [ ] **Bank Aggregator API:**
+  - [ ] Research possible API providers (e.g., Salt Edge, Nordigen, or local alternatives).

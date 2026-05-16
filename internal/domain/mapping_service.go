@@ -10,7 +10,12 @@ import (
 	"github.com/a-perez/finance-app/internal/config"
 )
 
-// MappingService provides logic for cleaning descriptions and resolving accounts/payers.
+/*
+MappingService provides logic for cleaning descriptions and resolving financial entities.
+
+It acts as a translation layer between raw input data (e.g., bank statements)
+and domain-specific values (accounts, payers, sources) using configurable rules.
+*/
 type MappingService struct {
 	accountMappings           map[string]string
 	descriptionMappings       map[string]string
@@ -23,7 +28,14 @@ type MappingService struct {
 	cfg                       config.Config
 }
 
-// NewMappingService creates and initializes a MappingService.
+/*
+NewMappingService creates and initializes a MappingService.
+
+It pre-processes mapping data by:
+  - Sorting keywords by length (descending) to ensure longest-match priority.
+  - Compiling case-insensitive prefix regular expressions.
+  - Extracting a unique, sorted list of known account names.
+*/
 func NewMappingService(data config.MappingData, cfg config.Config) *MappingService {
 	sortedAccountKeywords := sortKeywords(data.Accounts)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
@@ -52,11 +64,19 @@ func NewMappingService(data config.MappingData, cfg config.Config) *MappingServi
 	}
 }
 
-// CleanDescription strips configured prefixes and applies description mappings.
+/*
+CleanDescription strips configured prefixes and applies description mappings.
+
+The process follows these steps:
+ 1. Trim whitespace.
+ 2. Remove all matching configured prefixes (e.g., "PURCHASE ").
+ 3. Re-trim whitespace.
+ 4. Replace the remaining string if it matches a description keyword.
+*/
 func (s *MappingService) CleanDescription(description string) string {
 	clean := strings.TrimSpace(description)
-	for _, re := range s.prefixRegexes {
-		clean = re.ReplaceAllString(clean, "")
+	for _, regex := range s.prefixRegexes {
+		clean = regex.ReplaceAllString(clean, "")
 	}
 	clean = strings.TrimSpace(clean)
 
@@ -68,7 +88,14 @@ func (s *MappingService) CleanDescription(description string) string {
 	return result
 }
 
-// ResolveAccount matches description against keywords to determine the target account.
+/*
+ResolveAccount matches description against keywords to determine the target account.
+
+Resolution logic:
+  - Return mapped account if description contains a known keyword.
+  - Fallback to default income account if amount is positive.
+  - Fallback to default expense account if amount is negative or zero.
+*/
 func (s *MappingService) ResolveAccount(description string, amount float64) string {
 	account := ""
 
@@ -83,7 +110,12 @@ func (s *MappingService) ResolveAccount(description string, amount float64) stri
 	return account
 }
 
-// ResolvePayer matches card numbers in the full description to their owners.
+/*
+ResolvePayer matches card numbers in the full description to their owners.
+
+It iterates through card mappings and returns the owner's name if the
+card number is found as a substring within the full description.
+*/
 func (s *MappingService) ResolvePayer(fullDescription string) string {
 	payer := ""
 
@@ -97,8 +129,12 @@ func (s *MappingService) ResolvePayer(fullDescription string) string {
 	return payer
 }
 
-// ResolveSource returns the account associated with a keyword (e.g., 'alex' -> 'Income:Alex').
-// It returns the account and true if found, otherwise empty string and false.
+/*
+ResolveSource returns the account associated with a keyword (e.g., 'alex' -> 'Assets:Cash:Alex').
+
+It returns the mapped account name and true if found; otherwise, returns
+an empty string and false.
+*/
 func (s *MappingService) ResolveSource(keyword string) (string, bool) {
 	if keyword == "" {
 		return "", false
@@ -108,8 +144,19 @@ func (s *MappingService) ResolveSource(keyword string) (string, bool) {
 	return account, exists
 }
 
-// SearchAccounts returns ranked account matches for a query.
-// TODO refactor, this method is way too big
+/*
+SearchAccounts returns ranked account matches for a query.
+
+The scoring algorithm prioritizes:
+  - Exact substring matches of the full query (highest).
+  - Prefix matches.
+  - Partial token matches.
+  - Direct account name matches over mapping keyword matches.
+
+It returns a slice of account names ranked by relevance. If limit is greater than zero,
+the result is truncated to that size. If limit is zero or negative, all matches
+are returned.
+*/
 func (s *MappingService) SearchAccounts(query string, limit int) []string {
 	if query == "" {
 		return nil
@@ -118,85 +165,25 @@ func (s *MappingService) SearchAccounts(query string, limit int) []string {
 	queryUpper := strings.ToUpper(query)
 	tokens := strings.Fields(queryUpper)
 
-	type scoredAccount struct {
-		name  string
-		score int
-	}
+	accountScores := s.scoreAccounts(queryUpper, tokens)
+	mappingScores := s.scoreMappingKeys(queryUpper, tokens)
 
-	// map[accountName]maxScore
-	scores := make(map[string]int)
-
-	// Helper to calculate score for a string
-	calcScore := func(text string) (int, bool) {
-		textUpper := strings.ToUpper(text)
-		score := 0
-		matchesAll := true
-		for _, token := range tokens {
-			if strings.Contains(textUpper, token) {
-				score += len(token)
-			} else {
-				matchesAll = false
-			}
-		}
-		if !matchesAll {
-			return 0, false
-		}
-		if strings.Contains(textUpper, queryUpper) {
-			score += 100
-		}
-		if strings.HasPrefix(textUpper, queryUpper) {
-			score += 50
-		}
-		return score, true
-	}
-
-	// 1. Search in unique account names
-	for _, acc := range s.accounts {
-		if score, ok := calcScore(acc); ok {
-			scores[acc] = score
+	// Merge scores, keeping the highest score for each account
+	for account, score := range mappingScores {
+		if score > accountScores[account] {
+			accountScores[account] = score
 		}
 	}
 
-	// 2. Search in mapping keys
-	for key, acc := range s.accountMappings {
-		if score, ok := calcScore(key); ok {
-			// Mapping key matches are slightly penalized vs direct name matches
-			// to prioritize names if both match.
-			mappingScore := score - 1
-			if mappingScore > scores[acc] {
-				scores[acc] = mappingScore
-			}
-		}
-	}
-
-	scored := make([]scoredAccount, 0, len(scores))
-	for acc, score := range scores {
-		scored = append(scored, scoredAccount{acc, score})
-	}
-
-	// Sort by score (desc), then name (asc)
-	slices.SortFunc(
-		scored, func(a, b scoredAccount) int {
-			if a.score != b.score {
-				return cmp.Compare(b.score, a.score)
-			}
-			return cmp.Compare(a.name, b.name)
-		},
-	)
-
-	resultCount := len(scored)
-	if limit > 0 && limit < resultCount {
-		resultCount = limit
-	}
-
-	results := make([]string, resultCount)
-	for i := 0; i < resultCount; i++ {
-		results[i] = scored[i].name
-	}
-
-	return results
+	return sortAndLimitResults(accountScores, limit)
 }
 
+/*
+findMatch searches for the first keyword contained within the text.
+It returns the mapped value and true if found; otherwise, empty string and false.
+
+Matches are case-insensitive.
+*/
 func (s *MappingService) findMatch(text string, keywords []string, mappings map[string]string) (string, bool) {
 	upperText := strings.ToUpper(text)
 	result := ""
@@ -213,6 +200,121 @@ func (s *MappingService) findMatch(text string, keywords []string, mappings map[
 	return result, found
 }
 
+// scoreAccounts returns a map of scores based on matches against direct account names.
+func (s *MappingService) scoreAccounts(queryUpper string, tokens []string) map[string]int {
+	scores := make(map[string]int)
+
+	for _, account := range s.accounts {
+		if score, ok := calculateScore(account, queryUpper, tokens); ok {
+			scores[account] = score
+		}
+	}
+
+	return scores
+}
+
+/*
+scoreMappingKeys returns a map of scores based on matches against mapping keywords.
+Mapping matches are slightly penalized to prioritize direct account name matches.
+*/
+func (s *MappingService) scoreMappingKeys(queryUpper string, tokens []string) map[string]int {
+	scores := make(map[string]int)
+
+	for key, account := range s.accountMappings {
+		if score, ok := calculateScore(key, queryUpper, tokens); ok {
+			mappingScore := score - 1
+			if mappingScore > scores[account] {
+				scores[account] = mappingScore
+			}
+		}
+	}
+
+	return scores
+}
+
+/*
+calculateScore computes a match score for a given text against a query and its tokens.
+
+It returns the calculated score and true if all tokens are present in the text.
+If any token is missing, it returns 0 and false.
+
+Scoring Rules:
+  - All tokens must be present in the text (case-insensitive).
+  - Score increases by the length of matching tokens.
+  - +100 points for an exact substring match of the full query.
+  - +50 points for a prefix match of the full query.
+*/
+func calculateScore(text, queryUpper string, tokens []string) (int, bool) {
+	textUpper := strings.ToUpper(text)
+	score := 0
+	matchesAll := true
+
+	for _, token := range tokens {
+		if strings.Contains(textUpper, token) {
+			score += len(token)
+		} else {
+			matchesAll = false
+		}
+	}
+
+	if !matchesAll {
+		return 0, false
+	}
+
+	if strings.Contains(textUpper, queryUpper) {
+		score += 100
+	}
+
+	if strings.HasPrefix(textUpper, queryUpper) {
+		score += 50
+	}
+
+	return score, true
+}
+
+// scoredAccount represents an account name paired with its search relevance score.
+type scoredAccount struct {
+	name  string
+	score int
+}
+
+/*
+sortAndLimitResults converts scores to a ranked list of account names.
+Results are sorted by score (descending) then by name (ascending).
+*/
+func sortAndLimitResults(scores map[string]int, limit int) []string {
+	scored := make([]scoredAccount, 0, len(scores))
+	for account, score := range scores {
+		scored = append(scored, scoredAccount{account, score})
+	}
+
+	// Sort by score (desc), then name (asc)
+	slices.SortFunc(
+		scored, func(a, b scoredAccount) int {
+			if a.score != b.score {
+				return cmp.Compare(b.score, a.score)
+			}
+			return cmp.Compare(a.name, b.name)
+		},
+	)
+
+	resultCount := len(scored)
+	if limit > 0 {
+		resultCount = min(limit, resultCount)
+	}
+
+	results := make([]string, resultCount)
+	for i := 0; i < resultCount; i++ {
+		results[i] = scored[i].name
+	}
+
+	return results
+}
+
+/*
+sortKeywords prepares keywords for matching by sorting them by length (descending).
+This ensures that the longest possible match is attempted first.
+*/
 func sortKeywords(m map[string]string) []string {
 	keywords := make([]string, 0, len(m))
 	for k := range m {

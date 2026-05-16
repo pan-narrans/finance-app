@@ -87,11 +87,12 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 	cleanDescription := p.mappingService.CleanDescription(fullDescription)
 	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
 
-	metadata := make(map[string]string)
-	metadata["Origin"] = "Imaginbank"
+	metadata := domain.Metadata{
+		Origin: "Imaginbank",
+	}
 
 	if balanceStr != "" {
-		metadata["ID"] = p.HashID(balanceStr)
+		metadata.ID = p.HashID(balanceStr)
 	}
 
 	return &domain.Transaction{

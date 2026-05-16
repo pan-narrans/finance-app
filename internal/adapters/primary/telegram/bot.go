@@ -1,15 +1,11 @@
 package telegram
 
 import (
-	"crypto/md5"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app"
@@ -20,51 +16,31 @@ import (
 )
 
 /*
- * TODO Refactor the whole file.
- * - Too many magic strings.
- * - Too many responsibilities.
- * - Unable to extend functionality.
- * - Extract business logic to app or domain.
- */
-
-var entryRegex = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
-
-type SearchState string
-
-const (
-	StateNone          SearchState = ""
-	StateAwaitingQuery SearchState = "awaiting_query"
-)
-
-type userSession struct {
-	draft          domain.Transaction
-	state          SearchState
-	editingPosting int
-}
-
-// TelegramAdapter handles Telegram interactions.
+TelegramAdapter handles interactions between users and the system via Telegram.
+It implements the driving adapter pattern within the Hexagonal Architecture.
+*/
 type TelegramAdapter struct {
 	teleBot        *telebot.Bot
 	allowedIDs     map[int64]struct{}
 	transactionUC  ports.TransactionUseCase
+	textParserUC   ports.TextParserUseCase
 	importService  *app.ImportService
 	mappingService *domain.MappingService
+	sessionManager *SessionManager
+	ui             *UI
 	cfg            config.Config
-	ledgerFilePath string
-
-	// Simple session storage for drafts and state
-	mu       sync.Mutex
-	sessions map[int64]*userSession
 }
 
-// NewTelegramAdapter creates a new Telegram adapter instance.
+/*
+NewTelegramAdapter creates and initializes a TelegramAdapter with its dependencies.
+*/
 func NewTelegramAdapter(
 	token string,
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
+	parserUC ports.TextParserUseCase,
 	importService *app.ImportService,
 	mappingService *domain.MappingService,
-	ledgerPath string,
 	cfg config.Config,
 ) (*TelegramAdapter, error) {
 	pref := telebot.Settings{
@@ -86,15 +62,18 @@ func NewTelegramAdapter(
 		teleBot:        bot,
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
+		textParserUC:   parserUC,
 		importService:  importService,
 		mappingService: mappingService,
-		ledgerFilePath: ledgerPath,
-		sessions:       make(map[int64]*userSession),
+		sessionManager: NewSessionManager(),
+		ui:             NewUI(cfg.LedgerAlignment),
 		cfg:            cfg,
 	}, nil
 }
 
-// Start initializes the bot handlers and starts polling.
+/*
+Start registers the bot's handlers and begins polling for updates.
+*/
 func (a *TelegramAdapter) Start() {
 	// Middleware: Auth
 	a.teleBot.Use(
@@ -115,18 +94,16 @@ func (a *TelegramAdapter) Start() {
 		},
 	)
 
-	// Handle Manual Text Entries
+	// Routing logic
 	a.teleBot.Handle(telebot.OnText, a.handleText)
-
-	// Handle File Uploads
 	a.teleBot.Handle(telebot.OnDocument, a.handleDocument)
 
-	// Handle Callbacks
-	a.teleBot.Handle("\fconfirm", a.handleConfirm)
-	a.teleBot.Handle("\fdiscard", a.handleDiscard)
-	a.teleBot.Handle("\fedit_acc", a.handleEditRequest)
-	a.teleBot.Handle("\fselect_acc", a.handleAccountSelect)
-	a.teleBot.Handle("\fcancel_edit", a.handleCancelEdit)
+	// Callback routing using centralized constants
+	a.teleBot.Handle("\f"+CallbackConfirm, a.handleConfirm)
+	a.teleBot.Handle("\f"+CallbackDiscard, a.handleDiscard)
+	a.teleBot.Handle("\f"+CallbackEditAcc, a.handleEditRequest)
+	a.teleBot.Handle("\f"+CallbackSelectAcc, a.handleAccountSelect)
+	a.teleBot.Handle("\f"+CallbackCancelEdit, a.handleCancelEdit)
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()
@@ -134,107 +111,31 @@ func (a *TelegramAdapter) Start() {
 
 func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	userID := c.Sender().ID
-	a.mu.Lock()
-	session, exists := a.sessions[userID]
-	a.mu.Unlock()
+	session, exists := a.sessionManager.Get(userID)
 
-	// If awaiting search query
-	if exists && session.state == StateAwaitingQuery {
-		return a.handleSearchQuery(c, session)
+	// 1. Handle search query if in that state
+	if exists && session.State == StateAwaitingQuery {
+		return a.handleSearchQuery(c)
 	}
 
-	// Else handle as new transaction entry
+	// 2. Otherwise, treat as a new transaction entry
 	text := c.Text()
-	matches := entryRegex.FindStringSubmatch(text)
-	if len(matches) < 5 {
-		return c.Send("Format not recognized. Use: '[source] amount description' (e.g., 'cash 10 coffee' or '10 coffee')")
-	}
-
-	sourceKeyword := matches[1]
-	amountStr := strings.Replace(matches[2], ",", ".", 1)
-	amount, err := strconv.ParseFloat(amountStr, 64)
+	tx, err := a.textParserUC.ParseText(text, "Telegram")
 	if err != nil {
-		return c.Send("Invalid amount format.")
+		return c.Send(err.Error())
 	}
 
-	description := matches[4]
-	cleanDescription := a.mappingService.CleanDescription(description)
-	targetAccount := a.mappingService.ResolveAccount(cleanDescription, amount)
-
-	// Resolve income/source account
-	sourceAccount := a.cfg.DefaultBotAccount
-	if sourceKeyword != "" {
-		if acc, found := a.mappingService.ResolveSource(sourceKeyword); found {
-			sourceAccount = acc
-		} else {
-			// Fallback: if source name provided but no mapping, use Income:[Source]
-			sourceAccount = fmt.Sprintf("Income:%s", strings.Title(strings.ToLower(sourceKeyword)))
-		}
-	}
-
-	// Auto-pick if Unknown
-	if strings.HasSuffix(targetAccount, ":Unknown") {
-		matches := a.mappingService.SearchAccounts(cleanDescription, 1)
-		if len(matches) > 0 {
-			targetAccount = matches[0]
-		}
-	}
-
-	// Add Metadata
-	metadata := make(map[string]string)
-	metadata["Origin"] = "Bot"
-	metadata["ID"] = a.hashID(fmt.Sprintf("%d", time.Now().UnixNano()))
-
-	// Create a draft transaction
-	tx := domain.Transaction{
-		Date:        time.Now(),
-		Status:      domain.StatusPending,
-		Description: cleanDescription,
-		Metadata:    metadata,
-		Postings: []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: a.cfg.DefaultCurrency},
-			{Account: sourceAccount, Amount: nil},
-		},
-	}
-	tx.Code = tx.GenerateCode()
-
-	// Update session
-	a.mu.Lock()
-	a.sessions[userID] = &userSession{draft: tx, state: StateNone}
-	a.mu.Unlock()
+	// Store in session
+	a.sessionManager.Set(userID, &UserSession{
+		Draft: tx,
+		State: StateNone,
+	})
 
 	return a.sendDraftMessage(c, tx)
 }
 
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
-	selector := &telebot.ReplyMarkup{}
-	btnConfirm := selector.Data("Confirm ✅", "confirm")
-	btnEditTarget := selector.Data("Edit Target ✏️", "edit_acc", "0")
-	btnEditSource := selector.Data("Edit Source ✏️", "edit_acc", "1")
-	btnDiscard := selector.Data("Discard ❌", "discard")
-
-	rows := []telebot.Row{
-		selector.Row(btnConfirm),
-		selector.Row(btnEditTarget, btnEditSource),
-		selector.Row(btnDiscard),
-	}
-
-	// Auto-suggestions if still Unknown
-	targetAccount := tx.Postings[0].Account
-	msgSuffix := ""
-	if strings.HasSuffix(targetAccount, ":Unknown") {
-		msgSuffix = "\n\nUnknown account. Suggestions:"
-		matches := a.mappingService.SearchAccounts(tx.Description, 5)
-		for _, match := range matches {
-			btn := selector.Data(match, "select_acc", match)
-			rows = append(rows, selector.Row(btn))
-		}
-	}
-
-	selector.Inline(rows...)
-
-	formatted := tx.Format()
-	msg := fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>%s", formatted, msgSuffix)
+	msg, selector := a.ui.BuildDraftMessage(tx, a.mappingService)
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)
@@ -246,118 +147,83 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	userID := c.Sender().ID
 	postingIndex, _ := strconv.Atoi(c.Data())
 
-	a.mu.Lock()
-	session, ok := a.sessions[userID]
-	if ok {
-		session.state = StateAwaitingQuery
-		session.editingPosting = postingIndex
-	}
-	a.mu.Unlock()
-
+	_, ok := a.sessionManager.Get(userID)
 	if !ok {
 		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
 	}
 
-	selector := &telebot.ReplyMarkup{}
-	btnCancel := selector.Data("Cancel 🔙", "cancel_edit")
-	selector.Inline(selector.Row(btnCancel))
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateAwaitingQuery
+		s.EditingPosting = postingIndex
+	})
 
-	accountType := "target"
-	if postingIndex == 1 {
-		accountType = "source"
-	}
-
-	return c.Edit(fmt.Sprintf("Send text to search for a %s account.", accountType), selector)
+	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1)
+	return c.Edit(msg, selector)
 }
 
 func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 	userID := c.Sender().ID
-	a.mu.Lock()
-	session, ok := a.sessions[userID]
-	if ok {
-		session.state = StateNone
-	}
-	a.mu.Unlock()
-
+	session, ok := a.sessionManager.Get(userID)
 	if !ok {
 		return c.Edit("Session expired.")
 	}
 
-	return a.sendDraftMessage(c, session.draft)
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateNone
+	})
+
+	return a.sendDraftMessage(c, session.Draft)
 }
 
-func (a *TelegramAdapter) handleSearchQuery(c telebot.Context, session *userSession) error {
+func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 	query := c.Text()
-	matches := a.mappingService.SearchAccounts(query, 8)
+	results := a.mappingService.SearchAccounts(query, 8)
 
-	selector := &telebot.ReplyMarkup{}
-	rows := make([]telebot.Row, 0)
-
-	for _, match := range matches {
-		btn := selector.Data(match, "select_acc", match)
-		rows = append(rows, selector.Row(btn))
-	}
-
-	// Option to use exact input
-	btnExact := selector.Data(fmt.Sprintf("Use exactly: %s", query), "select_acc", query)
-	rows = append(rows, selector.Row(btnExact))
-
-	btnCancel := selector.Data("Cancel 🔙", "cancel_edit")
-	rows = append(rows, selector.Row(btnCancel))
-
-	selector.Inline(rows...)
-
-	return c.Send(fmt.Sprintf("Search results for '%s':", query), selector)
+	msg, selector := a.ui.BuildSearchResults(query, results)
+	return c.Send(msg, selector)
 }
 
 func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
 	newAccount := c.Data()
 
-	a.mu.Lock()
-	session, ok := a.sessions[userID]
-	if ok {
-		if len(session.draft.Postings) > session.editingPosting {
-			session.draft.Postings[session.editingPosting].Account = newAccount
-		}
-		session.state = StateNone
-	}
-	a.mu.Unlock()
-
+	session, ok := a.sessionManager.Get(userID)
 	if !ok {
 		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
 	}
 
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		if len(s.Draft.Postings) > s.EditingPosting {
+			s.Draft.Postings[s.EditingPosting].Account = newAccount
+		}
+		s.State = StateNone
+	})
+
 	c.Respond(&telebot.CallbackResponse{Text: "Account updated."})
-	return a.sendDraftMessage(c, session.draft)
+	return a.sendDraftMessage(c, session.Draft)
 }
 
 func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	userID := c.Sender().ID
-	a.mu.Lock()
-	session, ok := a.sessions[userID]
-	if ok {
-		delete(a.sessions, userID)
-	}
-	a.mu.Unlock()
+	session, ok := a.sessionManager.Get(userID)
 
 	if !ok {
 		return c.Edit("Session expired. Please send the transaction again.")
 	}
 
-	if err := a.transactionUC.Add(session.draft); err != nil {
+	if err := a.transactionUC.Add(session.Draft); err != nil {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
-	formatted := session.draft.Format()
+	a.sessionManager.Delete(userID)
+
+	formatted := session.Draft.Format(a.cfg.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
 func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 	userID := c.Sender().ID
-	a.mu.Lock()
-	delete(a.sessions, userID)
-	a.mu.Unlock()
+	a.sessionManager.Delete(userID)
 	return c.Edit("Transaction discarded. ❌")
 }
 
@@ -385,18 +251,4 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	)
 
 	return c.Send(response)
-}
-
-/*
-hashID returns an 8-character MD5 hash of the provided string.
-Used for generating stable external IDs for bot transactions.
-*/
-func (a *TelegramAdapter) hashID(data string) string {
-	result := ""
-	if data != "" {
-		hasher := md5.New()
-		hasher.Write([]byte(data))
-		result = fmt.Sprintf("%x", hasher.Sum(nil))[:8]
-	}
-	return result
 }
