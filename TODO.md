@@ -43,7 +43,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 ## Phase 5: Refinement
 - [ ] Fixes and refactoring
   - [ ] Refactor app architecture to use domain (try and see how it feels).
-  - [ ] Fix TODO comments.
+  - [X] Fix TODO comments.
 - [ ] New Features
   - [X] Add option to set source account on expeses (e.g. cash 10 coffee).
   - [X] Modify source account via telegram bot. Same concept as target account.

@@ -40,8 +40,8 @@ func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvi
 func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissing(t *testing.T) {
 	// Arrange
 	cfg := config.Config{
-		DefaultBotAccount: "Assets:Checking:Main",
-		DefaultCurrency:   "USD",
+		DefaultAssetAccount: "Assets:Checking:Main",
+		DefaultCurrency:     "USD",
 	}
 	svc := NewTextParserService(domain.NewMappingService(config.MappingData{}, cfg), cfg)
 

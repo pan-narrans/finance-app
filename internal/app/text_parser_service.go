@@ -11,6 +11,8 @@ import (
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // Ensure TextParserService implements ports.TextParserUseCase at compile time.
@@ -53,34 +55,14 @@ func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, 
 		return domain.Transaction{}, fmt.Errorf("format not recognized; use: '[source] amount description'")
 	}
 
-	sourceKeyword := matches[1]
-	amountStr := strings.Replace(matches[2], ",", ".", 1)
-	amount, err := strconv.ParseFloat(amountStr, 64)
+	amount, err := s.parseAmount(matches[2])
 	if err != nil {
 		return domain.Transaction{}, fmt.Errorf("invalid amount format: %w", err)
 	}
 
-	description := s.mappingService.CleanDescription(matches[4])
-	targetAccount := s.mappingService.ResolveAccount(description, amount)
-
-	// Resolve income/source account
-	sourceAccount := s.cfg.DefaultBotAccount
-	if sourceKeyword != "" {
-		if acc, found := s.mappingService.ResolveSource(sourceKeyword); found {
-			sourceAccount = acc
-		} else {
-			// Fallback: if source name provided but no mapping, use Income:[Source]
-			sourceAccount = fmt.Sprintf("Income:%s", strings.Title(strings.ToLower(sourceKeyword)))
-		}
-	}
-
-	// Auto-pick if Unknown
-	if strings.HasSuffix(targetAccount, ":Unknown") {
-		suggestions := s.mappingService.SearchAccounts(description, 1)
-		if len(suggestions) > 0 {
-			targetAccount = suggestions[0]
-		}
-	}
+	cleanDescription := s.mappingService.CleanDescription(matches[4])
+	targetAccount := s.resolveTargetAccount(cleanDescription, amount)
+	sourceAccount := s.resolveSourceAccount(matches[1])
 
 	// Add Metadata
 	metadata := domain.Metadata{
@@ -92,7 +74,7 @@ func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, 
 	tx := domain.Transaction{
 		Date:        time.Now(),
 		Status:      domain.StatusPending,
-		Description: description,
+		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
 			{Account: targetAccount, Amount: &amount, Currency: s.cfg.DefaultCurrency},
@@ -102,6 +84,54 @@ func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, 
 	tx.Code = tx.GenerateCode()
 
 	return tx, nil
+}
+
+/*
+parseAmount handles numeric conversion from raw input strings.
+It supports both dot and comma as decimal separators.
+*/
+func (s *TextParserService) parseAmount(amountStr string) (float64, error) {
+	normalized := strings.Replace(amountStr, ",", ".", 1)
+	return strconv.ParseFloat(normalized, 64)
+}
+
+/*
+resolveTargetAccount determines the expense/income account for the transaction.
+It uses mapping keywords first, and if the result is unknown, it attempts to
+find the best ranked match as a suggestion.
+*/
+func (s *TextParserService) resolveTargetAccount(cleanDescription string, amount float64) string {
+	account := s.mappingService.ResolveAccount(cleanDescription, amount)
+
+	// Auto-pick if Unknown
+	if strings.HasSuffix(account, ":Unknown") {
+		suggestions := s.mappingService.SearchAccounts(cleanDescription, 1)
+		if len(suggestions) > 0 {
+			account = suggestions[0]
+		}
+	}
+
+	return account
+}
+
+/*
+resolveSourceAccount determines the asset/origin account for the transaction.
+If the keyword matches a source mapping, it uses that account.
+If no mapping exists but a keyword is provided, it falls back to Income:[Keyword].
+Otherwise, it returns the default asset account.
+*/
+func (s *TextParserService) resolveSourceAccount(sourceKeyword string) string {
+	if sourceKeyword == "" {
+		return s.cfg.DefaultAssetAccount
+	}
+
+	if account, found := s.mappingService.ResolveSource(sourceKeyword); found {
+		return account
+	}
+
+	// Fallback: if source name provided but no mapping, use Income:[Source]
+	titleCase := cases.Title(language.Und)
+	return fmt.Sprintf("Income:%s", titleCase.String(strings.ToLower(sourceKeyword)))
 }
 
 /*
