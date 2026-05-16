@@ -47,13 +47,13 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 - [ ] New Features
   - [X] Add option to set source account on expeses (e.g. cash 10 coffee).
   - [X] Modify source account via telegram bot. Same concept as target account.
-  - [ ] Config/ live reload on changes.
+  - [X] Config/ live reload on changes.
   - [ ] Add logging and error reporting.
 - [ ] Optimize the CRUD performance for large ledger files.
 - [ ] Ensure full compatibility with Paisa GUI.
 - [x] Document how to use the app.
-- [ ] Gemini
-  - [ ] Add full dev team skills architect / po / sdqa / dev / reviewer / llm_expert
+- [X] Gemini
+  - [X] Add full dev team skills architect / po / sdqa / dev / reviewer / llm_expert
 
 ## Future ideas and features
 

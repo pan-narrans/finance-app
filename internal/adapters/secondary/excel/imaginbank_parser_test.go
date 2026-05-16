@@ -20,7 +20,9 @@ func TestImaginBankParser_Parse_ShouldReturnTransactions_WhenValidCsvProvided(t 
 		"BIZUM RECIBIDO;14/04/2026;3,50EUR;515,76EUR\n"
 	_ = os.WriteFile(csvPath, []byte(csvContent), 0644)
 
-	parser := NewImaginBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}), config.Config{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"})
+	mappingProvider := domain.NewMappingService(config.MappingData{})
+	settings := config.Config{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"}
+	parser := NewImaginBankParser(mappingProvider, settings)
 
 	// Act
 	transactions, err := parser.Parse(csvPath)
@@ -46,7 +48,9 @@ func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 	csvPath := filepath.Join(tempDir, "empty.csv")
 	_ = os.WriteFile(csvPath, []byte("Concepto;Fecha;Importe;Saldo\n"), 0644)
 
-	parser := NewImaginBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}), config.Config{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"})
+	mappingProvider := domain.NewMappingService(config.MappingData{})
+	settings := config.Config{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"}
+	parser := NewImaginBankParser(mappingProvider, settings)
 
 	// Act
 	transactions, err := parser.Parse(csvPath)
@@ -58,7 +62,9 @@ func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 
 func TestImaginBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 	// Arrange
-	parser := NewImaginBankParser(domain.NewMappingService(config.MappingData{}, config.Config{}), config.Config{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"})
+	mappingProvider := domain.NewMappingService(config.MappingData{})
+	settings := config.Config{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"}
+	parser := NewImaginBankParser(mappingProvider, settings)
 
 	// Act
 	transactions, err := parser.Parse("non-existent.csv")

@@ -21,9 +21,9 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingService *domain.MappingService, cfg config.Config) *ImaginBankParser {
+func NewImaginBankParser(mappingProvider config.MappingProvider, settings config.Config) *ImaginBankParser {
 	return &ImaginBankParser{
-		BaseParser: NewBaseParser(mappingService, cfg),
+		BaseParser: NewBaseParser(mappingProvider, settings),
 	}
 }
 
@@ -85,8 +85,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		return nil, err
 	}
 
-	cleanDescription := p.mappingService.CleanDescription(fullDescription)
-	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
+	cleanDescription := p.mappingProvider.CleanDescription(fullDescription)
+	targetAccount := p.resolveAccount(cleanDescription, amount)
 
 	metadata := domain.Metadata{
 		Origin: "Imaginbank",
@@ -102,8 +102,20 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: p.cfg.ImaginBankAccount, Amount: &amount, Currency: p.cfg.DefaultCurrency},
+			{Account: p.settings.ImaginBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}, nil
+}
+
+func (p *ImaginBankParser) resolveAccount(description string, amount float64) string {
+	if account, found := p.mappingProvider.ResolveAccount(description); found {
+		return account
+	}
+
+	if amount > 0 {
+		return p.settings.DefaultIncomeAccount
+	}
+
+	return p.settings.DefaultExpenseAccount
 }

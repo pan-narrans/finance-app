@@ -20,10 +20,10 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	mappingService := domain.NewMappingService(config.MappingData{}, config.Config{})
+	mappingProvider := domain.NewMappingService(config.MappingData{})
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingService)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider)
 
 	// Assert
 	assert.Contains(t, msg, "Draft Transaction:")
@@ -45,10 +45,10 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	data := config.MappingData{
 		Accounts: map[string]string{"STARBUCKS": "Expenses:Food:Coffee"},
 	}
-	mappingService := domain.NewMappingService(data, config.Config{})
+	mappingProvider := domain.NewMappingService(data)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingService)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider)
 
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")

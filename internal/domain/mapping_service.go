@@ -25,7 +25,6 @@ type MappingService struct {
 	cardMappings              map[string]string
 	prefixRegexes             []*regexp.Regexp
 	accounts                  []string
-	cfg                       config.Config
 }
 
 /*
@@ -36,7 +35,7 @@ It pre-processes mapping data by:
   - Compiling case-insensitive prefix regular expressions.
   - Extracting a unique, sorted list of known account names.
 */
-func NewMappingService(data config.MappingData, cfg config.Config) *MappingService {
+func NewMappingService(data config.MappingData) *MappingService {
 	sortedAccountKeywords := sortKeywords(data.Accounts)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
 
@@ -60,7 +59,6 @@ func NewMappingService(data config.MappingData, cfg config.Config) *MappingServi
 		cardMappings:              data.Cards,
 		prefixRegexes:             prefixRegexes,
 		accounts:                  uniqueAccounts,
-		cfg:                       cfg,
 	}
 }
 
@@ -93,21 +91,12 @@ ResolveAccount matches description against keywords to determine the target acco
 
 Resolution logic:
   - Return mapped account if description contains a known keyword.
-  - Fallback to default income account if amount is positive.
-  - Fallback to default expense account if amount is negative or zero.
+  - Returns empty string if no match found. Fallback logic should be handled by the caller
+    using configuration.
 */
-func (s *MappingService) ResolveAccount(description string, amount float64) string {
-	account := ""
 
-	if match, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
-		account = match
-	} else if amount > 0 {
-		account = s.cfg.DefaultIncomeAccount
-	} else {
-		account = s.cfg.DefaultExpenseAccount
-	}
-
-	return account
+func (s *MappingService) ResolveAccount(description string) (string, bool) {
+	return s.findMatch(description, s.sortedAccountKeywords, s.accountMappings)
 }
 
 /*
@@ -181,7 +170,6 @@ func (s *MappingService) SearchAccounts(query string, limit int) []string {
 /*
 findMatch searches for the first keyword contained within the text.
 It returns the mapped value and true if found; otherwise, empty string and false.
-
 Matches are case-insensitive.
 */
 func (s *MappingService) findMatch(text string, keywords []string, mappings map[string]string) (string, bool) {
@@ -200,16 +188,20 @@ func (s *MappingService) findMatch(text string, keywords []string, mappings map[
 	return result, found
 }
 
+// scoredAccount represents an account name paired with its search relevance score.
+type scoredAccount struct {
+	name  string
+	score int
+}
+
 // scoreAccounts returns a map of scores based on matches against direct account names.
 func (s *MappingService) scoreAccounts(queryUpper string, tokens []string) map[string]int {
 	scores := make(map[string]int)
-
 	for _, account := range s.accounts {
 		if score, ok := calculateScore(account, queryUpper, tokens); ok {
 			scores[account] = score
 		}
 	}
-
 	return scores
 }
 
@@ -219,16 +211,16 @@ Mapping matches are slightly penalized to prioritize direct account name matches
 */
 func (s *MappingService) scoreMappingKeys(queryUpper string, tokens []string) map[string]int {
 	scores := make(map[string]int)
-
 	for key, account := range s.accountMappings {
 		if score, ok := calculateScore(key, queryUpper, tokens); ok {
+			// Mapping key matches are slightly penalized vs direct name matches
+			// to prioritize names if both match.
 			mappingScore := score - 1
 			if mappingScore > scores[account] {
 				scores[account] = mappingScore
 			}
 		}
 	}
-
 	return scores
 }
 
@@ -270,12 +262,6 @@ func calculateScore(text, queryUpper string, tokens []string) (int, bool) {
 	}
 
 	return score, true
-}
-
-// scoredAccount represents an account name paired with its search relevance score.
-type scoredAccount struct {
-	name  string
-	score int
 }
 
 /*

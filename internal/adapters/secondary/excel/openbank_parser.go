@@ -22,9 +22,9 @@ type OpenBankParser struct {
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser.
-func NewOpenBankParser(mappingService *domain.MappingService, cfg config.Config) *OpenBankParser {
+func NewOpenBankParser(mappingProvider config.MappingProvider, settings config.Config) *OpenBankParser {
 	return &OpenBankParser{
-		BaseParser: NewBaseParser(mappingService, cfg),
+		BaseParser: NewBaseParser(mappingProvider, settings),
 	}
 }
 
@@ -110,7 +110,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 
 	fullDescription := strings.TrimSpace(row[5])
 	description := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
-	cleanDescription := p.mappingService.CleanDescription(description)
+	cleanDescription := p.mappingProvider.CleanDescription(description)
 
 	metadata := domain.Metadata{
 		Origin: "Openbank",
@@ -120,11 +120,11 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata.ID = p.HashID(balance)
 	}
 
-	if payedBy := p.mappingService.ResolvePayer(fullDescription); payedBy != "" {
+	if payedBy := p.mappingProvider.ResolvePayer(fullDescription); payedBy != "" {
 		metadata.PayedBy = payedBy
 	}
 
-	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
+	targetAccount := p.resolveAccount(cleanDescription, amount)
 
 	return &domain.Transaction{
 		Date:        date,
@@ -132,10 +132,23 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: p.cfg.OpenBankAccount, Amount: &amount, Currency: p.cfg.DefaultCurrency},
+			{Account: p.settings.OpenBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}, nil
+}
+
+// TODO why is this here? before we had extracted this to mappingService.ResolveAccount
+func (p *OpenBankParser) resolveAccount(description string, amount float64) string {
+	if account, found := p.mappingProvider.ResolveAccount(description); found {
+		return account
+	}
+
+	if amount > 0 {
+		return p.settings.DefaultIncomeAccount
+	}
+
+	return p.settings.DefaultExpenseAccount
 }
 
 func getInnerText(node *html.Node) string {

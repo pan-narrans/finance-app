@@ -15,26 +15,25 @@ func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 			"AMAZON MARKETPLACE": "Expenses:Shopping",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act
-	account := svc.ResolveAccount("AMAZON MARKETPLACE LUX", -50.0)
+	account, found := svc.ResolveAccount("AMAZON MARKETPLACE LUX")
 
 	// Assert
+	assert.True(t, found)
 	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
 }
 
-func TestMappingService_ResolveAccount_ShouldReturnUnknown_WhenNoMatchFound(t *testing.T) {
+func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *testing.T) {
 	// Arrange
-	cfg := config.Config{
-		DefaultExpenseAccount: "Expenses:Unknown",
-		DefaultIncomeAccount:  "Income:Unknown",
-	}
-	svc := NewMappingService(config.MappingData{}, cfg)
+	svc := NewMappingService(config.MappingData{})
 
-	// Act & Assert
-	assert.Equal(t, "Expenses:Unknown", svc.ResolveAccount("Some unknown expense", -10.0))
-	assert.Equal(t, "Income:Unknown", svc.ResolveAccount("Some unknown income", 10.0))
+	// Act
+	_, found := svc.ResolveAccount("Some unknown expense")
+
+	// Assert
+	assert.False(t, found)
 }
 
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
@@ -42,7 +41,7 @@ func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	data := config.MappingData{
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	tests := []struct {
 		input    string
@@ -68,7 +67,7 @@ func TestMappingService_CleanDescription_ShouldApplyDescriptionMappings(t *testi
 			"AMZN MKTP":         "Amazon",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	tests := []struct {
 		input    string
@@ -90,7 +89,7 @@ func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	data := config.MappingData{
 		Cards: map[string]string{"*1234": "Alex", "*5678": "Maria"},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act & Assert
 	assert.Equal(t, "Alex", svc.ResolvePayer("Purchase with card *1234"))
@@ -107,7 +106,7 @@ func TestMappingService_ResolveSource_ShouldReturnCorrectAccount(t *testing.T) {
 			"efectivo": "Assets:Cash",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act & Assert
 	acc, found := svc.ResolveSource("Alex")
@@ -152,7 +151,7 @@ func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *
 			"key4": "Assets:Cash",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act
 	results := svc.accounts
@@ -173,7 +172,7 @@ func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
 			"key5": "Income:Salary",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	tests := []struct {
 		name     string
