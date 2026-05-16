@@ -3,46 +3,41 @@ package domain
 import (
 	"testing"
 
-	"github.com/a-perez/finance-app/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Accounts: map[string]string{
 			"AMAZON":             "Expenses:General",
 			"AMAZON MARKETPLACE": "Expenses:Shopping",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act
-	account := svc.ResolveAccount("AMAZON MARKETPLACE LUX", -50.0)
+	account := svc.ResolveAccount("AMAZON MARKETPLACE LUX", -10.0, "Income:Unknown", "Expenses:Unknown")
 
 	// Assert
 	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
 }
 
-func TestMappingService_ResolveAccount_ShouldReturnUnknown_WhenNoMatchFound(t *testing.T) {
+func TestMappingService_ResolveAccount_ShouldReturnFallback_WhenNoMatchFound(t *testing.T) {
 	// Arrange
-	cfg := config.Config{
-		DefaultExpenseAccount: "Expenses:Unknown",
-		DefaultIncomeAccount:  "Income:Unknown",
-	}
-	svc := NewMappingService(config.MappingData{}, cfg)
+	svc := NewMappingService(MappingData{})
 
 	// Act & Assert
-	assert.Equal(t, "Expenses:Unknown", svc.ResolveAccount("Some unknown expense", -10.0))
-	assert.Equal(t, "Income:Unknown", svc.ResolveAccount("Some unknown income", 10.0))
+	assert.Equal(t, "Expenses:Unknown", svc.ResolveAccount("Some unknown expense", -10.0, "Income:Unknown", "Expenses:Unknown"))
+	assert.Equal(t, "Income:Unknown", svc.ResolveAccount("Some unknown income", 10.0, "Income:Unknown", "Expenses:Unknown"))
 }
 
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	tests := []struct {
 		input    string
@@ -62,13 +57,13 @@ func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 
 func TestMappingService_CleanDescription_ShouldApplyDescriptionMappings(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Descriptions: map[string]string{
 			"SQ *BEN AND JERRY": "Ben & Jerry's",
 			"AMZN MKTP":         "Amazon",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	tests := []struct {
 		input    string
@@ -87,10 +82,10 @@ func TestMappingService_CleanDescription_ShouldApplyDescriptionMappings(t *testi
 
 func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Cards: map[string]string{"*1234": "Alex", "*5678": "Maria"},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act & Assert
 	assert.Equal(t, "Alex", svc.ResolvePayer("Purchase with card *1234"))
@@ -100,14 +95,14 @@ func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 
 func TestMappingService_ResolveSource_ShouldReturnCorrectAccount(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Sources: map[string]string{
 			"alex":     "Income:Alex",
 			"pilar":    "Income:Pilar",
 			"efectivo": "Assets:Cash",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act & Assert
 	acc, found := svc.ResolveSource("Alex")
@@ -144,7 +139,7 @@ func TestSortKeywords_ShouldSortByLengthDescending(t *testing.T) {
 
 func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Accounts: map[string]string{
 			"key1": "Expenses:Food",
 			"key2": "Expenses:Food",
@@ -152,7 +147,7 @@ func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *
 			"key4": "Assets:Cash",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	// Act
 	results := svc.accounts
@@ -164,7 +159,7 @@ func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *
 
 func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Accounts: map[string]string{
 			"key1": "Expenses:Food:Restaurante",
 			"key2": "Expenses:Food:Supermercado",
@@ -173,7 +168,7 @@ func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
 			"key5": "Income:Salary",
 		},
 	}
-	svc := NewMappingService(data, config.Config{})
+	svc := NewMappingService(data)
 
 	tests := []struct {
 		name     string

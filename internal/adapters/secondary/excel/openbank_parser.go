@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"golang.org/x/net/html"
 	"golang.org/x/text/encoding/charmap"
@@ -21,9 +22,9 @@ type OpenBankParser struct {
 }
 
 // NewOpenBankParser creates a new instance of OpenBankParser.
-func NewOpenBankParser(mappingService *domain.MappingService) *OpenBankParser {
+func NewOpenBankParser(mappingProvider ports.MappingProvider, settings config.Config) *OpenBankParser {
 	return &OpenBankParser{
-		BaseParser: NewBaseParser(mappingService),
+		BaseParser: NewBaseParser(mappingProvider, settings),
 	}
 }
 
@@ -94,7 +95,7 @@ func (p *OpenBankParser) extractCells(node *html.Node) []string {
 
 func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, error) {
 	if len(row) < 10 {
-		return nil, domain.NewValidationErrors("Parser", "Row", "row too short")
+		return nil, domain.NewDomainError("Parser", "Row", "row too short")
 	}
 
 	date, err := time.Parse("02/01/2006", strings.TrimSpace(row[3]))
@@ -109,7 +110,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 
 	fullDescription := strings.TrimSpace(row[5])
 	description := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
-	cleanDescription := p.mappingService.CleanDescription(description)
+	cleanDescription := p.mappingProvider.CleanDescription(description)
 
 	metadata := domain.Metadata{
 		Origin: "Openbank",
@@ -119,11 +120,11 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata.ID = p.HashID(balance)
 	}
 
-	if payedBy := p.mappingService.ResolvePayer(fullDescription); payedBy != "" {
+	if payedBy := p.mappingProvider.ResolvePayer(fullDescription); payedBy != "" {
 		metadata.PayedBy = payedBy
 	}
 
-	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
+	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
 
 	return &domain.Transaction{
 		Date:        date,
@@ -131,7 +132,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: "Assets:Checking:OpenBank", Amount: &amount, Currency: "EUR"},
+			{Account: p.settings.OpenBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}, nil

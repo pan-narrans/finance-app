@@ -25,17 +25,15 @@ TextParserService handles the conversion of raw text input into domain transacti
 It implements the ports.TextParserUseCase interface.
 */
 type TextParserService struct {
-	mappingService *domain.MappingService
-	cfg            config.Config
+	configManager *config.Manager
 }
 
 /*
 NewTextParserService creates a new TextParserService.
 */
-func NewTextParserService(mappingService *domain.MappingService, cfg config.Config) *TextParserService {
+func NewTextParserService(configManager *config.Manager) *TextParserService {
 	return &TextParserService{
-		mappingService: mappingService,
-		cfg:            cfg,
+		configManager: configManager,
 	}
 }
 
@@ -60,9 +58,10 @@ func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, 
 		return domain.Transaction{}, fmt.Errorf("invalid amount format: %w", err)
 	}
 
-	cleanDescription := s.mappingService.CleanDescription(matches[4])
-	targetAccount := s.resolveTargetAccount(cleanDescription, amount)
-	sourceAccount := s.resolveSourceAccount(matches[1])
+	appConfig := s.configManager.Get()
+	cleanDescription := appConfig.Mappings.CleanDescription(matches[4])
+	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription, amount)
+	sourceAccount := s.resolveSourceAccount(appConfig, matches[1])
 
 	// Add Metadata
 	metadata := domain.Metadata{
@@ -77,7 +76,7 @@ func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, 
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: s.cfg.DefaultCurrency},
+			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
 			{Account: sourceAccount, Amount: nil},
 		},
 	}
@@ -100,12 +99,12 @@ resolveTargetAccount determines the expense/income account for the transaction.
 It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
-func (s *TextParserService) resolveTargetAccount(cleanDescription string, amount float64) string {
-	account := s.mappingService.ResolveAccount(cleanDescription, amount)
+func (s *TextParserService) resolveTargetAccount(appConfig *config.AppConfig, cleanDescription string, amount float64) string {
+	account := appConfig.Mappings.ResolveAccount(cleanDescription, amount, appConfig.Settings.DefaultIncomeAccount, appConfig.Settings.DefaultExpenseAccount)
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(account, ":Unknown") {
-		suggestions := s.mappingService.SearchAccounts(cleanDescription, 1)
+		suggestions := appConfig.Mappings.SearchAccounts(cleanDescription, 1)
 		if len(suggestions) > 0 {
 			account = suggestions[0]
 		}
@@ -120,12 +119,12 @@ If the keyword matches a source mapping, it uses that account.
 If no mapping exists but a keyword is provided, it falls back to Income:[Keyword].
 Otherwise, it returns the default asset account.
 */
-func (s *TextParserService) resolveSourceAccount(sourceKeyword string) string {
+func (s *TextParserService) resolveSourceAccount(appConfig *config.AppConfig, sourceKeyword string) string {
 	if sourceKeyword == "" {
-		return s.cfg.DefaultAssetAccount
+		return appConfig.Settings.DefaultAssetAccount
 	}
 
-	if account, found := s.mappingService.ResolveSource(sourceKeyword); found {
+	if account, found := appConfig.Mappings.ResolveSource(sourceKeyword); found {
 		return account
 	}
 

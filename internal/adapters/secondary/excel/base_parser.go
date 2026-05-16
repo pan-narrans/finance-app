@@ -6,18 +6,21 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/a-perez/finance-app/internal/domain"
+	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/config"
 )
 
 // BaseParser encapsulates shared utility logic for all Excel-based parsers.
 type BaseParser struct {
-	mappingService *domain.MappingService
+	mappingProvider ports.MappingProvider
+	settings        config.Config
 }
 
 // NewBaseParser creates a new BaseParser instance.
-func NewBaseParser(mappingService *domain.MappingService) *BaseParser {
+func NewBaseParser(mappingProvider ports.MappingProvider, settings config.Config) *BaseParser {
 	return &BaseParser{
-		mappingService: mappingService,
+		mappingProvider: mappingProvider,
+		settings:        settings,
 	}
 }
 

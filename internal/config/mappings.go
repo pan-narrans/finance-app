@@ -4,24 +4,17 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+
+	"github.com/a-perez/finance-app/internal/domain"
 )
 
-// MappingData holds the raw configuration for transaction mappings.
-type MappingData struct {
-	Accounts     map[string]string `json:"accounts"`
-	Descriptions map[string]string `json:"descriptions"`
-	Sources      map[string]string `json:"sources"`
-	Cards        map[string]string `json:"cards"`
-	Prefixes     []string          `json:"prefixes"`
-}
-
 /*
-LoadMappings loads the mappings from a JSON file directly into [MappingData].
+LoadMappings loads the mappings from a JSON file directly into [domain.MappingData].
 
 If the file is missing or invalid, it returns empty mappings and logs a warning.
 */
-func LoadMappings(path string) (MappingData, error) {
-	data := MappingData{
+func LoadMappings(path string) (domain.MappingData, error) {
+	data := domain.MappingData{
 		Accounts:     make(map[string]string),
 		Descriptions: make(map[string]string),
 		Sources:      make(map[string]string),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
 )
@@ -34,7 +35,7 @@ func NewUI(alignment int) *UI {
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingService *domain.MappingService) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	btnConfirm := selector.Data("Confirm ✅", CallbackConfirm)
@@ -52,7 +53,7 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingService *domain.Map
 	msgSuffix := ""
 	if strings.HasSuffix(targetAccount, ":Unknown") {
 		msgSuffix = "\n\nUnknown account. Suggestions:"
-		suggestions := mappingService.SearchAccounts(tx.Description, 5)
+		suggestions := mappingProvider.SearchAccounts(tx.Description, 5)
 		for _, suggestion := range suggestions {
 			btn := selector.Data(suggestion, CallbackSelectAcc, suggestion)
 			rows = append(rows, selector.Row(btn))

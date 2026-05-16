@@ -56,7 +56,7 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 	tests := []struct {
 		name           string
 		transaction    Transaction
-		expectedErrors []ValidationError
+		expectedErrors []DomainFieldError
 	}{
 		{
 			name: "Should Detect Missing Date And Description",
@@ -66,7 +66,7 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 					{Account: "B", Amount: nil},
 				},
 			},
-			expectedErrors: []ValidationError{
+			expectedErrors: []DomainFieldError{
 				{Entity: "Transaction", Field: "Date", Message: "transaction date is required"},
 				{Entity: "Transaction", Field: "Description", Message: "transaction description is required"},
 			},
@@ -81,7 +81,7 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 					{Account: "B", Amount: nil},
 				},
 			},
-			expectedErrors: []ValidationError{
+			expectedErrors: []DomainFieldError{
 				{Entity: "Transaction", Field: "Postings[0].Currency", Message: "currency is mandatory for posting to account \"A\""},
 			},
 		},
@@ -95,7 +95,7 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 					{Account: "B", Amount: nil},
 				},
 			},
-			expectedErrors: []ValidationError{
+			expectedErrors: []DomainFieldError{
 				{Entity: "Transaction", Field: "Postings", Message: "at most one posting can have an implicit amount"},
 			},
 		},
@@ -108,11 +108,11 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 				err := tt.transaction.Validate()
 
 				// Assert
-				var validationErrors *ValidationErrors
-				ok := errors.As(err, &validationErrors)
+				var domainError *DomainError
+				ok := errors.As(err, &domainError)
 				require.Error(t, err)
-				require.True(t, ok, "Error should be of type *ValidationErrors")
-				assert.Equal(t, tt.expectedErrors, validationErrors.Errors)
+				require.True(t, ok, "Error should be of type *DomainError")
+				assert.Equal(t, tt.expectedErrors, domainError.Errors)
 			},
 		)
 	}

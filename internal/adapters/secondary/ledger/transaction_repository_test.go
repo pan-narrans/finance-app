@@ -124,7 +124,8 @@ func TestFileRepository_Update_ShouldReturnDomainError_WhenCodeIsNotFound(t *tes
 
 	// Assert
 	assert.Error(t, err)
-	var domainError *domain.ValidationErrors
+	// Assert
+	var domainError *domain.DomainError
 	ok := errors.As(err, &domainError)
 	require.True(t, ok, "Error should be of type *domain.DomainError")
 	assert.Equal(t, "Code", domainError.Errors[0].Field)
@@ -178,10 +179,10 @@ func TestFileRepository_Delete_ShouldReturnDomainError_WhenCodeIsNotFound(t *tes
 	err := fileRepository.Delete("GHOST_CODE")
 
 	// Assert
-	assert.Error(t, err)
-	var domainError *domain.ValidationErrors
+	// Assert
+	var domainError *domain.DomainError
 	ok := errors.As(err, &domainError)
-	require.True(t, ok, "Error should be of type *domain.ValidationErrors")
+	require.True(t, ok, "Error should be of type *domain.DomainError")
 	assert.Equal(t, "Code", domainError.Errors[0].Field)
 	assert.Contains(t, domainError.Errors[0].Message, "not found")
 }

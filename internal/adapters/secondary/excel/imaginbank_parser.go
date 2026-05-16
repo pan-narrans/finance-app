@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
@@ -20,9 +21,9 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingService *domain.MappingService) *ImaginBankParser {
+func NewImaginBankParser(mappingProvider ports.MappingProvider, settings config.Config) *ImaginBankParser {
 	return &ImaginBankParser{
-		BaseParser: NewBaseParser(mappingService),
+		BaseParser: NewBaseParser(mappingProvider, settings),
 	}
 }
 
@@ -64,7 +65,7 @@ func (p *ImaginBankParser) Parse(filePath string) ([]domain.Transaction, error) 
 
 func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, error) {
 	if len(row) < 3 {
-		return nil, domain.NewValidationErrors("Parser", "Row", "row too short")
+		return nil, domain.NewDomainError("Parser", "Row", "row too short")
 	}
 
 	fullDescription := strings.TrimSpace(row[0])
@@ -84,8 +85,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		return nil, err
 	}
 
-	cleanDescription := p.mappingService.CleanDescription(fullDescription)
-	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)
+	cleanDescription := p.mappingProvider.CleanDescription(fullDescription)
+	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
 
 	metadata := domain.Metadata{
 		Origin: "Imaginbank",
@@ -101,7 +102,7 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: "Assets:Checking:ImaginBank", Amount: &amount, Currency: "EUR"},
+			{Account: p.settings.ImaginBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}, nil

@@ -79,7 +79,7 @@ It returns a domain.DomainError if the transaction code is not found in the file
 */
 func (fileRepository *TransactionFileRepository) Update(transaction domain.Transaction) error {
 	if transaction.Code == "" {
-		return domain.NewValidationErrors("Transaction", "Code", "transaction must have a code to be updated")
+		return domain.NewDomainError("Transaction", "Code", "transaction must have a code to be updated")
 	}
 
 	data, err := os.ReadFile(fileRepository.FilePath)
@@ -90,7 +90,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	regex := fileRepository.transactionRegex(transaction.Code)
 
 	if !regex.Match(data) {
-		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
+		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
 	}
 
 	newContent := transaction.Format(fileRepository.Alignment) + "\n"
@@ -101,13 +101,13 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 
 func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	if code == "" {
-		return domain.NewValidationErrors("Transaction", "Code", "code must be provided to delete a transaction")
+		return domain.NewDomainError("Transaction", "Code", "code must be provided to delete a transaction")
 	}
 
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
+			return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 		}
 		return err
 	}
@@ -115,7 +115,7 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	regex := fileRepository.transactionRegex(code)
 
 	if !regex.Match(data) {
-		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
+		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 	}
 
 	updatedData := regex.ReplaceAllString(string(data), "")

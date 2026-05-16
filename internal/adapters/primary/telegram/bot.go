@@ -25,10 +25,9 @@ type TelegramAdapter struct {
 	transactionUC  ports.TransactionUseCase
 	textParserUC   ports.TextParserUseCase
 	importService  *app.ImportService
-	mappingService *domain.MappingService
+	configManager  *config.Manager
 	sessionManager *SessionManager
 	ui             *UI
-	cfg            config.Config
 }
 
 /*
@@ -40,8 +39,7 @@ func NewTelegramAdapter(
 	txUC ports.TransactionUseCase,
 	parserUC ports.TextParserUseCase,
 	importService *app.ImportService,
-	mappingService *domain.MappingService,
-	cfg config.Config,
+	configManager *config.Manager,
 ) (*TelegramAdapter, error) {
 	pref := telebot.Settings{
 		Token:  token,
@@ -58,16 +56,17 @@ func NewTelegramAdapter(
 		allowedMap[id] = struct{}{}
 	}
 
+	appConfig := configManager.Get()
+
 	return &TelegramAdapter{
 		teleBot:        bot,
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
 		textParserUC:   parserUC,
 		importService:  importService,
-		mappingService: mappingService,
+		configManager:  configManager,
 		sessionManager: NewSessionManager(),
-		ui:             NewUI(cfg.LedgerAlignment),
-		cfg:            cfg,
+		ui:             NewUI(appConfig.Settings.LedgerAlignment),
 	}, nil
 }
 
@@ -135,7 +134,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 }
 
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
-	msg, selector := a.ui.BuildDraftMessage(tx, a.mappingService)
+	msg, selector := a.ui.BuildDraftMessage(tx, a.configManager.Get().Mappings)
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)
@@ -177,7 +176,7 @@ func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 
 func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 	query := c.Text()
-	results := a.mappingService.SearchAccounts(query, 8)
+	results := a.configManager.Get().Mappings.SearchAccounts(query, 8)
 
 	msg, selector := a.ui.BuildSearchResults(query, results)
 	return c.Send(msg, selector)
@@ -217,7 +216,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	a.sessionManager.Delete(userID)
 
-	formatted := session.Draft.Format(a.cfg.LedgerAlignment)
+	formatted := session.Draft.Format(a.configManager.Get().Settings.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
