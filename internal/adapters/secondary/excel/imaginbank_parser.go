@@ -21,7 +21,7 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingProvider config.MappingProvider, settings config.Config) *ImaginBankParser {
+func NewImaginBankParser(mappingProvider ports.MappingProvider, settings config.Config) *ImaginBankParser {
 	return &ImaginBankParser{
 		BaseParser: NewBaseParser(mappingProvider, settings),
 	}
@@ -108,6 +108,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 	}, nil
 }
 
+// TODO why is this here? before we had extracted this to mappingService.ResolveAccount
+// TODO duplicated logic with openbank_parser.go
 func (p *ImaginBankParser) resolveAccount(description string, amount float64) string {
 	if account, found := p.mappingProvider.ResolveAccount(description); found {
 		return account

@@ -5,26 +5,10 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/fsnotify/fsnotify"
 )
-
-/*
-MappingProvider defines the contract for description cleaning and account resolution.
-This interface breaks the import cycle between config and domain.
-*/
-// TODO review if this can be inside of ports for cleaner architecture, feels strange having a MappingProvider and a MappingService
-type MappingProvider interface {
-	CleanDescription(description string) string
-	ResolveAccount(description string) (string, bool)
-	ResolvePayer(fullDescription string) string
-	ResolveSource(keyword string) (string, bool)
-	SearchAccounts(query string, limit int) []string
-}
-
-/*
-MappingServiceConstructor is a function type that creates a MappingProvider.
-*/
-type MappingServiceConstructor func(data MappingData) MappingProvider
 
 /*
 AppConfig combines application settings and the derived mapping service.
@@ -32,7 +16,7 @@ It represents a single, consistent snapshot of the application configuration.
 */
 type AppConfig struct {
 	Settings Config //TODO review naming
-	Mappings MappingProvider
+	Mappings ports.MappingProvider
 }
 
 /*
@@ -44,14 +28,14 @@ type Manager struct {
 	watcher      *fsnotify.Watcher
 	configPath   string
 	mappingsPath string
-	constructor  MappingServiceConstructor
+	constructor  ports.MappingServiceConstructor
 }
 
 /*
 NewManager initializes a new ConfigManager.
 It performs an initial load of the configuration files and starts the directory watcher.
 */
-func NewManager(configPath, mappingsPath string, constructor MappingServiceConstructor) (*Manager, error) {
+func NewManager(configPath, mappingsPath string, constructor ports.MappingServiceConstructor) (*Manager, error) {
 	m := &Manager{
 		configPath:   configPath,
 		mappingsPath: mappingsPath,
@@ -116,7 +100,7 @@ func (m *Manager) Reload() error {
 ReloadWithData manually updates the manager with provided settings and mappings.
 Primarily used for testing.
 */
-func (m *Manager) ReloadWithData(settings Config, mappings MappingData) {
+func (m *Manager) ReloadWithData(settings Config, mappings domain.MappingData) {
 	mappingService := m.constructor(mappings)
 	m.current.Store(&AppConfig{
 		Settings: settings,

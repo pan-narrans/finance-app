@@ -8,6 +8,7 @@ import (
 	"github.com/a-perez/finance-app/internal/adapters/secondary/excel"
 	"github.com/a-perez/finance-app/internal/adapters/secondary/ledger"
 	"github.com/a-perez/finance-app/internal/app"
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 )
@@ -24,7 +25,7 @@ func main() {
 	mappingsPath := filepath.Join(env.ConfigRoot, "mappings.json")
 
 	// Domain constructor for Config Manager
-	mappingServiceConstructor := func(data config.MappingData) config.MappingProvider {
+	mappingServiceConstructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 

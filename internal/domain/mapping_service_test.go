@@ -3,13 +3,12 @@ package domain
 import (
 	"testing"
 
-	"github.com/a-perez/finance-app/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Accounts: map[string]string{
 			"AMAZON":             "Expenses:General",
 			"AMAZON MARKETPLACE": "Expenses:Shopping",
@@ -27,7 +26,7 @@ func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 
 func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *testing.T) {
 	// Arrange
-	svc := NewMappingService(config.MappingData{})
+	svc := NewMappingService(MappingData{})
 
 	// Act
 	_, found := svc.ResolveAccount("Some unknown expense")
@@ -38,7 +37,7 @@ func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *tes
 
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
 	svc := NewMappingService(data)
@@ -61,7 +60,7 @@ func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 
 func TestMappingService_CleanDescription_ShouldApplyDescriptionMappings(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Descriptions: map[string]string{
 			"SQ *BEN AND JERRY": "Ben & Jerry's",
 			"AMZN MKTP":         "Amazon",
@@ -86,7 +85,7 @@ func TestMappingService_CleanDescription_ShouldApplyDescriptionMappings(t *testi
 
 func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Cards: map[string]string{"*1234": "Alex", "*5678": "Maria"},
 	}
 	svc := NewMappingService(data)
@@ -99,7 +98,7 @@ func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 
 func TestMappingService_ResolveSource_ShouldReturnCorrectAccount(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Sources: map[string]string{
 			"alex":     "Income:Alex",
 			"pilar":    "Income:Pilar",
@@ -143,7 +142,7 @@ func TestSortKeywords_ShouldSortByLengthDescending(t *testing.T) {
 
 func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Accounts: map[string]string{
 			"key1": "Expenses:Food",
 			"key2": "Expenses:Food",
@@ -163,7 +162,7 @@ func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *
 
 func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := MappingData{
 		Accounts: map[string]string{
 			"key1": "Expenses:Food:Restaurante",
 			"key2": "Expenses:Food:Supermercado",

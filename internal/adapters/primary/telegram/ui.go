@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/a-perez/finance-app/internal/config"
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
 )
@@ -35,7 +35,7 @@ func NewUI(alignment int) *UI {
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider config.MappingProvider) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	btnConfirm := selector.Data("Confirm ✅", CallbackConfirm)

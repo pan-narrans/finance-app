@@ -6,9 +6,16 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
-	"github.com/a-perez/finance-app/internal/config"
 )
+
+// MappingData holds the raw configuration for transaction mappings.
+type MappingData struct {
+	Accounts     map[string]string `json:"accounts"`
+	Descriptions map[string]string `json:"descriptions"`
+	Sources      map[string]string `json:"sources"`
+	Cards        map[string]string `json:"cards"`
+	Prefixes     []string          `json:"prefixes"`
+}
 
 /*
 MappingService provides logic for cleaning descriptions and resolving financial entities.
@@ -35,7 +42,7 @@ It pre-processes mapping data by:
   - Compiling case-insensitive prefix regular expressions.
   - Extracting a unique, sorted list of known account names.
 */
-func NewMappingService(data config.MappingData) *MappingService {
+func NewMappingService(data MappingData) *MappingService {
 	sortedAccountKeywords := sortKeywords(data.Accounts)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
 

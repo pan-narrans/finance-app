@@ -37,3 +37,19 @@ TextParserUseCase defines the logic for converting raw input strings into domain
 type TextParserUseCase interface {
 	ParseText(text, origin string) (domain.Transaction, error)
 }
+
+/*
+MappingProvider defines the contract for description cleaning and account resolution.
+*/
+type MappingProvider interface {
+	CleanDescription(description string) string
+	ResolveAccount(description string) (string, bool)
+	ResolvePayer(fullDescription string) string
+	ResolveSource(keyword string) (string, bool)
+	SearchAccounts(query string, limit int) []string
+}
+
+/*
+MappingServiceConstructor is a function type that creates a MappingProvider.
+*/
+type MappingServiceConstructor func(data domain.MappingData) MappingProvider

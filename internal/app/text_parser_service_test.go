@@ -3,6 +3,7 @@ package app
 import (
 	"testing"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
@@ -11,14 +12,14 @@ import (
 
 func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvided(t *testing.T) {
 	// Arrange
-	data := config.MappingData{
+	data := domain.MappingData{
 		Sources:  map[string]string{"cash": "Assets:Cash"},
 		Accounts: map[string]string{"coffee": "Expenses:Food:Coffee"},
 	}
 	settings := config.Config{
 		DefaultCurrency: "EUR",
 	}
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
@@ -48,11 +49,11 @@ func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissin
 		DefaultAssetAccount: "Assets:Checking:Main",
 		DefaultCurrency:     "USD",
 	}
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
-	manager.ReloadWithData(settings, config.MappingData{})
+	manager.ReloadWithData(settings, domain.MappingData{})
 
 	svc := NewTextParserService(manager)
 
@@ -67,7 +68,7 @@ func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissin
 
 func TestTextParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
@@ -83,7 +84,7 @@ func TestTextParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(t *test
 
 func TestTextParserService_ParseText_ShouldFallbackToIncomeSource_WhenSourceIsUnknown(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
@@ -99,7 +100,7 @@ func TestTextParserService_ParseText_ShouldFallbackToIncomeSource_WhenSourceIsUn
 
 func TestTextParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)

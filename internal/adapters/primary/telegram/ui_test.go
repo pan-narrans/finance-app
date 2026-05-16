@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +19,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	mappingProvider := domain.NewMappingService(config.MappingData{})
+	mappingProvider := domain.NewMappingService(domain.MappingData{})
 
 	// Act
 	msg, selector := ui.BuildDraftMessage(tx, mappingProvider)
@@ -42,7 +41,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 			{Account: "Expenses:Unknown", Amount: new(5.0), Currency: "EUR"},
 		},
 	}
-	data := config.MappingData{
+	data := domain.MappingData{
 		Accounts: map[string]string{"STARBUCKS": "Expenses:Food:Coffee"},
 	}
 	mappingProvider := domain.NewMappingService(data)

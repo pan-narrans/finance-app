@@ -3,6 +3,7 @@ package excel
 import (
 	"testing"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
@@ -11,7 +12,7 @@ import (
 
 func TestParserFactory_GetParser_ShouldReturnOpenBankParser_WhenFilenameMatches(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
@@ -27,7 +28,7 @@ func TestParserFactory_GetParser_ShouldReturnOpenBankParser_WhenFilenameMatches(
 
 func TestParserFactory_GetParser_ShouldReturnImaginBankParser_WhenFilenameMatches(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
@@ -43,7 +44,7 @@ func TestParserFactory_GetParser_ShouldReturnImaginBankParser_WhenFilenameMatche
 
 func TestParserFactory_GetParser_ShouldReturnError_WhenNoMatchFound(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
@@ -60,7 +61,7 @@ func TestParserFactory_GetParser_ShouldReturnError_WhenNoMatchFound(t *testing.T
 
 func TestParserFactory_GetParser_ShouldBeCaseInsensitive(t *testing.T) {
 	// Arrange
-	constructor := func(data config.MappingData) config.MappingProvider {
+	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
