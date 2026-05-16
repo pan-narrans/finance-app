@@ -230,29 +230,29 @@ Validation checks:
 It returns a structured DomainError if any validation failures occur.
 */
 func (t *Transaction) Validate() error {
-	validationErrors := &ValidationErrors{}
+	domainError := &DomainError{}
 	entity := "Transaction"
 
 	if t.Date.IsZero() {
-		validationErrors.Add(entity, "Date", "transaction date is required")
+		domainError.Add(entity, "Date", "transaction date is required")
 	}
 	if t.Description == "" {
-		validationErrors.Add(entity, "Description", "transaction description is required")
+		domainError.Add(entity, "Description", "transaction description is required")
 	}
 	if len(t.Postings) < 2 {
-		validationErrors.Add(entity, "Postings", "transaction must have at least two postings to balance")
+		domainError.Add(entity, "Postings", "transaction must have at least two postings to balance")
 	}
 
 	nilCount := 0
 	for i, posting := range t.Postings {
 		if posting.Account == "" {
 			field := fmt.Sprintf("Postings[%d].Account", i)
-			validationErrors.Add(entity, field, "account name is required")
+			domainError.Add(entity, field, "account name is required")
 		}
 
 		if posting.Amount != nil && posting.Currency == "" {
 			field := fmt.Sprintf("Postings[%d].Currency", i)
-			validationErrors.Add(entity, field, fmt.Sprintf("currency is mandatory for posting to account %q", posting.Account))
+			domainError.Add(entity, field, fmt.Sprintf("currency is mandatory for posting to account %q", posting.Account))
 		}
 		if posting.Amount == nil {
 			nilCount++
@@ -260,11 +260,11 @@ func (t *Transaction) Validate() error {
 	}
 
 	if nilCount > 1 {
-		validationErrors.Add(entity, "Postings", "at most one posting can have an implicit amount")
+		domainError.Add(entity, "Postings", "at most one posting can have an implicit amount")
 	}
 
-	if len(validationErrors.Errors) > 0 {
-		return validationErrors
+	if len(domainError.Errors) > 0 {
+		return domainError
 	}
 
 	return nil

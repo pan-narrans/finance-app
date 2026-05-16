@@ -95,7 +95,7 @@ func (p *OpenBankParser) extractCells(node *html.Node) []string {
 
 func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, error) {
 	if len(row) < 10 {
-		return nil, domain.NewValidationErrors("Parser", "Row", "row too short")
+		return nil, domain.NewDomainError("Parser", "Row", "row too short")
 	}
 
 	date, err := time.Parse("02/01/2006", strings.TrimSpace(row[3]))

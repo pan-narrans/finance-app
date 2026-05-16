@@ -6,43 +6,43 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidationErrors_Error_ShouldReturnDetailedSummary_WhenMultipleErrorsExist(t *testing.T) {
+func TestDomainError_Error_ShouldReturnDetailedSummary_WhenMultipleErrorsExist(t *testing.T) {
 	// Arrange
-	errs := NewValidationErrors("Transaction", "Date", "required")
+	errs := NewDomainError("Transaction", "Date", "required")
 	errs.Add("Transaction", "Description", "too short")
 
 	// Act
 	got := errs.Error()
 
 	// Assert
-	assert.Equal(t, "validation failed: 2 error(s) in Transaction: [Date: required], [Description: too short]", got)
+	assert.Equal(t, "domain failure: 2 error(s) in Transaction: [Date: required], [Description: too short]", got)
 }
 
-func TestValidationErrors_Error_ShouldReturnSingleSummary_WhenOneErrorExists(t *testing.T) {
+func TestDomainError_Error_ShouldReturnSingleSummary_WhenOneErrorExists(t *testing.T) {
 	// Arrange
-	errs := NewValidationErrors("User", "Email", "invalid format")
+	errs := NewDomainError("User", "Email", "invalid format")
 
 	// Act
 	got := errs.Error()
 
 	// Assert
-	assert.Equal(t, "validation failed: 1 error(s) in User: [Email: invalid format]", got)
+	assert.Equal(t, "domain failure: 1 error(s) in User: [Email: invalid format]", got)
 }
 
-func TestValidationErrors_Error_ShouldReturnDefaultMessage_WhenEmpty(t *testing.T) {
+func TestDomainError_Error_ShouldReturnDefaultMessage_WhenEmpty(t *testing.T) {
 	// Arrange
-	errs := &ValidationErrors{}
+	errs := &DomainError{}
 
 	// Act
 	got := errs.Error()
 
 	// Assert
-	assert.Equal(t, "no validation errors occurred", got)
+	assert.Equal(t, "no domain errors occurred", got)
 }
 
-func TestNewValidationErrors_ShouldInitializeWithOneError(t *testing.T) {
+func TestNewDomainError_ShouldInitializeWithOneError(t *testing.T) {
 	// Act
-	errs := NewValidationErrors("Entity", "Field", "Message")
+	errs := NewDomainError("Entity", "Field", "Message")
 
 	// Assert
 	assert.Len(t, errs.Errors, 1)
