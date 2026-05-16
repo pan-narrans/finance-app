@@ -30,3 +30,10 @@ type ImportSummary struct {
 type ImportUseCase interface {
 	Import(parser BankParser, filePath string) (*ImportSummary, error)
 }
+
+/*
+TextParserUseCase defines the logic for converting raw input strings into domain transactions.
+*/
+type TextParserUseCase interface {
+	ParseText(text string) (domain.Transaction, error)
+}
