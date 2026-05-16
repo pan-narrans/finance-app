@@ -15,7 +15,7 @@ AppConfig combines application settings and the derived mapping service.
 It represents a single, consistent snapshot of the application configuration.
 */
 type AppConfig struct {
-	Settings Config //TODO review naming
+	Settings Config
 	Mappings ports.MappingProvider
 }
 
