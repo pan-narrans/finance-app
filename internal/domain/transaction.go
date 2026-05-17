@@ -8,6 +8,9 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 /*
@@ -268,4 +271,17 @@ func (t *Transaction) Validate() error {
 	}
 
 	return nil
+}
+
+/*
+FormatAccountPath ensures all segments of an account path are Title Cased.
+(e.g., "expenses:food:dining" -> "Expenses:Food:Dining")
+*/
+func FormatAccountPath(path string) string {
+	segments := strings.Split(path, ":")
+	caser := cases.Title(language.Und)
+	for i, seg := range segments {
+		segments[i] = caser.String(strings.ToLower(strings.TrimSpace(seg)))
+	}
+	return strings.Join(segments, ":")
 }

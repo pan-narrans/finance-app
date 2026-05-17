@@ -61,7 +61,13 @@ func setupTestEnv(t *testing.T) *testEnv {
 	mappingsPath := filepath.Join(tmpDir, "mappings.json")
 
 	// Base config with known mappings for tests
-	configJSON := `{"settings":{"ledger_alignment":40, "default_asset_account": "Assets:Cash", "default_currency": "EUR"}}`
+	configJSON := `{
+		"ledger_alignment":40,
+		"default_asset_account": "Assets:Cash",
+		"default_currency": "EUR",
+		"default_income_account": "Income:Unknown",
+		"default_expense_account": "Expenses:Unknown"
+	}`
 	mappingsJSON := `{
 		"accounts": {
 			"DINNER": "Expenses:Food"
@@ -101,7 +107,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	require.NoError(t, err)
 
 	go adapter.Start()
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	return &testEnv{
 		adapter:       adapter,
@@ -122,22 +128,23 @@ func (e *testEnv) sendText(text string) {
 			Chat:   &telebot.Chat{ID: e.userID},
 		},
 	}
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 }
 
 func (e *testEnv) sendCallback(data string) {
 	e.poller.updates <- telebot.Update{
 		Callback: &telebot.Callback{
 			ID:     "cb",
-			Sender: &telebot.User{ID: e.userID},
+			Unique: data,
 			Data:   "\f" + data,
+			Sender: &telebot.User{ID: e.userID},
 			Message: &telebot.Message{
 				ID:   2,
 				Chat: &telebot.Chat{ID: e.userID},
 			},
 		},
 	}
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 }
 
 func (e *testEnv) sendCallbackWithRawData(data string) {
@@ -152,7 +159,7 @@ func (e *testEnv) sendCallbackWithRawData(data string) {
 			},
 		},
 	}
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 }
 
 func TestTelegramIntegration_HappyPaths(t *testing.T) {
@@ -188,18 +195,18 @@ func TestTelegramIntegration_AccountCreation(t *testing.T) {
 		env.sendText("50 NewGadget")
 
 		// 2. Edit Expense Account (Target)
-		env.sendCallbackWithRawData("\f" + telegram.CallbackEditAcc + "|0")
+		env.sendCallback(telegram.CallbackEditAcc + "0")
 		env.sendText("Gadgets") // Search query
 		env.sendCallback(telegram.CallbackCreateAcc)
-		env.sendCallbackWithRawData("\f" + telegram.CallbackSelectParent + "|Expenses")
+		env.sendCallback(telegram.CallbackSelectParent + "Expenses")
 		env.sendText("Tech")
 		env.sendCallback(telegram.CallbackDoneAcc)
 
 		// 3. Edit Source Account
-		env.sendCallbackWithRawData("\f" + telegram.CallbackEditAcc + "|1")
+		env.sendCallback(telegram.CallbackEditAcc + "1")
 		env.sendText("Bank") // Search query
 		env.sendCallback(telegram.CallbackCreateAcc)
-		env.sendCallbackWithRawData("\f" + telegram.CallbackSelectParent + "|Assets")
+		env.sendCallback(telegram.CallbackSelectParent + "Assets")
 		env.sendText("Revolut")
 		env.sendCallback(telegram.CallbackDoneAcc)
 
@@ -225,7 +232,7 @@ func TestTelegramIntegration_EdgeCases(t *testing.T) {
 				Chat:   &telebot.Chat{ID: 999},
 			},
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 
 		_, err := os.Stat(env.ledgerPath)
 		assert.True(t, os.IsNotExist(err) || env.isLedgerEmpty())
@@ -249,7 +256,7 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendText("10 Coffee")
 
 		// 2. Select an account from suggestions or manual
-		env.sendCallbackWithRawData("\f" + telegram.CallbackSelectAcc + "|Expenses:Drinks")
+		env.sendCallback(telegram.CallbackSelectAcc + "Expenses:Drinks")
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
@@ -264,10 +271,10 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendText("25 Internet")
 
 		// 2. Create new account
-		env.sendCallbackWithRawData("\f" + telegram.CallbackEditAcc + "|0")
+		env.sendCallback(telegram.CallbackEditAcc + "0")
 		env.sendText("Web")
 		env.sendCallback(telegram.CallbackCreateAcc)
-		env.sendCallbackWithRawData("\f" + telegram.CallbackSelectParent + "|Expenses")
+		env.sendCallback(telegram.CallbackSelectParent + "Expenses")
 		env.sendText("Utilities")
 		env.sendCallback(telegram.CallbackDoneAcc)
 
@@ -284,8 +291,8 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendText("Cash 15 Beer")
 
 		// 2. Edit Source Account
-		env.sendCallbackWithRawData("\f" + telegram.CallbackEditAcc + "|1")
-		env.sendCallbackWithRawData("\f" + telegram.CallbackSelectAcc + "|Assets:Cash:Personal")
+		env.sendCallback(telegram.CallbackEditAcc + "1")
+		env.sendCallback(telegram.CallbackSelectAcc + "Assets:Cash:Personal")
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)

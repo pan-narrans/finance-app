@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
-	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -25,15 +24,15 @@ TextParserService handles the conversion of raw text input into domain transacti
 It implements the ports.TextParserUseCase interface.
 */
 type TextParserService struct {
-	configManager *config.Manager
+	configUseCase ports.ConfigurationUseCase
 }
 
 /*
 NewTextParserService creates a new TextParserService.
 */
-func NewTextParserService(configManager *config.Manager) *TextParserService {
+func NewTextParserService(configUseCase ports.ConfigurationUseCase) *TextParserService {
 	return &TextParserService{
-		configManager: configManager,
+		configUseCase: configUseCase,
 	}
 }
 
@@ -58,7 +57,7 @@ func (s *TextParserService) ParseText(text, origin string) (domain.Transaction, 
 		return domain.Transaction{}, fmt.Errorf("invalid amount format: %w", err)
 	}
 
-	appConfig := s.configManager.Get()
+	appConfig := s.configUseCase.Get()
 	cleanDescription := appConfig.Mappings.CleanDescription(matches[4])
 	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription, amount)
 	sourceAccount := s.resolveSourceAccount(appConfig, matches[1])
@@ -99,7 +98,7 @@ resolveTargetAccount determines the expense/income account for the transaction.
 It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
-func (s *TextParserService) resolveTargetAccount(appConfig *config.AppConfig, cleanDescription string, amount float64) string {
+func (s *TextParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string, amount float64) string {
 	account := appConfig.Mappings.ResolveAccount(cleanDescription, amount, appConfig.Settings.DefaultIncomeAccount, appConfig.Settings.DefaultExpenseAccount)
 
 	// Auto-pick if Unknown
@@ -119,7 +118,7 @@ If the keyword matches a source mapping, it uses that account.
 If no mapping exists but a keyword is provided, it falls back to Income:[Keyword].
 Otherwise, it returns the default asset account.
 */
-func (s *TextParserService) resolveSourceAccount(appConfig *config.AppConfig, sourceKeyword string) string {
+func (s *TextParserService) resolveSourceAccount(appConfig *ports.AppConfig, sourceKeyword string) string {
 	if sourceKeyword == "" {
 		return appConfig.Settings.DefaultAssetAccount
 	}

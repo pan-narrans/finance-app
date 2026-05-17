@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -11,24 +12,16 @@ import (
 )
 
 /*
-AppConfig combines application settings and the derived mapping service.
-It represents a single, consistent snapshot of the application configuration.
-*/
-type AppConfig struct {
-	Settings Config
-	Mappings ports.MappingProvider
-}
-
-/*
 Manager coordinates live reloading of configuration and mappings.
-It provides thread-safe access to the current configuration via an atomic pointer.
+It implements the [ports.ConfigurationUseCase] interface.
 */
 type Manager struct {
-	current      atomic.Pointer[AppConfig]
+	current      atomic.Pointer[ports.AppConfig]
 	watcher      *fsnotify.Watcher
 	configPath   string
 	mappingsPath string
 	constructor  ports.MappingServiceConstructor
+	mu           sync.Mutex
 }
 
 /*
@@ -66,9 +59,8 @@ func NewManager(configPath, mappingsPath string, constructor ports.MappingServic
 
 /*
 Get returns the current application configuration.
-The returned pointer is safe to read but should not be modified.
 */
-func (m *Manager) Get() *AppConfig {
+func (m *Manager) Get() *ports.AppConfig {
 	return m.current.Load()
 }
 
@@ -88,7 +80,7 @@ func (m *Manager) Reload() error {
 
 	mappingService := m.constructor(mappingsData)
 
-	m.current.Store(&AppConfig{
+	m.current.Store(&ports.AppConfig{
 		Settings: settings,
 		Mappings: mappingService,
 	})
@@ -100,9 +92,9 @@ func (m *Manager) Reload() error {
 ReloadWithData manually updates the manager with provided settings and mappings.
 Primarily used for testing.
 */
-func (m *Manager) ReloadWithData(settings Config, mappings domain.MappingData) {
+func (m *Manager) ReloadWithData(settings domain.Settings, mappings domain.MappingData) {
 	mappingService := m.constructor(mappings)
-	m.current.Store(&AppConfig{
+	m.current.Store(&ports.AppConfig{
 		Settings: settings,
 		Mappings: mappingService,
 	})
@@ -163,8 +155,10 @@ func (m *Manager) SaveMappings(data domain.MappingData) error {
 UpdateMapping provides a thread-safe way to modify and persist mappings.
 It reloads the latest data from disk before applying the update.
 */
-// TODO need mutex for thread safety?
 func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	data, err := LoadMappings(m.mappingsPath)
 	if err != nil {
 		return err

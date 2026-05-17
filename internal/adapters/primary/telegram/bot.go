@@ -9,12 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/a-perez/finance-app/internal/app"
 	"github.com/a-perez/finance-app/internal/app/ports"
-	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"gopkg.in/telebot.v3"
 )
 
@@ -30,8 +26,8 @@ type TelegramAdapter struct {
 	allowedIDs     map[int64]struct{}
 	transactionUC  ports.TransactionUseCase
 	textParserUC   ports.TextParserUseCase
-	importService  *app.ImportService
-	configManager  *config.Manager
+	importUseCase  ports.ImportUseCase
+	configUseCase  ports.ConfigurationUseCase
 	sessionManager *SessionManager
 	ui             *UI
 }
@@ -44,8 +40,8 @@ func NewTelegramAdapter(
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
 	parserUC ports.TextParserUseCase,
-	importService *app.ImportService,
-	configManager *config.Manager,
+	importUC ports.ImportUseCase,
+	configUC ports.ConfigurationUseCase,
 ) (*TelegramAdapter, error) {
 	bot, err := telebot.NewBot(settings)
 	if err != nil {
@@ -57,15 +53,15 @@ func NewTelegramAdapter(
 		allowedMap[id] = struct{}{}
 	}
 
-	appConfig := configManager.Get()
+	appConfig := configUC.Get()
 
 	return &TelegramAdapter{
 		teleBot:        bot,
 		allowedIDs:     allowedMap,
 		transactionUC:  txUC,
 		textParserUC:   parserUC,
-		importService:  importService,
-		configManager:  configManager,
+		importUseCase:  importUC,
+		configUseCase:  configUC,
 		sessionManager: NewSessionManager(),
 		ui:             NewUI(appConfig.Settings.LedgerAlignment),
 	}, nil
@@ -157,7 +153,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 }
 
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
-	msg, selector := a.ui.BuildDraftMessage(tx, a.configManager.Get().Mappings)
+	msg, selector := a.ui.BuildDraftMessage(tx, a.configUseCase.Get().Mappings)
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)
@@ -179,7 +175,7 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 		s.EditingPosting = postingIndex
 	})
 
-	results := a.configManager.Get().Mappings.SearchAccounts(session.Draft.Description, 5)
+	results := a.configUseCase.Get().Mappings.SearchAccounts(session.Draft.Description, 5)
 
 	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1, results)
 	return c.Edit(msg, selector, telebot.ModeHTML)
@@ -207,7 +203,7 @@ func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 		return a.handleAccountSelect(c)
 	}
 
-	results := a.configManager.Get().Mappings.SearchAccounts(query, 8)
+	results := a.configUseCase.Get().Mappings.SearchAccounts(query, 8)
 
 	msg, selector := a.ui.BuildSearchResults(query, results)
 	return c.Send(msg, selector, telebot.ModeHTML)
@@ -216,8 +212,6 @@ func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
 	newAccount := c.Data()
-
-	// If it's an exact input from search (OnText), it might not have the callback data
 	if newAccount == "" {
 		newAccount = c.Text()
 	}
@@ -231,7 +225,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	}
 
 	// Format and detect if it's a manual override
-	formattedAccount := a.formatAccountPath(newAccount)
+	formattedAccount := domain.FormatAccountPath(newAccount)
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
 		if len(s.Draft.Postings) > s.EditingPosting {
@@ -251,15 +245,6 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	return a.sendDraftMessage(c, session.Draft)
 }
 
-func (a *TelegramAdapter) formatAccountPath(path string) string {
-	segments := strings.Split(path, ":")
-	caser := cases.Title(language.Und)
-	for i, seg := range segments {
-		segments[i] = caser.String(strings.ToLower(strings.TrimSpace(seg)))
-	}
-	return strings.Join(segments, ":")
-}
-
 func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	userID := c.Sender().ID
 	session, ok := a.sessionManager.Get(userID)
@@ -274,7 +259,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	// Persist mappings if overridden
 	if session.TargetOverridden || session.SourceOverridden {
-		err := a.configManager.UpdateMapping(func(data *domain.MappingData) {
+		err := a.configUseCase.UpdateMapping(func(data *domain.MappingData) {
 			if session.TargetOverridden {
 				key := strings.ToUpper(session.Draft.Description)
 				data.Accounts[key] = session.Draft.Postings[0].Account
@@ -291,7 +276,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	a.sessionManager.Delete(userID)
 
-	formatted := session.Draft.Format(a.configManager.Get().Settings.LedgerAlignment)
+	formatted := session.Draft.Format(a.configUseCase.Get().Settings.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
@@ -338,7 +323,7 @@ func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 		return c.Send("Session expired. Please start over.")
 	}
 	newPath := session.NewAccountPath + ":" + child
-	formattedPath := a.formatAccountPath(newPath)
+	formattedPath := domain.FormatAccountPath(newPath)
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
 		s.State = StateCreatingAccountReview
@@ -371,7 +356,7 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 		return c.Edit("Session expired.")
 	}
 
-	formattedPath := a.formatAccountPath(session.NewAccountPath)
+	formattedPath := domain.FormatAccountPath(session.NewAccountPath)
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
 		if len(s.Draft.Postings) > s.EditingPosting {
@@ -408,7 +393,7 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	}
 	defer os.Remove(tmpFile)
 
-	summary, err := a.importService.Import(tmpFile)
+	summary, err := a.importUseCase.Import(tmpFile)
 	if err != nil {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}

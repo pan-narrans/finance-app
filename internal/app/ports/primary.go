@@ -32,6 +32,24 @@ type ImportUseCase interface {
 }
 
 /*
+AppConfig combines application settings and the derived mapping service.
+It represents a single, consistent snapshot of the application configuration.
+*/
+type AppConfig struct {
+	Settings domain.Settings
+	Mappings MappingProvider
+}
+
+/*
+ConfigurationUseCase defines the contract for accessing and updating application configuration.
+*/
+type ConfigurationUseCase interface {
+	Get() *AppConfig
+	SaveMappings(data domain.MappingData) error
+	UpdateMapping(fn func(data *domain.MappingData)) error
+}
+
+/*
 TextParserUseCase defines the logic for converting raw input strings into domain transactions.
 */
 type TextParserUseCase interface {

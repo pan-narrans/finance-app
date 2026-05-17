@@ -16,7 +16,7 @@ func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvi
 		Sources:  map[string]string{"cash": "Assets:Cash"},
 		Accounts: map[string]string{"coffee": "Expenses:Food:Coffee"},
 	}
-	settings := config.Config{
+	settings := domain.Settings{
 		DefaultCurrency: "EUR",
 	}
 	constructor := func(data domain.MappingData) ports.MappingProvider {
@@ -45,7 +45,7 @@ func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvi
 
 func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissing(t *testing.T) {
 	// Arrange
-	settings := config.Config{
+	settings := domain.Settings{
 		DefaultAssetAccount: "Assets:Checking:Main",
 		DefaultCurrency:     "USD",
 	}
