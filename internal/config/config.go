@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
@@ -39,8 +40,7 @@ func LoadConfig(path string) (domain.Settings, error) {
 
 	var fc fileConfig
 	if err := json.Unmarshal(fileData, &fc); err != nil {
-		log.Printf("Warning: Config file at %s is invalid. Using defaults. Error: %v", path, err)
-		return settings, nil
+		return settings, fmt.Errorf("invalid config JSON at %s: %w", path, err)
 	}
 
 	// Override defaults with file values if provided

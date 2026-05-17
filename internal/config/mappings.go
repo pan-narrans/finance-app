@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -33,8 +34,7 @@ func LoadMappings(path string) (domain.MappingData, error) {
 	}
 
 	if err := json.Unmarshal(fileData, &data); err != nil {
-		log.Printf("Warning: Mappings file at %s is invalid. Starting with empty mappings. Error: %v", path, err)
-		return data, nil
+		return data, fmt.Errorf("invalid mappings JSON at %s: %w", path, err)
 	}
 
 	return data, nil

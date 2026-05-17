@@ -29,23 +29,22 @@ NewManager initializes a new ConfigManager.
 It performs an initial load of the configuration files and starts the directory watcher.
 */
 func NewManager(configPath, mappingsPath string, constructor ports.MappingServiceConstructor) (*Manager, error) {
-	m := &Manager{
-		configPath:   configPath,
-		mappingsPath: mappingsPath,
-		constructor:  constructor,
-	}
-
-	// Initial load
-	if err := m.Reload(); err != nil {
-		return nil, err
-	}
-
-	// Set up watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
-	m.watcher = watcher
+
+	m := &Manager{
+		configPath:   configPath,
+		mappingsPath: mappingsPath,
+		watcher:      watcher,
+		constructor:  constructor,
+	}
+
+	if err := m.Reload(); err != nil {
+		watcher.Close()
+		return nil, err
+	}
 
 	// Watch the parent directory of config files
 	configDir := filepath.Dir(configPath)
@@ -70,7 +69,14 @@ Reload forces a re-read of all configuration files and updates the atomic pointe
 func (m *Manager) Reload() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	return m.reload()
+}
 
+/*
+reload performs the actual loading logic without acquiring the lock.
+Must be called from a method that already holds m.mu.
+*/
+func (m *Manager) reload() error {
 	settings, err := LoadConfig(m.configPath)
 	if err != nil {
 		return err
@@ -96,6 +102,9 @@ ReloadWithData manually updates the manager with provided settings and mappings.
 Primarily used for testing.
 */
 func (m *Manager) ReloadWithData(settings domain.Settings, mappings domain.MappingData) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	mappingService := m.constructor(mappings)
 	m.current.Store(&ports.AppConfig{
 		Settings: settings,
@@ -169,5 +178,9 @@ func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
 
 	fn(&data)
 
-	return m.SaveMappings(data)
+	if err := WriteMappings(m.mappingsPath, data); err != nil {
+		return err
+	}
+
+	return m.reload()
 }

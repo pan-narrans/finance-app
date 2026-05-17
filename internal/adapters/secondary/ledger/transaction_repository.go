@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -27,6 +28,7 @@ type TransactionFileRepository struct {
 	FilePath      string
 	configUseCase ports.ConfigurationUseCase
 	formatter     ports.TransactionFormatter
+	mu            sync.Mutex
 }
 
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
@@ -40,6 +42,9 @@ func NewTransactionFileRepository(filePath string, configUC ports.ConfigurationU
 
 // Create writes a transaction to the end of the ledger file.
 func (fileRepository *TransactionFileRepository) Create(transaction domain.Transaction) error {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
 	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
 	content := fileRepository.formatter.FormatTransaction(transaction, alignment)
 	content += "\n"
@@ -59,6 +64,9 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 
 // FindByCode searches the file using a regex to find a transaction with the given code.
 func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domain.Transaction, error) {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -85,6 +93,9 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 		return domain.NewDomainError("Transaction", "Code", "transaction must have a code to be updated")
 	}
 
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		return err
@@ -107,6 +118,9 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	if code == "" {
 		return domain.NewDomainError("Transaction", "Code", "code must be provided to delete a transaction")
 	}
+
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
 
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
