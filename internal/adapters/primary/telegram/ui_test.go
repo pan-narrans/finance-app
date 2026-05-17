@@ -66,7 +66,7 @@ func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 	msg, selector := ui.BuildEditPrompt(false, results)
 	assert.Contains(t, msg, "target")
 	assert.Contains(t, msg, "Suggestions")
-	assert.Len(t, selector.InlineKeyboard, 2) // 1 suggestion + 1 cancel
+	assert.Len(t, selector.InlineKeyboard, 3) // 1 suggestion + 1 create + 1 cancel
 
 	// Act & Assert (Source)
 	msg, _ = ui.BuildEditPrompt(true, results)

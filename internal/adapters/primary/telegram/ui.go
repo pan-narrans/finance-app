@@ -83,6 +83,9 @@ func (u *UI) BuildEditPrompt(isSource bool, results []string) (string, *telebot.
 		rows = append(rows, selector.Row(btn))
 	}
 
+	btnCreate := selector.Data("✨ Create New Account", CallbackCreateAcc)
+	rows = append(rows, selector.Row(btnCreate))
+
 	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
 	rows = append(rows, selector.Row(btnCancel))
 
