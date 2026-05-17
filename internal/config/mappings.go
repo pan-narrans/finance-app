@@ -38,3 +38,15 @@ func LoadMappings(path string) (domain.MappingData, error) {
 
 	return data, nil
 }
+
+/*
+WriteMappings saves the [domain.MappingData] to a JSON file.
+*/
+func WriteMappings(path string, data domain.MappingData) error {
+	fileData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, fileData, 0644)
+}

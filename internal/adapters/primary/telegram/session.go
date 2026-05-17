@@ -12,17 +12,22 @@ SearchState represents the current step in a user's multi-message interaction.
 type SearchState string
 
 const (
-	StateNone SearchState = "" // StateNone indicates the user is not in a multi-step flow.
-	StateAwaitingQuery SearchState = "awaiting_query" // StateAwaitingQuery indicates the bot is waiting for an account search query.
+	StateNone                  SearchState = ""                // StateNone indicates the user is not in a multi-step flow.
+	StateAwaitingQuery         SearchState = "awaiting_query"  // StateAwaitingQuery indicates the bot is waiting for an account search query.
+	StateCreatingAccountParent SearchState = "creating_parent" // StateCreatingAccountParent indicates the user is selecting the root account.
+	StateCreatingAccountChild  SearchState = "creating_child"  // StateCreatingAccountChild indicates the user is typing a sub-account name.
+	StateCreatingAccountReview SearchState = "creating_review" // StateCreatingAccountReview indicates the user is reviewing the constructed path.
 )
 
 /*
 UserSession stores transient data and state for a specific Telegram user.
 */
 type UserSession struct {
-	Draft          domain.Transaction
-	State          SearchState
-	EditingPosting int
+	Draft            domain.Transaction
+	State            SearchState
+	EditingPosting   int
+	NewAccountPath   string
+	TargetOverridden bool
 }
 
 /*

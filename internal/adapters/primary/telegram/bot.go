@@ -6,12 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app"
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"gopkg.in/telebot.v3"
 )
 
@@ -103,18 +106,27 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle("\f"+CallbackEditAcc, a.handleEditRequest)
 	a.teleBot.Handle("\f"+CallbackSelectAcc, a.handleAccountSelect)
 	a.teleBot.Handle("\f"+CallbackCancelEdit, a.handleCancelEdit)
+	a.teleBot.Handle("\f"+CallbackCreateAcc, a.handleCreateAcc)
+	a.teleBot.Handle("\f"+CallbackSelectParent, a.handleSelectParent)
+	a.teleBot.Handle("\f"+CallbackAddSubAcc, a.handleAddSubAcc)
+	a.teleBot.Handle("\f"+CallbackDoneAcc, a.handleDoneAcc)
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()
 }
-
 func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	userID := c.Sender().ID
 	session, exists := a.sessionManager.Get(userID)
 
-	// 1. Handle search query if in that state
-	if exists && session.State == StateAwaitingQuery {
-		return a.handleSearchQuery(c)
+	if exists {
+		switch session.State {
+		case StateAwaitingQuery:
+			return a.handleSearchQuery(c)
+		case StateCreatingAccountChild:
+			return a.handleChildInput(c)
+		case StateCreatingAccountParent, StateCreatingAccountReview:
+			return c.Send("Please use the buttons provided to continue or click Cancel.", telebot.ModeHTML)
+		}
 	}
 
 	// 2. Otherwise, treat as a new transaction entry
@@ -157,7 +169,7 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	})
 
 	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1)
-	return c.Edit(msg, selector)
+	return c.Edit(msg, selector, telebot.ModeHTML)
 }
 
 func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
@@ -176,30 +188,61 @@ func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 
 func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 	query := c.Text()
+
+	// Direct Path Override
+	if strings.Contains(query, ":") {
+		return a.handleAccountSelect(c)
+	}
+
 	results := a.configManager.Get().Mappings.SearchAccounts(query, 8)
 
 	msg, selector := a.ui.BuildSearchResults(query, results)
-	return c.Send(msg, selector)
+	return c.Send(msg, selector, telebot.ModeHTML)
 }
 
 func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
 	newAccount := c.Data()
 
+	// If it's an exact input from search (OnText), it might not have the callback data
+	if newAccount == "" {
+		newAccount = c.Text()
+	}
+
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
+		if c.Callback() != nil {
+			return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
+		}
+		return c.Send("Session expired.")
 	}
+
+	// Format and detect if it's a manual override
+	formattedAccount := a.formatAccountPath(newAccount)
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
 		if len(s.Draft.Postings) > s.EditingPosting {
-			s.Draft.Postings[s.EditingPosting].Account = newAccount
+			s.Draft.Postings[s.EditingPosting].Account = formattedAccount
 		}
 		s.State = StateNone
+		if s.EditingPosting == 0 {
+			s.TargetOverridden = true
+		}
 	})
 
-	c.Respond(&telebot.CallbackResponse{Text: "Account updated."})
+	if c.Callback() != nil {
+		c.Respond(&telebot.CallbackResponse{Text: "Account updated."})
+	}
 	return a.sendDraftMessage(c, session.Draft)
+}
+
+func (a *TelegramAdapter) formatAccountPath(path string) string {
+	segments := strings.Split(path, ":")
+	caser := cases.Title(language.Und)
+	for i, seg := range segments {
+		segments[i] = caser.String(strings.ToLower(strings.TrimSpace(seg)))
+	}
+	return strings.Join(segments, ":")
 }
 
 func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
@@ -214,10 +257,113 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
+	// Persist mappings if overridden
+	if session.TargetOverridden {
+		err := a.configManager.UpdateMapping(func(data *domain.MappingData) {
+			key := strings.ToUpper(session.Draft.Description)
+			data.Accounts[key] = session.Draft.Postings[0].Account
+		})
+		if err != nil {
+			log.Printf("Error saving mappings: %v", err)
+		}
+	}
+
 	a.sessionManager.Delete(userID)
 
 	formatted := session.Draft.Format(a.configManager.Get().Settings.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleCreateAcc(c telebot.Context) error {
+	userID := c.Sender().ID
+	_, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit("Session expired. Please start over.")
+	}
+
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateCreatingAccountParent
+		s.NewAccountPath = ""
+	})
+
+	msg, selector := a.ui.BuildAccountParentSelector()
+	return c.Edit(msg, selector, telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
+	userID := c.Sender().ID
+	parent := c.Data()
+
+	_, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit("Session expired. Please start over.")
+	}
+
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateCreatingAccountChild
+		s.NewAccountPath = parent
+	})
+
+	msg, selector := a.ui.BuildAccountChildPrompt(parent)
+	return c.Edit(msg, selector, telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
+	userID := c.Sender().ID
+	child := c.Text()
+
+	session, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Send("Session expired. Please start over.")
+	}
+	newPath := session.NewAccountPath + ":" + child
+	formattedPath := a.formatAccountPath(newPath)
+
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateCreatingAccountReview
+		s.NewAccountPath = formattedPath
+	})
+
+	msg, selector := a.ui.BuildAccountReview(formattedPath)
+	return c.Send(msg, selector, telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleAddSubAcc(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit("Session expired.")
+	}
+
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateCreatingAccountChild
+	})
+
+	msg, selector := a.ui.BuildAccountChildPrompt(session.NewAccountPath)
+	return c.Edit(msg, selector, telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit("Session expired.")
+	}
+
+	formattedPath := a.formatAccountPath(session.NewAccountPath)
+
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		if len(s.Draft.Postings) > s.EditingPosting {
+			s.Draft.Postings[s.EditingPosting].Account = formattedPath
+		}
+		s.State = StateNone
+		if s.EditingPosting == 0 {
+			s.TargetOverridden = true
+		}
+	})
+
+	c.Respond(&telebot.CallbackResponse{Text: "Account created and selected."})
+	return a.sendDraftMessage(c, session.Draft)
 }
 
 func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {

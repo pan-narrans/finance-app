@@ -148,3 +148,31 @@ func (m *Manager) isRelevantFile(name string) bool {
 	cleanName := filepath.Clean(name)
 	return cleanName == filepath.Clean(m.configPath) || cleanName == filepath.Clean(m.mappingsPath)
 }
+
+/*
+SaveMappings persists the provided [domain.MappingData] and reloads the manager.
+*/
+func (m *Manager) SaveMappings(data domain.MappingData) error {
+	if err := WriteMappings(m.mappingsPath, data); err != nil {
+		return err
+	}
+	return m.Reload()
+}
+
+/*
+UpdateMapping provides a thread-safe way to modify and persist mappings.
+It reloads the latest data from disk before applying the update.
+*/
+func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
+	// 1. Load latest from disk to avoid overwriting concurrent changes
+	data, err := LoadMappings(m.mappingsPath)
+	if err != nil {
+		return err
+	}
+
+	// 2. Apply change
+	fn(&data)
+
+	// 3. Save and reload
+	return m.SaveMappings(data)
+}

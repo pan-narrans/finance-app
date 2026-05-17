@@ -11,11 +11,15 @@ import (
 
 // Callback constants to remove magic strings from handlers.
 const (
-	CallbackConfirm    = "confirm"
-	CallbackDiscard    = "discard"
-	CallbackEditAcc    = "edit_acc"
-	CallbackSelectAcc  = "select_acc"
-	CallbackCancelEdit = "cancel_edit"
+	CallbackConfirm      = "confirm"
+	CallbackDiscard      = "discard"
+	CallbackEditAcc      = "edit_acc"
+	CallbackSelectAcc    = "select_acc"
+	CallbackCancelEdit   = "cancel_edit"
+	CallbackCreateAcc    = "create_acc"
+	CallbackAddSubAcc    = "add_sub_acc"
+	CallbackDoneAcc      = "done_acc"
+	CallbackSelectParent = "sel_parent"
 )
 
 /*
@@ -96,9 +100,8 @@ func (u *UI) BuildSearchResults(query string, results []string) (string, *telebo
 		rows = append(rows, selector.Row(btn))
 	}
 
-	// Option to use exact input
-	btnExact := selector.Data(fmt.Sprintf("Use exactly: %s", query), CallbackSelectAcc, query)
-	rows = append(rows, selector.Row(btnExact))
+	btnCreate := selector.Data("✨ Create New Account", CallbackCreateAcc)
+	rows = append(rows, selector.Row(btnCreate))
 
 	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
 	rows = append(rows, selector.Row(btnCancel))
@@ -106,4 +109,56 @@ func (u *UI) BuildSearchResults(query string, results []string) (string, *telebo
 	selector.Inline(rows...)
 
 	return fmt.Sprintf("Search results for '%s':", query), selector
+}
+
+/*
+BuildAccountParentSelector creates the keyboard for selecting the root account.
+*/
+func (u *UI) BuildAccountParentSelector() (string, *telebot.ReplyMarkup) {
+	selector := &telebot.ReplyMarkup{}
+	// TODO hardcoded parents in UI, move to domain
+	parents := []string{"Expenses", "Assets", "Liabilities", "Income"}
+	rows := make([]telebot.Row, 0)
+
+	for _, p := range parents {
+		btn := selector.Data(p, CallbackSelectParent, p)
+		rows = append(rows, selector.Row(btn))
+	}
+
+	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
+	rows = append(rows, selector.Row(btnCancel))
+
+	selector.Inline(rows...)
+
+	return "Select a top-level account:", selector
+}
+
+/*
+BuildAccountChildPrompt creates the text for prompting a sub-account name.
+*/
+func (u *UI) BuildAccountChildPrompt(currentPath string) (string, *telebot.ReplyMarkup) {
+	selector := &telebot.ReplyMarkup{}
+	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
+	selector.Inline(selector.Row(btnCancel))
+
+	return fmt.Sprintf("Current path: <code>%s</code>\n\nType the name of the sub-account (e.g., 'Transport'):", currentPath), selector
+}
+
+/*
+BuildAccountReview creates the keyboard for finalizing or extending an account path.
+*/
+func (u *UI) BuildAccountReview(path string) (string, *telebot.ReplyMarkup) {
+	selector := &telebot.ReplyMarkup{}
+
+	btnDone := selector.Data("Done ✅", CallbackDoneAcc)
+	btnAdd := selector.Data("Add Sub-account ➕", CallbackAddSubAcc)
+	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
+
+	selector.Inline(
+		selector.Row(btnDone),
+		selector.Row(btnAdd),
+		selector.Row(btnCancel),
+	)
+
+	return fmt.Sprintf("Account constructed: <code>%s</code>\n\nWhat would you like to do?", path), selector
 }

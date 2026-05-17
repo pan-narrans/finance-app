@@ -80,6 +80,6 @@ func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	// Assert
 	assert.Contains(t, msg, "Search results for 'query':")
 	assert.NotNil(t, selector)
-	// 2 results + 1 exact + 1 cancel = 4 rows
+	// 2 results + 1 create + 1 cancel = 4 rows
 	assert.Len(t, selector.InlineKeyboard, 4)
 }

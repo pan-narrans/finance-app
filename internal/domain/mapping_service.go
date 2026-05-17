@@ -24,6 +24,7 @@ It acts as a translation layer between raw input data (e.g., bank statements)
 and domain-specific values (accounts, payers, sources) using configurable rules.
 */
 type MappingService struct {
+	data                      MappingData
 	accountMappings           map[string]string
 	descriptionMappings       map[string]string
 	sourceMappings            map[string]string
@@ -58,6 +59,7 @@ func NewMappingService(data MappingData) *MappingService {
 	uniqueAccounts = slices.Compact(uniqueAccounts)
 
 	return &MappingService{
+		data:                      data,
 		accountMappings:           data.Accounts,
 		descriptionMappings:       data.Descriptions,
 		sourceMappings:            data.Sources,
@@ -67,6 +69,13 @@ func NewMappingService(data MappingData) *MappingService {
 		prefixRegexes:             prefixRegexes,
 		accounts:                  uniqueAccounts,
 	}
+}
+
+/*
+GetData returns the raw mapping data.
+*/
+func (s *MappingService) GetData() MappingData {
+	return s.data
 }
 
 /*
