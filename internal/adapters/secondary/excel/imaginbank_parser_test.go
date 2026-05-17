@@ -33,8 +33,8 @@ func TestImaginBankParser_Parse_ShouldReturnTransactions_WhenValidCsvProvided(t 
 	assert.Equal(t, "AYTO.DE SOTO REAL", transactions[0].Description)
 	assert.Equal(t, -33.00, *transactions[0].Postings[0].Amount)
 	assert.Equal(t, "Assets:Checking:ImaginBank", transactions[0].Postings[0].Account)
-	assert.Equal(t, "Imaginbank", transactions[0].Metadata["Origin"])
-	assert.NotEmpty(t, transactions[0].Metadata["ID"])
+	assert.Equal(t, "Imaginbank", transactions[0].Metadata.Origin)
+	assert.NotEmpty(t, transactions[0].Metadata.ID)
 
 	assert.Equal(t, "2026-04-14", transactions[1].Date.Format("2006-01-02"))
 	assert.Equal(t, 3.50, *transactions[1].Postings[0].Amount)

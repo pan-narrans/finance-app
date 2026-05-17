@@ -19,10 +19,6 @@ func main() {
 		log.Fatalf("Fail load config: %v", err)
 	}
 
-	// Secondary Adapters
-	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
-	repo := ledger.NewTransactionFileRepository(ledgerPath)
-
 	// Services & Domain
 	rules, err := config.LoadMappings(filepath.Join(env.ConfigRoot, "mappings.json"))
 	if err != nil {
@@ -33,21 +29,26 @@ func main() {
 		log.Fatalf("Fail load mappings: %v", err)
 	}
 
+	// Secondary Adapters
+	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
+	repo := ledger.NewTransactionFileRepository(ledgerPath, conf.LedgerAlignment)
+
 	mappingService := domain.NewMappingService(rules, conf)
 
 	parserFactory := excel.NewParserFactory(mappingService)
 
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
+	textParserService := app.NewTextParserService(mappingService, conf)
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
 		env.TelegramToken,
 		env.TelegramUserIDs,
 		transactionService,
+		textParserService,
 		importService,
 		mappingService,
-		ledgerPath,
 		conf,
 	)
 

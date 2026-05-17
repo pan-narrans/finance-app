@@ -59,7 +59,7 @@ func (validationErrors *ValidationErrors) Error() string {
 	}
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("validation failed: %d error(s) in %s: ", len(validationErrors.Errors), validationErrors.Errors[0].Entity))
+	fmt.Fprintf(&builder, "validation failed: %d error(s) in %s: ", len(validationErrors.Errors), validationErrors.Errors[0].Entity)
 
 	for i, validationError := range validationErrors.Errors {
 		if i > 0 {

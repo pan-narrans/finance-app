@@ -111,15 +111,16 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 	description := strings.TrimSpace(strings.Split(fullDescription, ",")[0])
 	cleanDescription := p.mappingService.CleanDescription(description)
 
-	metadata := make(map[string]string)
-	metadata["Origin"] = "Openbank"
+	metadata := domain.Metadata{
+		Origin: "Openbank",
+	}
 
 	if balance := strings.TrimSpace(row[9]); balance != "" {
-		metadata["ID"] = p.HashID(balance)
+		metadata.ID = p.HashID(balance)
 	}
 
 	if payedBy := p.mappingService.ResolvePayer(fullDescription); payedBy != "" {
-		metadata["PayedBy"] = payedBy
+		metadata.PayedBy = payedBy
 	}
 
 	targetAccount := p.mappingService.ResolveAccount(cleanDescription, amount)

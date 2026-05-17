@@ -24,19 +24,21 @@ Methods:
   - Delete: Removes a transaction block from the file by its unique code.
 */
 type TransactionFileRepository struct {
-	FilePath string
+	FilePath  string
+	Alignment int
 }
 
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
-func NewTransactionFileRepository(filePath string) *TransactionFileRepository {
+func NewTransactionFileRepository(filePath string, alignment int) *TransactionFileRepository {
 	return &TransactionFileRepository{
-		FilePath: filePath,
+		FilePath:  filePath,
+		Alignment: alignment,
 	}
 }
 
 // Create writes a transaction to the end of the ledger file.
 func (fileRepository *TransactionFileRepository) Create(transaction domain.Transaction) error {
-	content := transaction.Format()
+	content := transaction.Format(fileRepository.Alignment)
 	content += "\n"
 
 	file, err := os.OpenFile(fileRepository.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -91,7 +93,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
 	}
 
-	newContent := transaction.Format() + "\n"
+	newContent := transaction.Format(fileRepository.Alignment) + "\n"
 	updatedData := regex.ReplaceAllString(string(data), newContent)
 
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
