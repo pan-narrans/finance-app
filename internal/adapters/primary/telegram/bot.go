@@ -18,6 +18,9 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+//TODO missing godoc
+//TODO file too big
+
 /*
 TelegramAdapter handles interactions between users and the system via Telegram.
 It implements the driving adapter pattern within the Hexagonal Architecture.

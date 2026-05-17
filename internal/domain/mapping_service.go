@@ -74,6 +74,7 @@ func NewMappingService(data MappingData) *MappingService {
 /*
 GetData returns the raw mapping data.
 */
+// TODO Rename to GetMappingData
 func (s *MappingService) GetData() MappingData {
 	return s.data
 }

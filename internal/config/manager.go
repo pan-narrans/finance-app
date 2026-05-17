@@ -163,16 +163,14 @@ func (m *Manager) SaveMappings(data domain.MappingData) error {
 UpdateMapping provides a thread-safe way to modify and persist mappings.
 It reloads the latest data from disk before applying the update.
 */
+// TODO need mutex for thread safety?
 func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
-	// 1. Load latest from disk to avoid overwriting concurrent changes
 	data, err := LoadMappings(m.mappingsPath)
 	if err != nil {
 		return err
 	}
 
-	// 2. Apply change
 	fn(&data)
 
-	// 3. Save and reload
 	return m.SaveMappings(data)
 }
