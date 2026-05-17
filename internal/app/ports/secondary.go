@@ -34,3 +34,27 @@ FileParserProvider defines the contract for obtaining the correct parser for a f
 type FileParserProvider interface {
 	GetParser(filePath string) (BankParser, error)
 }
+
+/*
+MappingProvider defines the contract for description cleaning and account resolution.
+*/
+type MappingProvider interface {
+	CleanDescription(description string) string
+	ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string
+	ResolvePayer(fullDescription string) string
+	ResolveSource(keyword string) (string, bool)
+	SearchAccounts(query string, limit int) []string
+	GetData() domain.MappingData
+}
+
+/*
+MappingServiceConstructor is a function type that creates a MappingProvider.
+*/
+type MappingServiceConstructor func(data domain.MappingData) MappingProvider
+
+/*
+TransactionFormatter defines the contract for converting a transaction into a tool-specific string.
+*/
+type TransactionFormatter interface {
+	FormatTransaction(tx domain.Transaction, alignment int) string
+}
