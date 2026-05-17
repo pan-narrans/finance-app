@@ -4,16 +4,16 @@ The Telegram bot acts as the primary interface for manual transaction entry and 
 
 ## User Behaviors and Expected Outcomes
 
-| User Action | Input Example | Expected Outcome |
-| :--- | :--- | :--- |
-| **Simple Entry** | `12.50 Lunch` | Parser uses default Source (`Assets:Cash`). Maps `Lunch` to `Expenses:Food` via `mappings.json`. |
-| **Explicit Source** | `Visa 50 Amazon` | Parser resolves `Visa` via source mappings (`Assets:Bank:Visa`). |
-| **New Item Discovery**| `8.00 UnknownShop` | Bot flags as `Expenses:Unknown`. Provides "Edit Target" button. |
-| **Account Search** | Click "Edit Target" -> `food` | Bot returns ranked suggestions: `Expenses:Food`, `Expenses:Dining`. |
-| **Direct Path Input** | Click "Edit Target" -> `Assets:Savings` | Bot bypasses search and updates the draft with the exact path (if it contains colons). |
-| **Account Creation** | Click "Create New Account" | Multi-step flow: Select Root (`Expenses`) -> Type Sub-account (`Gifts`) -> Review. |
-| **Confirmation** | Click "Confirm ✅" | Transaction is appended to the Ledger file. Any manual overrides are saved to `mappings.json`. |
-| **Discard** | Click "Discard ❌" | Session deleted. No changes to Ledger or Mappings. |
+| User Action            | Input Example                           | Expected Outcome                                                                                 |
+|:-----------------------|:----------------------------------------|:-------------------------------------------------------------------------------------------------|
+| **Simple Entry**       | `12.50 Lunch`                           | Parser uses default Source (`Assets:Cash`). Maps `Lunch` to `Expenses:Food` via `mappings.json`. |
+| **Explicit Source**    | `Visa 50 Amazon`                        | Parser resolves `Visa` via source mappings (`Assets:Bank:Visa`).                                 |
+| **New Item Discovery** | `8.00 UnknownShop`                      | Bot flags as `Expenses:Unknown`. Provides "Edit Target" button.                                  |
+| **Account Search**     | Click "Edit Target" -> `food`           | Bot returns ranked suggestions: `Expenses:Food`, `Expenses:Dining`.                              |
+| **Direct Path Input**  | Click "Edit Target" -> `Assets:Savings` | Bot bypasses search and updates the draft with the exact path (if it contains colons).           |
+| **Account Creation**   | Click "Create New Account"              | Multi-step flow: Select Root (`Expenses`) -> Type Sub-account (`Gifts`) -> Review.               |
+| **Confirmation**       | Click "Confirm ✅"                       | Transaction is appended to the Ledger file. Any manual overrides are saved to `mappings.json`.   |
+| **Discard**            | Click "Discard ❌"                       | Session deleted. No changes to Ledger or Mappings.                                               |
 
 ## Learning Mechanism (Mapping Persistence)
 

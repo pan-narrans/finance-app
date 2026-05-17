@@ -53,7 +53,7 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 
 - [ ] **Config QoL:**
   - [X] Config/ live reload on changes.
-  - [ ] Persist config changes via telegram. Modify mappings.json via Telegram Bot when editing accounts.
+  - [X] Persist config changes via telegram. Modify mappings.json via Telegram Bot when editing accounts.
   - [ ] When uploading a file, review every trasanction with unknown accounts.
   - [ ] Add option to register incomes, not only expenses, via chat.
 - [ ] Optimize the CRUD performance for large ledger files.
