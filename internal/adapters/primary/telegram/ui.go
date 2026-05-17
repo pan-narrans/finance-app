@@ -24,22 +24,21 @@ const (
 
 /*
 UI provides helpers for building Telegram-specific message layouts and keyboards.
+It is stateless and depends on configuration passed per request.
 */
-type UI struct {
-	alignment int
-}
+type UI struct{}
 
 /*
 NewUI creates a new UI helper instance.
 */
-func NewUI(alignment int) *UI {
-	return &UI{alignment: alignment}
+func NewUI() *UI {
+	return &UI{}
 }
 
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	btnConfirm := selector.Data("Confirm ✅", CallbackConfirm)
@@ -66,7 +65,7 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 
 	selector.Inline(rows...)
 
-	formatted := tx.Format(u.alignment)
+	formatted := formatter.FormatTransaction(tx, settings.LedgerAlignment)
 	msg := fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>%s", formatted, msgSuffix)
 
 	return msg, selector
@@ -127,10 +126,8 @@ func (u *UI) BuildSearchResults(query string, results []string) (string, *telebo
 /*
 BuildAccountParentSelector creates the keyboard for selecting the root account.
 */
-func (u *UI) BuildAccountParentSelector() (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildAccountParentSelector(parents []string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
-	// TODO hardcoded parents in UI, move to domain
-	parents := []string{"Expenses", "Assets", "Liabilities", "Income"}
 	rows := make([]telebot.Row, 0)
 
 	for _, p := range parents {

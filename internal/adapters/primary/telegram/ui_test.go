@@ -4,13 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/a-perez/finance-app/internal/adapters/secondary/ledger"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	tx := domain.Transaction{
 		Date:        time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		Description: "Test",
@@ -22,7 +23,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	mappingProvider := domain.NewMappingService(domain.MappingData{})
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
 
 	// Assert
 	assert.Contains(t, msg, "Draft Transaction:")
@@ -34,7 +35,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 
 func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	tx := domain.Transaction{
 		Description: "Starbucks",
 		Postings: []domain.Posting{
@@ -47,7 +48,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	mappingProvider := domain.NewMappingService(data)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
 
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")
@@ -58,7 +59,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 
 func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	results := []string{"Acc1"}
 
 	// Act & Assert (Target)
@@ -74,7 +75,7 @@ func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 
 func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	results := []string{"Acc1", "Acc2"}
 
 	// Act

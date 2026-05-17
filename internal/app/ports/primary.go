@@ -50,6 +50,13 @@ type ConfigurationUseCase interface {
 }
 
 /*
+TransactionFormatter defines the contract for converting a transaction into a tool-specific string.
+*/
+type TransactionFormatter interface {
+	FormatTransaction(tx domain.Transaction, alignment int) string
+}
+
+/*
 TextParserUseCase defines the logic for converting raw input strings into domain transactions.
 */
 type TextParserUseCase interface {

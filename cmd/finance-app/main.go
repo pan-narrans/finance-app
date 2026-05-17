@@ -38,12 +38,10 @@ func main() {
 	configManager.Watch()
 	defer configManager.Close()
 
-	// Initial snapshot for static bootstrap
-	conf := configManager.Get().Settings
-
 	// Secondary Adapters
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
-	repo := ledger.NewTransactionFileRepository(ledgerPath, conf.LedgerAlignment)
+	ledgerFormatter := ledger.NewLedgerFormatter()
+	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer
@@ -62,6 +60,7 @@ func main() {
 		textParserService,
 		importService,
 		configManager,
+		ledgerFormatter,
 	)
 
 	if err != nil {

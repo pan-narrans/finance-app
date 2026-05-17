@@ -10,13 +10,14 @@ import (
 
 // fileConfig is the JSON representation of the configuration file.
 type fileConfig struct {
-	DefaultCurrency       string `json:"default_currency"`
-	DefaultAssetAccount   string `json:"default_asset_account"`
-	DefaultIncomeAccount  string `json:"default_income_account"`
-	DefaultExpenseAccount string `json:"default_expense_account"`
-	LedgerAlignment       int    `json:"ledger_alignment"`
-	ImaginBankAccount     string `json:"imaginbank_account"`
-	OpenBankAccount       string `json:"openbank_account"`
+	DefaultCurrency       string   `json:"default_currency"`
+	DefaultAssetAccount   string   `json:"default_asset_account"`
+	DefaultIncomeAccount  string   `json:"default_income_account"`
+	DefaultExpenseAccount string   `json:"default_expense_account"`
+	LedgerAlignment       int      `json:"ledger_alignment"`
+	ImaginBankAccount     string   `json:"imaginbank_account"`
+	OpenBankAccount       string   `json:"openbank_account"`
+	RootAccounts          []string `json:"root_accounts"`
 }
 
 /*
@@ -50,6 +51,10 @@ func LoadConfig(path string) (domain.Settings, error) {
 	applyIfNonZero(&settings.LedgerAlignment, fc.LedgerAlignment)
 	applyIfNonZero(&settings.ImaginBankAccount, fc.ImaginBankAccount)
 	applyIfNonZero(&settings.OpenBankAccount, fc.OpenBankAccount)
+
+	if len(fc.RootAccounts) > 0 {
+		settings.RootAccounts = fc.RootAccounts
+	}
 
 	return settings, nil
 }

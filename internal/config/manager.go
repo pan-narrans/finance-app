@@ -68,6 +68,9 @@ func (m *Manager) Get() *ports.AppConfig {
 Reload forces a re-read of all configuration files and updates the atomic pointer.
 */
 func (m *Manager) Reload() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	settings, err := LoadConfig(m.configPath)
 	if err != nil {
 		return err

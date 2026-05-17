@@ -28,6 +28,7 @@ type TelegramAdapter struct {
 	textParserUC   ports.TextParserUseCase
 	importUseCase  ports.ImportUseCase
 	configUseCase  ports.ConfigurationUseCase
+	formatter      ports.TransactionFormatter
 	sessionManager *SessionManager
 	ui             *UI
 }
@@ -42,6 +43,7 @@ func NewTelegramAdapter(
 	parserUC ports.TextParserUseCase,
 	importUC ports.ImportUseCase,
 	configUC ports.ConfigurationUseCase,
+	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
 	bot, err := telebot.NewBot(settings)
 	if err != nil {
@@ -53,8 +55,6 @@ func NewTelegramAdapter(
 		allowedMap[id] = struct{}{}
 	}
 
-	appConfig := configUC.Get()
-
 	return &TelegramAdapter{
 		teleBot:        bot,
 		allowedIDs:     allowedMap,
@@ -62,8 +62,9 @@ func NewTelegramAdapter(
 		textParserUC:   parserUC,
 		importUseCase:  importUC,
 		configUseCase:  configUC,
+		formatter:      formatter,
 		sessionManager: NewSessionManager(),
-		ui:             NewUI(appConfig.Settings.LedgerAlignment),
+		ui:             NewUI(),
 	}, nil
 }
 
@@ -153,7 +154,8 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 }
 
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
-	msg, selector := a.ui.BuildDraftMessage(tx, a.configUseCase.Get().Mappings)
+	appConfig := a.configUseCase.Get()
+	msg, selector := a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)
@@ -276,7 +278,8 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	a.sessionManager.Delete(userID)
 
-	formatted := session.Draft.Format(a.configUseCase.Get().Settings.LedgerAlignment)
+	appConfig := a.configUseCase.Get()
+	formatted := a.formatter.FormatTransaction(session.Draft, appConfig.Settings.LedgerAlignment)
 	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
@@ -292,7 +295,7 @@ func (a *TelegramAdapter) handleCreateAcc(c telebot.Context) error {
 		s.NewAccountPath = ""
 	})
 
-	msg, selector := a.ui.BuildAccountParentSelector()
+	msg, selector := a.ui.BuildAccountParentSelector(a.configUseCase.Get().Settings.RootAccounts)
 	return c.Edit(msg, selector, telebot.ModeHTML)
 }
 

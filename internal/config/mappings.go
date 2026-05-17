@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/a-perez/finance-app/internal/domain"
 )
@@ -41,6 +42,7 @@ func LoadMappings(path string) (domain.MappingData, error) {
 
 /*
 WriteMappings saves the [domain.MappingData] to a JSON file.
+It uses an atomic write pattern (write to temp file, then rename) to prevent corruption.
 */
 func WriteMappings(path string, data domain.MappingData) error {
 	fileData, err := json.MarshalIndent(data, "", "  ")
@@ -48,5 +50,30 @@ func WriteMappings(path string, data domain.MappingData) error {
 		return err
 	}
 
-	return os.WriteFile(path, fileData, 0644)
+	// 1. Create a temporary file in the same directory
+	dir := filepath.Dir(path)
+	tmpFile, err := os.CreateTemp(dir, "mappings-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath) // Cleanup if we fail
+
+	// 2. Write data to temp file
+	if _, err := tmpFile.Write(fileData); err != nil {
+		tmpFile.Close()
+		return err
+	}
+
+	// 3. Sync and Close
+	if err := tmpFile.Sync(); err != nil {
+		tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+
+	// 4. Atomic Rename
+	return os.Rename(tmpPath, path)
 }

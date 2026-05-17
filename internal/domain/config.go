@@ -9,6 +9,7 @@ type Settings struct {
 	LedgerAlignment       int
 	ImaginBankAccount     string
 	OpenBankAccount       string
+	RootAccounts          []string
 }
 
 /*
@@ -23,5 +24,6 @@ func DefaultSettings() Settings {
 		LedgerAlignment:       52,
 		ImaginBankAccount:     "Assets:Checking:ImaginBank",
 		OpenBankAccount:       "Assets:Checking:OpenBank",
+		RootAccounts:          []string{"Expenses", "Assets", "Liabilities", "Income"},
 	}
 }
