@@ -15,9 +15,6 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
-	"gopkg.in/telebot.v3"
-)
-
 func main() {
 	// Environment
 	env, err := config.LoadEnvironment()
