@@ -75,17 +75,30 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 /*
 BuildEditPrompt creates the text and keyboard for an account search prompt.
 */
-func (u *UI) BuildEditPrompt(isSource bool) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildEditPrompt(isSource bool, results []string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
+	rows := make([]telebot.Row, 0)
+
+	for _, result := range results {
+		btn := selector.Data(result, CallbackSelectAcc, result)
+		rows = append(rows, selector.Row(btn))
+	}
+
 	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
-	selector.Inline(selector.Row(btnCancel))
+	rows = append(rows, selector.Row(btnCancel))
+
+	selector.Inline(rows...)
 
 	accountType := "target"
 	if isSource {
 		accountType = "source"
 	}
 
-	return fmt.Sprintf("Send text to search for a %s account.", accountType), selector
+	if len(results) > 0 {
+		return fmt.Sprintf("Suggestions for <b>%s</b> (or type to search):", accountType), selector
+	}
+
+	return fmt.Sprintf("Send text to search for <b>%s</b> account.", accountType), selector
 }
 
 /*

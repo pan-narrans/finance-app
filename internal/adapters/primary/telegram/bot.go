@@ -166,7 +166,7 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	userID := c.Sender().ID
 	postingIndex, _ := strconv.Atoi(c.Data())
 
-	_, ok := a.sessionManager.Get(userID)
+	session, ok := a.sessionManager.Get(userID)
 	if !ok {
 		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
 	}
@@ -176,7 +176,9 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 		s.EditingPosting = postingIndex
 	})
 
-	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1)
+	results := a.configManager.Get().Mappings.SearchAccounts(session.Draft.Description, 5)
+
+	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1, results)
 	return c.Edit(msg, selector, telebot.ModeHTML)
 }
 

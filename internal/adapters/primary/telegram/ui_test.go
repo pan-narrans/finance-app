@@ -59,14 +59,17 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 	// Arrange
 	ui := NewUI(52)
+	results := []string{"Acc1"}
 
 	// Act & Assert (Target)
-	msg, _ := ui.BuildEditPrompt(false)
-	assert.Contains(t, msg, "target account")
+	msg, selector := ui.BuildEditPrompt(false, results)
+	assert.Contains(t, msg, "target")
+	assert.Contains(t, msg, "Suggestions")
+	assert.Len(t, selector.InlineKeyboard, 2) // 1 suggestion + 1 cancel
 
 	// Act & Assert (Source)
-	msg, _ = ui.BuildEditPrompt(true)
-	assert.Contains(t, msg, "source account")
+	msg, _ = ui.BuildEditPrompt(true, results)
+	assert.Contains(t, msg, "source")
 }
 
 func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
