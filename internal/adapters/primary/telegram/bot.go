@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/a-perez/finance-app/internal/app"
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -37,19 +37,14 @@ type TelegramAdapter struct {
 NewTelegramAdapter creates and initializes a TelegramAdapter with its dependencies.
 */
 func NewTelegramAdapter(
-	token string,
+	settings telebot.Settings,
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
 	parserUC ports.TextParserUseCase,
 	importService *app.ImportService,
 	configManager *config.Manager,
 ) (*TelegramAdapter, error) {
-	pref := telebot.Settings{
-		Token:  token,
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-	}
-
-	bot, err := telebot.NewBot(pref)
+	bot, err := telebot.NewBot(settings)
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +131,23 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		return c.Send(err.Error())
 	}
 
+	// Capture source keyword for potential mapping update
+	sourceKeyword := ""
+	words := strings.Fields(text)
+	if len(words) > 0 {
+		// Simple heuristic: if first word is alphabetic and followed by a number, it's likely the source
+		if matched, _ := regexp.MatchString(`^[a-zA-Z]+$`, words[0]); matched && len(words) > 1 {
+			if matchedAmt, _ := regexp.MatchString(`^\d`, words[1]); matchedAmt {
+				sourceKeyword = strings.ToLower(words[0])
+			}
+		}
+	}
+
 	// Store in session
 	a.sessionManager.Set(userID, &UserSession{
-		Draft: tx,
-		State: StateNone,
+		Draft:                 tx,
+		State:                 StateNone,
+		OriginalSourceKeyword: sourceKeyword,
 	})
 
 	return a.sendDraftMessage(c, tx)
@@ -227,6 +235,8 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 		s.State = StateNone
 		if s.EditingPosting == 0 {
 			s.TargetOverridden = true
+		} else if s.EditingPosting == 1 {
+			s.SourceOverridden = true
 		}
 	})
 
@@ -258,10 +268,16 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	}
 
 	// Persist mappings if overridden
-	if session.TargetOverridden {
+	if session.TargetOverridden || session.SourceOverridden {
 		err := a.configManager.UpdateMapping(func(data *domain.MappingData) {
-			key := strings.ToUpper(session.Draft.Description)
-			data.Accounts[key] = session.Draft.Postings[0].Account
+			if session.TargetOverridden {
+				key := strings.ToUpper(session.Draft.Description)
+				data.Accounts[key] = session.Draft.Postings[0].Account
+			}
+			if session.SourceOverridden && session.OriginalSourceKeyword != "" {
+				key := strings.ToLower(session.OriginalSourceKeyword)
+				data.Sources[key] = session.Draft.Postings[1].Account
+			}
 		})
 		if err != nil {
 			log.Printf("Error saving mappings: %v", err)
@@ -359,6 +375,8 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 		s.State = StateNone
 		if s.EditingPosting == 0 {
 			s.TargetOverridden = true
+		} else if s.EditingPosting == 1 {
+			s.SourceOverridden = true
 		}
 	})
 

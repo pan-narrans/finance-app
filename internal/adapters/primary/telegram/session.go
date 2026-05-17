@@ -23,11 +23,13 @@ const (
 UserSession stores transient data and state for a specific Telegram user.
 */
 type UserSession struct {
-	Draft            domain.Transaction
-	State            SearchState
-	EditingPosting   int
-	NewAccountPath   string
-	TargetOverridden bool
+	Draft                 domain.Transaction
+	State                 SearchState
+	EditingPosting        int
+	NewAccountPath        string
+	TargetOverridden      bool
+	SourceOverridden      bool
+	OriginalSourceKeyword string
 }
 
 /*

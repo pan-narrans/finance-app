@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/adapters/primary/telegram"
 	"github.com/a-perez/finance-app/internal/adapters/secondary/excel"
@@ -11,6 +12,10 @@ import (
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
+	"gopkg.in/telebot.v3"
+)
+
+	"gopkg.in/telebot.v3"
 )
 
 func main() {
@@ -51,7 +56,10 @@ func main() {
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
-		env.TelegramToken,
+		telebot.Settings{
+			Token:  env.TelegramToken,
+			Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+		},
 		env.TelegramUserIDs,
 		transactionService,
 		textParserService,
