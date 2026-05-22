@@ -24,6 +24,7 @@ type ImportSummary struct {
 	Updated int
 	Failed  int
 	Errors  map[int]error
+	Pending []domain.Transaction
 }
 
 // ImportUseCase defines the orchestrator for bank file imports.

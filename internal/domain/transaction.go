@@ -137,6 +137,19 @@ func (t *Transaction) Validate() error {
 }
 
 /*
+HasUnknownAccount returns true if any of the transaction's postings use an "Unknown" account.
+Unknown accounts are identified by the ":Unknown" suffix.
+*/
+func (t *Transaction) HasUnknownAccount() bool {
+	for _, p := range t.Postings {
+		if strings.HasSuffix(p.Account, ":Unknown") {
+			return true
+		}
+	}
+	return false
+}
+
+/*
 FormatAccountPath ensures all segments of an account path are Title Cased.
 (e.g., "expenses:food:dining" -> "Expenses:Food:Dining")
 */

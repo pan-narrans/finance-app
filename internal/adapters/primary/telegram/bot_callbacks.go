@@ -17,7 +17,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	session, ok := a.sessionManager.Get(userID)
 
 	if !ok {
-		return c.Edit("Session expired. Please send the transaction again.")
+		return c.Edit(MsgSessionExpired + " Please send the transaction again.")
 	}
 
 	if err := a.transactionUseCase.Add(session.Draft); err != nil {
@@ -35,11 +35,15 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		log.Printf("Error saving mappings: %v", err)
 	}
 
+	if len(session.PendingQueue) > 0 {
+		return a.advanceToNextPending(c, userID, session)
+	}
+
 	a.sessionManager.Delete(userID)
 
 	appConfig := a.configUseCase.Get()
 	formatted := a.formatter.FormatTransaction(session.Draft, appConfig.Settings.LedgerAlignment)
-	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
+	return c.Edit(fmt.Sprintf(MsgTransactionSaved+"\n<pre>%s</pre>", formatted), telebot.ModeHTML)
 }
 
 /*
@@ -47,8 +51,36 @@ handleDiscard removes the current session without saving.
 */
 func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+
+	if ok && len(session.PendingQueue) > 0 {
+		return a.advanceToNextPending(c, userID, session)
+	}
+
 	a.sessionManager.Delete(userID)
-	return c.Edit("Transaction discarded. ❌")
+	return c.Edit(MsgTransactionDiscarded)
+}
+
+/*
+advanceToNextPending updates the session with the next transaction from the queue and sends the review UI.
+*/
+func (a *TelegramAdapter) advanceToNextPending(c telebot.Context, userID int64, session *UserSession) error {
+	next := session.PendingQueue[0]
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.Draft = next
+		s.PendingQueue = s.PendingQueue[1:]
+		s.TargetOverridden = false
+		s.SourceOverridden = false
+		s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(next.Description)
+	})
+
+	if c.Callback().Unique == CallbackConfirm {
+		c.Respond(&telebot.CallbackResponse{Text: MsgTransactionSaved})
+	} else {
+		c.Respond(&telebot.CallbackResponse{Text: MsgTransactionDiscarded})
+	}
+
+	return a.sendDraftMessage(c, next)
 }
 
 /*
@@ -60,7 +92,6 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
 	}
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
@@ -87,9 +118,9 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
 		if c.Callback() != nil {
-			return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
+			return c.Respond(&telebot.CallbackResponse{Text: MsgSessionExpired})
 		}
-		return c.Send("Session expired.")
+		return c.Send(MsgSessionExpired)
 	}
 
 	// Format and detect if it's a manual override
@@ -108,7 +139,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	})
 
 	if c.Callback() != nil {
-		c.Respond(&telebot.CallbackResponse{Text: "Account updated."})
+		c.Respond(&telebot.CallbackResponse{Text: MsgAccountUpdated})
 	}
 	return a.sendDraftMessage(c, session.Draft)
 }
@@ -120,7 +151,7 @@ func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 	userID := c.Sender().ID
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Edit("Session expired.")
+		return c.Edit(MsgSessionExpired)
 	}
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
@@ -137,7 +168,7 @@ func (a *TelegramAdapter) handleCreateAcc(c telebot.Context) error {
 	userID := c.Sender().ID
 	_, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Edit("Session expired. Please start over.")
+		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
@@ -158,7 +189,7 @@ func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 
 	_, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Edit("Session expired. Please start over.")
+		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
@@ -177,7 +208,7 @@ func (a *TelegramAdapter) handleAddSubAcc(c telebot.Context) error {
 	userID := c.Sender().ID
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Edit("Session expired.")
+		return c.Edit(MsgSessionExpired)
 	}
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
@@ -195,7 +226,7 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 	userID := c.Sender().ID
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Edit("Session expired.")
+		return c.Edit(MsgSessionExpired)
 	}
 
 	formattedPath := domain.FormatAccountPath(session.NewAccountPath)
@@ -212,6 +243,45 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 		}
 	})
 
-	c.Respond(&telebot.CallbackResponse{Text: "Account created and selected."})
+	c.Respond(&telebot.CallbackResponse{Text: MsgAccountCreatedSelected})
 	return a.sendDraftMessage(c, session.Draft)
+}
+
+/*
+handleCancelImport clears the session and informs the user.
+*/
+func (a *TelegramAdapter) handleCancelImport(c telebot.Context) error {
+	userID := c.Sender().ID
+	a.sessionManager.Delete(userID)
+	return c.Edit(MsgImportCancelled)
+}
+
+/*
+handleAcceptAll saves the current draft and all pending transactions in the queue.
+*/
+func (a *TelegramAdapter) handleAcceptAll(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+
+	if !ok {
+		return c.Edit(MsgSessionExpired)
+	}
+
+	total := 1 + len(session.PendingQueue)
+	saved := 0
+
+	// Save current draft
+	if err := a.transactionUseCase.Add(session.Draft); err == nil {
+		saved++
+	}
+
+	// Save everything else in the queue
+	for _, tx := range session.PendingQueue {
+		if err := a.transactionUseCase.Add(tx); err == nil {
+			saved++
+		}
+	}
+
+	a.sessionManager.Delete(userID)
+	return c.Edit(fmt.Sprintf("Accepted all! ✅\nSaved %d/%d transactions.", saved, total), telebot.ModeHTML)
 }

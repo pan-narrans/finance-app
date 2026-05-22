@@ -83,7 +83,7 @@ func (a *TelegramAdapter) Start() {
 
 	a.teleBot.Handle(
 		"/start", func(c telebot.Context) error {
-			return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
+			return c.Send(MsgWelcome)
 		},
 	)
 
@@ -101,6 +101,8 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle("\f"+CallbackSelectParent, a.handleSelectParent)
 	a.teleBot.Handle("\f"+CallbackAddSubAcc, a.handleAddSubAcc)
 	a.teleBot.Handle("\f"+CallbackDoneAcc, a.handleDoneAcc)
+	a.teleBot.Handle("\f"+CallbackCancelImport, a.handleCancelImport)
+	a.teleBot.Handle("\f"+CallbackAcceptAll, a.handleAcceptAll)
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()

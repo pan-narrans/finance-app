@@ -4,10 +4,12 @@ go 1.26.1
 
 require (
 	github.com/caarlos0/env/v11 v11.4.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.53.0
 	golang.org/x/text v0.36.0
+	gopkg.in/telebot.v3 v3.3.8
 )
 
 require (
@@ -18,7 +20,6 @@ require (
 	github.com/bep/golibsass v1.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
-	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gohugoio/hugo v0.149.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -32,7 +33,6 @@ require (
 	github.com/tdewolff/parse/v2 v2.8.3 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
-	gopkg.in/telebot.v3 v3.3.8 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

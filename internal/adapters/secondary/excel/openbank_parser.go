@@ -125,7 +125,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 
 	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
 
-	return &domain.Transaction{
+	tx := domain.Transaction{
 		Date:        date,
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
@@ -134,7 +134,10 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 			{Account: p.settings.OpenBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
-	}, nil
+	}
+	tx.Code = tx.GenerateCode()
+
+	return &tx, nil
 }
 
 func getInnerText(node *html.Node) string {

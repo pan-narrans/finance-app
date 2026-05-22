@@ -30,6 +30,7 @@ type UserSession struct {
 	TargetOverridden      bool
 	SourceOverridden      bool
 	OriginalSourceKeyword string
+	PendingQueue          []domain.Transaction
 }
 
 /*

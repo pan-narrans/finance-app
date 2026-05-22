@@ -25,7 +25,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		case StateCreatingAccountChild:
 			return a.handleChildInput(c)
 		case StateCreatingAccountParent, StateCreatingAccountReview:
-			return c.Send("Please use the buttons provided to continue or click Cancel.", telebot.ModeHTML)
+			return c.Send(MsgUseButtons, telebot.ModeHTML)
 		}
 	}
 
@@ -76,6 +76,20 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 		summary.Total, summary.Added, summary.Updated, summary.Failed,
 	)
 
+	if len(summary.Pending) > 0 {
+		userID := c.Sender().ID
+		firstPending := summary.Pending[0]
+		a.sessionManager.Set(userID, &UserSession{
+			Draft:                 firstPending,
+			PendingQueue:          summary.Pending[1:],
+			OriginalSourceKeyword: a.transactionParserUC.GuessSource(firstPending.Description),
+		})
+
+		response += fmt.Sprintf("\n\n<b>%d transactions need review.</b>", len(summary.Pending))
+		c.Send(response, telebot.ModeHTML)
+		return a.sendDraftMessage(c, firstPending)
+	}
+
 	return c.Send(response)
 }
 
@@ -106,7 +120,7 @@ func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Send("Session expired. Please start over.")
+		return c.Send(MsgSessionExpired + " Please start over.")
 	}
 	newPath := session.NewAccountPath + ":" + child
 	formattedPath := domain.FormatAccountPath(newPath)
@@ -125,7 +139,20 @@ sendDraftMessage helper sends or edits the transaction preview with confirmation
 */
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
 	appConfig := a.configUseCase.Get()
-	msg, selector := a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+	userID := c.Sender().ID
+	session, _ := a.sessionManager.Get(userID)
+
+	var msg string
+	var selector *telebot.ReplyMarkup
+
+	// Check if this is part of an import review flow (Origin is not Telegram)
+	isImportReview := session != nil && (len(session.PendingQueue) > 0 || session.Draft.Metadata.Origin != "Telegram")
+
+	if isImportReview {
+		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter)
+	} else {
+		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+	}
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)

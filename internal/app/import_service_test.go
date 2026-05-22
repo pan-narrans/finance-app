@@ -200,3 +200,50 @@ func TestImportService_Import_ShouldSortTransactionsChronologically(t *testing.T
 	mockUseCase.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
 }
+
+func TestImportService_Import_ShouldIdentifyUnknownTransactions(t *testing.T) {
+	// Arrange
+	mockUseCase := new(MockTransactionUseCase)
+	mockParser := new(MockBankParser)
+	mockProvider := new(MockFileParserProvider)
+	service := NewImportService(mockUseCase, mockProvider)
+
+	transactions := []domain.Transaction{
+		{
+			Description: "Known",
+			Code:        "KNOWN",
+			Postings: []domain.Posting{
+				{Account: "Assets:Bank", Amount: new(float64), Currency: "EUR"},
+				{Account: "Expenses:Food"},
+			},
+		},
+		{
+			Description: "Unknown",
+			Code:        "UNKNOWN",
+			Postings: []domain.Posting{
+				{Account: "Assets:Bank", Amount: new(float64), Currency: "EUR"},
+				{Account: "Expenses:Unknown"},
+			},
+		},
+	}
+
+	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockParser.On("Parse", "file.xls").Return(transactions, nil)
+
+	// Only "Known" should be processed
+	mockUseCase.On("GetByCode", "KNOWN").Return(nil, nil).Once()
+	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "KNOWN" })).Return(nil).Once()
+
+	// Act
+	summary, err := service.Import("file.xls")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, 2, summary.Total)
+	assert.Equal(t, 1, summary.Added)
+	assert.Equal(t, 1, len(summary.Pending))
+	assert.Equal(t, "UNKNOWN", summary.Pending[0].Code)
+
+	mockUseCase.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+}
