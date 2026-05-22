@@ -35,6 +35,19 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		log.Printf("Error saving mappings: %v", err)
 	}
 
+	if len(session.PendingQueue) > 0 {
+		next := session.PendingQueue[0]
+		a.sessionManager.Update(userID, func(s *UserSession) {
+			s.Draft = next
+			s.PendingQueue = s.PendingQueue[1:]
+			s.TargetOverridden = false
+			s.SourceOverridden = false
+			s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(next.Description)
+		})
+		c.Respond(&telebot.CallbackResponse{Text: "Transaction saved!"})
+		return a.sendDraftMessage(c, next)
+	}
+
 	a.sessionManager.Delete(userID)
 
 	appConfig := a.configUseCase.Get()
@@ -47,6 +60,21 @@ handleDiscard removes the current session without saving.
 */
 func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+
+	if ok && len(session.PendingQueue) > 0 {
+		next := session.PendingQueue[0]
+		a.sessionManager.Update(userID, func(s *UserSession) {
+			s.Draft = next
+			s.PendingQueue = s.PendingQueue[1:]
+			s.TargetOverridden = false
+			s.SourceOverridden = false
+			s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(next.Description)
+		})
+		c.Respond(&telebot.CallbackResponse{Text: "Transaction discarded."})
+		return a.sendDraftMessage(c, next)
+	}
+
 	a.sessionManager.Delete(userID)
 	return c.Edit("Transaction discarded. ❌")
 }

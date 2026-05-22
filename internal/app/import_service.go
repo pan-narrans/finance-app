@@ -49,11 +49,17 @@ func (importService *ImportService) Import(filePath string) (*ports.ImportSummar
 	)
 
 	summary := &ports.ImportSummary{
-		Total:  len(transactions),
-		Errors: make(map[int]error),
+		Total:   len(transactions),
+		Errors:  make(map[int]error),
+		Pending: []domain.Transaction{},
 	}
 
 	for index, transaction := range transactions {
+		if transaction.HasUnknownAccount() {
+			summary.Pending = append(summary.Pending, transaction)
+			continue
+		}
+
 		if err = importService.processTransaction(transaction, summary); err != nil {
 			summary.Failed++
 			summary.Errors[index] = err

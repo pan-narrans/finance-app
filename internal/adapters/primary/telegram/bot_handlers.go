@@ -76,6 +76,20 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 		summary.Total, summary.Added, summary.Updated, summary.Failed,
 	)
 
+	if len(summary.Pending) > 0 {
+		userID := c.Sender().ID
+		firstPending := summary.Pending[0]
+		a.sessionManager.Set(userID, &UserSession{
+			Draft:                 firstPending,
+			PendingQueue:          summary.Pending[1:],
+			OriginalSourceKeyword: a.transactionParserUC.GuessSource(firstPending.Description),
+		})
+
+		response += fmt.Sprintf("\n\n<b>%d transactions need review.</b>", len(summary.Pending))
+		c.Send(response, telebot.ModeHTML)
+		return a.sendDraftMessage(c, firstPending)
+	}
+
 	return c.Send(response)
 }
 
