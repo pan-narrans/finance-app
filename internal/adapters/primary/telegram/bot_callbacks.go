@@ -92,7 +92,6 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Respond(&telebot.CallbackResponse{Text: MsgSessionExpired})
 	}
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
