@@ -86,7 +86,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 
 	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
 	txService := app.NewTransactionService(repo)
-	parserService := app.NewTextParserService(configManager)
+	parserService := app.NewTransactionParserService(configManager)
 
 	poller := &TestPoller{updates: make(chan telebot.Update, 10)}
 	settings := telebot.Settings{

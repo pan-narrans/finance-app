@@ -50,8 +50,8 @@ type ConfigurationUseCase interface {
 }
 
 /*
-TextParserUseCase defines the logic for converting raw input strings into domain transactions.
+TransactionParserUseCase defines the logic for converting raw input strings into domain transactions.
 */
-type TextParserUseCase interface {
+type TransactionParserUseCase interface {
 	ParseText(text, origin string) (domain.Transaction, error)
 }

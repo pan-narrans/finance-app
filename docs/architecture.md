@@ -69,8 +69,8 @@ The "Translation" layer.
 ## Data Flow: Manual Entry Example
 
 1.  **Trigger**: User sends "10 coffee" to Telegram.
-2.  **Primary Adapter**: `TelegramAdapter` receives text and calls `TextParserUseCase.ParseText("10 coffee", "Telegram")`.
-3.  **Application Layer**: `TextParserService` uses `MappingService` (Domain) to resolve "coffee" -> "Expenses:Food".
+2.  **Primary Adapter**: `TelegramAdapter` receives text and calls `TransactionParserUseCase.ParseText("10 coffee", "Telegram")`.
+3.  **Application Layer**: `TransactionParserService` uses `MappingService` (Domain) to resolve "coffee" -> "Expenses:Food".
 4.  **Interaction**: `TelegramAdapter` stores a draft in its `SessionManager` and asks the user for confirmation via inline buttons.
 5.  **Persistence**: User clicks "Confirm". `TelegramAdapter` calls `TransactionUseCase.Add(draft)`.
 6.  **Validation**: `TransactionService` (App) runs `draft.Validate()` (Domain).

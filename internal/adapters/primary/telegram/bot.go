@@ -22,15 +22,15 @@ TelegramAdapter handles interactions between users and the system via Telegram.
 It implements the driving adapter pattern within the Hexagonal Architecture.
 */
 type TelegramAdapter struct {
-	teleBot        *telebot.Bot
-	allowedIDs     map[int64]struct{}
-	transactionUC  ports.TransactionUseCase
-	textParserUC   ports.TextParserUseCase
-	importUseCase  ports.ImportUseCase
-	configUseCase  ports.ConfigurationUseCase
-	formatter      ports.TransactionFormatter
-	sessionManager *SessionManager
-	ui             *UI
+	teleBot             *telebot.Bot
+	allowedIDs          map[int64]struct{}
+	transactionUC       ports.TransactionUseCase
+	transactionParserUC ports.TransactionParserUseCase
+	importUseCase       ports.ImportUseCase
+	configUseCase       ports.ConfigurationUseCase
+	formatter           ports.TransactionFormatter
+	sessionManager      *SessionManager
+	ui                  *UI
 }
 
 /*
@@ -40,7 +40,7 @@ func NewTelegramAdapter(
 	settings telebot.Settings,
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
-	parserUC ports.TextParserUseCase,
+	parserUC ports.TransactionParserUseCase,
 	importUC ports.ImportUseCase,
 	configUC ports.ConfigurationUseCase,
 	formatter ports.TransactionFormatter,
@@ -56,15 +56,15 @@ func NewTelegramAdapter(
 	}
 
 	return &TelegramAdapter{
-		teleBot:        bot,
-		allowedIDs:     allowedMap,
-		transactionUC:  txUC,
-		textParserUC:   parserUC,
-		importUseCase:  importUC,
-		configUseCase:  configUC,
-		formatter:      formatter,
-		sessionManager: NewSessionManager(),
-		ui:             NewUI(),
+		teleBot:             bot,
+		allowedIDs:          allowedMap,
+		transactionUC:       txUC,
+		transactionParserUC: parserUC,
+		importUseCase:       importUC,
+		configUseCase:       configUC,
+		formatter:           formatter,
+		sessionManager:      NewSessionManager(),
+		ui:                  NewUI(),
 	}, nil
 }
 
@@ -126,7 +126,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 
 	// 2. Otherwise, treat as a new transaction entry
 	text := c.Text()
-	tx, err := a.textParserUC.ParseText(text, "Telegram")
+	tx, err := a.transactionParserUC.ParseText(text, "Telegram")
 	if err != nil {
 		return c.Send(err.Error())
 	}

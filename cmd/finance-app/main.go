@@ -47,7 +47,7 @@ func main() {
 	// App Layer
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
-	textParserService := app.NewTextParserService(configManager)
+	transactionParserService := app.NewTransactionParserService(configManager)
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
@@ -57,7 +57,7 @@ func main() {
 		},
 		env.TelegramUserIDs,
 		transactionService,
-		textParserService,
+		transactionParserService,
 		importService,
 		configManager,
 		ledgerFormatter,
