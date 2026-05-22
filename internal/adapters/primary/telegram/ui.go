@@ -41,15 +41,13 @@ BuildDraftMessage creates the text and keyboard for a transaction draft.
 func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
-	btnConfirm := selector.Data("Confirm ✅", CallbackConfirm)
-	btnEditTarget := selector.Data("Edit Target ✏️", CallbackEditAcc, "0")
-	btnEditSource := selector.Data("Edit Source ✏️", CallbackEditAcc, "1")
-	btnDiscard := selector.Data("Discard ❌", CallbackDiscard)
-
 	rows := []telebot.Row{
-		selector.Row(btnConfirm),
-		selector.Row(btnEditTarget, btnEditSource),
-		selector.Row(btnDiscard),
+		makeRow(selector, "Confirm ✅", CallbackConfirm),
+		selector.Row(
+			selector.Data("Edit Target ✏️", CallbackEditAcc, "0"),
+			selector.Data("Edit Source ✏️", CallbackEditAcc, "1"),
+		),
+		makeRow(selector, "Discard ❌", CallbackDiscard),
 	}
 
 	targetAccount := tx.Postings[0].Account
@@ -57,10 +55,7 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 	if strings.HasSuffix(targetAccount, ":Unknown") {
 		msgSuffix = "\n\nUnknown account. Suggestions:"
 		suggestions := mappingProvider.SearchAccounts(tx.Description, 5)
-		for _, suggestion := range suggestions {
-			btn := selector.Data(suggestion, CallbackSelectAcc, suggestion)
-			rows = append(rows, selector.Row(btn))
-		}
+		rows = append(rows, mapToRows(selector, suggestions, CallbackSelectAcc)...)
 	}
 
 	selector.Inline(rows...)
@@ -76,18 +71,8 @@ BuildEditPrompt creates the text and keyboard for an account search prompt.
 */
 func (u *UI) BuildEditPrompt(isSource bool, results []string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
-	rows := make([]telebot.Row, 0)
-
-	for _, result := range results {
-		btn := selector.Data(result, CallbackSelectAcc, result)
-		rows = append(rows, selector.Row(btn))
-	}
-
-	btnCreate := selector.Data("✨ Create New Account", CallbackCreateAcc)
-	rows = append(rows, selector.Row(btnCreate))
-
-	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
-	rows = append(rows, selector.Row(btnCancel))
+	rows := mapToRows(selector, results, CallbackSelectAcc)
+	rows = append(rows, searchFooter(selector)...)
 
 	selector.Inline(rows...)
 
@@ -108,18 +93,8 @@ BuildSearchResults creates the text and keyboard for account search results.
 */
 func (u *UI) BuildSearchResults(query string, results []string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
-	rows := make([]telebot.Row, 0)
-
-	for _, result := range results {
-		btn := selector.Data(result, CallbackSelectAcc, result)
-		rows = append(rows, selector.Row(btn))
-	}
-
-	btnCreate := selector.Data("✨ Create New Account", CallbackCreateAcc)
-	rows = append(rows, selector.Row(btnCreate))
-
-	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
-	rows = append(rows, selector.Row(btnCancel))
+	rows := mapToRows(selector, results, CallbackSelectAcc)
+	rows = append(rows, searchFooter(selector)...)
 
 	selector.Inline(rows...)
 
@@ -131,15 +106,8 @@ BuildAccountParentSelector creates the keyboard for selecting the root account.
 */
 func (u *UI) BuildAccountParentSelector(parents []string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
-	rows := make([]telebot.Row, 0)
-
-	for _, p := range parents {
-		btn := selector.Data(p, CallbackSelectParent, p)
-		rows = append(rows, selector.Row(btn))
-	}
-
-	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
-	rows = append(rows, selector.Row(btnCancel))
+	rows := mapToRows(selector, parents, CallbackSelectParent)
+	rows = append(rows, makeRow(selector, "Cancel 🔙", CallbackCancelEdit))
 
 	selector.Inline(rows...)
 
@@ -151,8 +119,7 @@ BuildAccountChildPrompt creates the text for prompting a sub-account name.
 */
 func (u *UI) BuildAccountChildPrompt(currentPath string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
-	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
-	selector.Inline(selector.Row(btnCancel))
+	selector.Inline(makeRow(selector, "Cancel 🔙", CallbackCancelEdit))
 
 	return fmt.Sprintf("Current path: <code>%s</code>\n\nType the name of the sub-account (e.g., 'Transport'):", currentPath), selector
 }
@@ -163,15 +130,43 @@ BuildAccountReview creates the keyboard for finalizing or extending an account p
 func (u *UI) BuildAccountReview(path string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
-	btnDone := selector.Data("Done ✅", CallbackDoneAcc)
-	btnAdd := selector.Data("Add Sub-account ➕", CallbackAddSubAcc)
-	btnCancel := selector.Data("Cancel 🔙", CallbackCancelEdit)
-
 	selector.Inline(
-		selector.Row(btnDone),
-		selector.Row(btnAdd),
-		selector.Row(btnCancel),
+		makeRow(selector, "Done ✅", CallbackDoneAcc),
+		makeRow(selector, "Add Sub-account ➕", CallbackAddSubAcc),
+		makeRow(selector, "Cancel 🔙", CallbackCancelEdit),
 	)
 
 	return fmt.Sprintf("Account constructed: <code>%s</code>\n\nWhat would you like to do?", path), selector
+}
+
+// Helpers
+
+/*
+makeRow creates a single-button row in the provided markup.
+*/
+func makeRow(m *telebot.ReplyMarkup, text, unique string, data ...string) telebot.Row {
+	return m.Row(m.Data(text, unique, data...))
+}
+
+/*
+mapToRows converts a slice of strings into a slice of single-button rows.
+Each button uses the item string as both its label and its callback data.
+*/
+func mapToRows(m *telebot.ReplyMarkup, items []string, unique string) []telebot.Row {
+	rows := make([]telebot.Row, 0, len(items))
+	for _, item := range items {
+		rows = append(rows, makeRow(m, item, unique, item))
+	}
+	return rows
+}
+
+/*
+searchFooter returns the standard action rows for search-related keyboards,
+containing "Create New Account" and "Cancel" buttons.
+*/
+func searchFooter(m *telebot.ReplyMarkup) []telebot.Row {
+	return []telebot.Row{
+		makeRow(m, "✨ Create New Account", CallbackCreateAcc),
+		makeRow(m, "Cancel 🔙", CallbackCancelEdit),
+	}
 }
