@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
-	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
@@ -21,7 +20,7 @@ type ImaginBankParser struct {
 }
 
 // NewImaginBankParser creates a new instance of ImaginBankParser.
-func NewImaginBankParser(mappingProvider ports.MappingProvider, settings config.Config) *ImaginBankParser {
+func NewImaginBankParser(mappingProvider ports.MappingProvider, settings domain.Settings) *ImaginBankParser {
 	return &ImaginBankParser{
 		BaseParser: NewBaseParser(mappingProvider, settings),
 	}

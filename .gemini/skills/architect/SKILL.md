@@ -31,6 +31,13 @@ Ensure system integrity by enforcing Hexagonal Architecture (Ports and Adapters)
 5.  **Modular Inputs**: Each input method must be implemented as a Primary Adapter, decoupled from the core CRUD logic.
 6.  **No Database Redundancy**: Avoid creating parallel databases or caches that could get out of sync with the `.ledger` file.
 7.  **Validation**: Every entry must be validated against basic ledger syntax before writing to the file.
+8.  **SOLID Principles**:
+    - **SRP**: Modules and services must focus on a single domain or infra responsibility (e.g., separate parsing from persistence).
+    - **OCP**: Use interfaces and composition to allow behavior extension without modifying core logic.
+    - **LSP**: Interface implementations must be interchangeable without breaking the system.
+    - **ISP**: Define small, specific ports (interfaces) instead of broad ones.
+    - **DIP**: Core logic (`App`/`Domain`) must depend on ports, not on adapter concretions.
+9.  **KISS (Keep It Simple)**: Prioritize readability and maintainability. Avoid premature optimization or generic abstractions that add cognitive load without clear benefit.
 
 ## Documentation Responsibility
 

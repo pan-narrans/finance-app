@@ -43,3 +43,12 @@ To prevent duplicate entries when importing files multiple times, the system gen
 2.  **Manual Bot Entry**: Uses a hash of the timestamp during draft creation to ensure each chat message creates a unique transaction intent.
 
 The `Transaction.GenerateCode()` method then creates a 16-character SHA-256 prefix based on the Date, Description, and Postings to serve as the stable identifier in the ledger file.
+
+## Learning Mechanism (Persistence)
+
+The system can "learn" from user overrides to improve future auto-mapping accuracy. This logic resides in `domain.MappingData.Learn`.
+
+1.  **Target Learning**: When a user overrides the expense/income account, the system maps the **UPPERCASE** description to the selected account.
+2.  **Source Learning**: When a user overrides a source keyword (e.g., "cash"), the system maps the **lowercase** keyword to the selected asset account.
+
+Learned mappings are persisted back to `mappings.json` via the `ConfigurationUseCase`.
