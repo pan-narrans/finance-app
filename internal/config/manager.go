@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -11,24 +12,16 @@ import (
 )
 
 /*
-AppConfig combines application settings and the derived mapping service.
-It represents a single, consistent snapshot of the application configuration.
-*/
-type AppConfig struct {
-	Settings Config
-	Mappings ports.MappingProvider
-}
-
-/*
 Manager coordinates live reloading of configuration and mappings.
-It provides thread-safe access to the current configuration via an atomic pointer.
+It implements the [ports.ConfigurationUseCase] interface.
 */
 type Manager struct {
-	current      atomic.Pointer[AppConfig]
+	current      atomic.Pointer[ports.AppConfig]
 	watcher      *fsnotify.Watcher
 	configPath   string
 	mappingsPath string
 	constructor  ports.MappingServiceConstructor
+	mu           sync.Mutex
 }
 
 /*
@@ -36,23 +29,22 @@ NewManager initializes a new ConfigManager.
 It performs an initial load of the configuration files and starts the directory watcher.
 */
 func NewManager(configPath, mappingsPath string, constructor ports.MappingServiceConstructor) (*Manager, error) {
-	m := &Manager{
-		configPath:   configPath,
-		mappingsPath: mappingsPath,
-		constructor:  constructor,
-	}
-
-	// Initial load
-	if err := m.Reload(); err != nil {
-		return nil, err
-	}
-
-	// Set up watcher
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
-	m.watcher = watcher
+
+	m := &Manager{
+		configPath:   configPath,
+		mappingsPath: mappingsPath,
+		watcher:      watcher,
+		constructor:  constructor,
+	}
+
+	if err := m.Reload(); err != nil {
+		watcher.Close()
+		return nil, err
+	}
 
 	// Watch the parent directory of config files
 	configDir := filepath.Dir(configPath)
@@ -66,9 +58,8 @@ func NewManager(configPath, mappingsPath string, constructor ports.MappingServic
 
 /*
 Get returns the current application configuration.
-The returned pointer is safe to read but should not be modified.
 */
-func (m *Manager) Get() *AppConfig {
+func (m *Manager) Get() *ports.AppConfig {
 	return m.current.Load()
 }
 
@@ -76,6 +67,16 @@ func (m *Manager) Get() *AppConfig {
 Reload forces a re-read of all configuration files and updates the atomic pointer.
 */
 func (m *Manager) Reload() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.reload()
+}
+
+/*
+reload performs the actual loading logic without acquiring the lock.
+Must be called from a method that already holds m.mu.
+*/
+func (m *Manager) reload() error {
 	settings, err := LoadConfig(m.configPath)
 	if err != nil {
 		return err
@@ -88,7 +89,7 @@ func (m *Manager) Reload() error {
 
 	mappingService := m.constructor(mappingsData)
 
-	m.current.Store(&AppConfig{
+	m.current.Store(&ports.AppConfig{
 		Settings: settings,
 		Mappings: mappingService,
 	})
@@ -100,9 +101,12 @@ func (m *Manager) Reload() error {
 ReloadWithData manually updates the manager with provided settings and mappings.
 Primarily used for testing.
 */
-func (m *Manager) ReloadWithData(settings Config, mappings domain.MappingData) {
+func (m *Manager) ReloadWithData(settings domain.Settings, mappings domain.MappingData) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	mappingService := m.constructor(mappings)
-	m.current.Store(&AppConfig{
+	m.current.Store(&ports.AppConfig{
 		Settings: settings,
 		Mappings: mappingService,
 	})
@@ -147,4 +151,49 @@ func (m *Manager) Close() error {
 func (m *Manager) isRelevantFile(name string) bool {
 	cleanName := filepath.Clean(name)
 	return cleanName == filepath.Clean(m.configPath) || cleanName == filepath.Clean(m.mappingsPath)
+}
+
+/*
+SaveMappings persists the provided [domain.MappingData] and reloads the manager.
+*/
+func (m *Manager) SaveMappings(data domain.MappingData) error {
+	if err := WriteMappings(m.mappingsPath, data); err != nil {
+		return err
+	}
+	return m.Reload()
+}
+
+/*
+UpdateMapping provides a thread-safe way to modify and persist mappings.
+It reloads the latest data from disk before applying the update.
+*/
+func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	data, err := LoadMappings(m.mappingsPath)
+	if err != nil {
+		return err
+	}
+
+	fn(&data)
+
+	if err := WriteMappings(m.mappingsPath, data); err != nil {
+		return err
+	}
+
+	return m.reload()
+}
+
+/*
+LearnMapping updates the mappings based on transaction overrides and persists them.
+*/
+func (m *Manager) LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error {
+	if !targetOverride && (!sourceOverride || originalSource == "") {
+		return nil
+	}
+
+	return m.UpdateMapping(func(data *domain.MappingData) {
+		data.Learn(transaction, targetOverride, sourceOverride, originalSource)
+	})
 }

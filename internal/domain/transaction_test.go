@@ -1,10 +1,12 @@
-package domain
+package domain_test
 
 import (
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/a-perez/finance-app/internal/adapters/secondary/ledger"
+	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,18 +15,18 @@ func TestTransaction_Format_ShouldReturnValidLedgerString_WhenValidInputProvided
 	// Arrange
 	const expected = "2026/01/15 * Día\n    Expenses:Shopping                                   60.74 EUR\n    Assets:Checking:OpenBank\n"
 	date := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
-	transaction := Transaction{
+	transaction := domain.Transaction{
 		Date:        date,
-		Status:      StatusCleared,
+		Status:      domain.StatusCleared,
 		Description: "Día",
-		Postings: []Posting{
+		Postings: []domain.Posting{
 			{Account: "Expenses:Shopping", Amount: new(60.74), Currency: "EUR"},
 			{Account: "Assets:Checking:OpenBank", Amount: nil},
 		},
 	}
 
 	// Act
-	got := transaction.Format(52)
+	got := ledger.NewLedgerFormatter().FormatTransaction(transaction, 52)
 
 	// Assert
 	assert.Equal(t, expected, got)
@@ -32,10 +34,10 @@ func TestTransaction_Format_ShouldReturnValidLedgerString_WhenValidInputProvided
 
 func TestTransaction_Validate_ShouldReturnNoErrors_WhenInputIsValid(t *testing.T) {
 	// Arrange
-	transaction := Transaction{
+	transaction := domain.Transaction{
 		Date:        time.Now(),
 		Description: "Valid",
-		Postings: []Posting{
+		Postings: []domain.Posting{
 			{Account: "A", Amount: new(10.0), Currency: "USD"},
 			{Account: "B", Amount: nil},
 		},
@@ -55,47 +57,47 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 
 	tests := []struct {
 		name           string
-		transaction    Transaction
-		expectedErrors []DomainFieldError
+		transaction    domain.Transaction
+		expectedErrors []domain.DomainFieldError
 	}{
 		{
 			name: "Should Detect Missing Date And Description",
-			transaction: Transaction{
-				Postings: []Posting{
+			transaction: domain.Transaction{
+				Postings: []domain.Posting{
 					{Account: "A", Amount: &val, Currency: "USD"},
 					{Account: "B", Amount: nil},
 				},
 			},
-			expectedErrors: []DomainFieldError{
+			expectedErrors: []domain.DomainFieldError{
 				{Entity: "Transaction", Field: "Date", Message: "transaction date is required"},
 				{Entity: "Transaction", Field: "Description", Message: "transaction description is required"},
 			},
 		},
 		{
 			name: "Should Detect Missing Currency For Numerical Amount",
-			transaction: Transaction{
+			transaction: domain.Transaction{
 				Date:        date,
 				Description: "Missing Currency",
-				Postings: []Posting{
+				Postings: []domain.Posting{
 					{Account: "A", Amount: &val, Currency: ""},
 					{Account: "B", Amount: nil},
 				},
 			},
-			expectedErrors: []DomainFieldError{
+			expectedErrors: []domain.DomainFieldError{
 				{Entity: "Transaction", Field: "Postings[0].Currency", Message: "currency is mandatory for posting to account \"A\""},
 			},
 		},
 		{
 			name: "Should Detect Multiple Implicit Balances",
-			transaction: Transaction{
+			transaction: domain.Transaction{
 				Date:        date,
 				Description: "Too many nils",
-				Postings: []Posting{
+				Postings: []domain.Posting{
 					{Account: "A", Amount: nil},
 					{Account: "B", Amount: nil},
 				},
 			},
-			expectedErrors: []DomainFieldError{
+			expectedErrors: []domain.DomainFieldError{
 				{Entity: "Transaction", Field: "Postings", Message: "at most one posting can have an implicit amount"},
 			},
 		},
@@ -108,7 +110,7 @@ func TestTransaction_Validate_ShouldReturnStructuredErrors_WhenInputIsInvalid(t 
 				err := tt.transaction.Validate()
 
 				// Assert
-				var domainError *DomainError
+				var domainError *domain.DomainError
 				ok := errors.As(err, &domainError)
 				require.Error(t, err)
 				require.True(t, ok, "Error should be of type *DomainError")
@@ -123,15 +125,15 @@ func TestTransaction_GenerateCode_ShouldBeUnique_WhenFieldsOverlap(t *testing.T)
 	date := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
 
 	// Transaction 1: Description "A", Account "BC"
-	t1 := Transaction{
+	t1 := domain.Transaction{
 		Date: date, Description: "A",
-		Postings: []Posting{{Account: "BC"}},
+		Postings: []domain.Posting{{Account: "BC"}},
 	}
 
 	// Transaction 2: Description "AB", Account "C"
-	t2 := Transaction{
+	t2 := domain.Transaction{
 		Date: date, Description: "AB",
-		Postings: []Posting{{Account: "C"}},
+		Postings: []domain.Posting{{Account: "C"}},
 	}
 
 	// Act
@@ -145,9 +147,9 @@ func TestTransaction_GenerateCode_ShouldBeUnique_WhenFieldsOverlap(t *testing.T)
 func TestTransaction_GenerateCode_ShouldBeDeterministic(t *testing.T) {
 	// Arrange
 	date := time.Date(2026, 4, 25, 0, 0, 0, 0, time.UTC)
-	transaction := Transaction{
+	transaction := domain.Transaction{
 		Date: date, Description: "Test",
-		Postings: []Posting{{Account: "Expenses:Food"}},
+		Postings: []domain.Posting{{Account: "Expenses:Food"}},
 	}
 
 	// Act
@@ -160,24 +162,24 @@ func TestTransaction_GenerateCode_ShouldBeDeterministic(t *testing.T) {
 
 func TestTransaction_Format_ShouldIncludeArbitraryMetadataFromExtras(t *testing.T) {
 	// Arrange
-	transaction := Transaction{
+	transaction := domain.Transaction{
 		Date:        time.Date(2026, 4, 26, 0, 0, 0, 0, time.UTC),
 		Description: "Test",
-		Metadata: Metadata{
+		Metadata: domain.Metadata{
 			ID: "123",
 			Extras: map[string]string{
 				"Category": "Groceries",
 				"Store":    "Mercadona",
 			},
 		},
-		Postings: []Posting{
+		Postings: []domain.Posting{
 			{Account: "Assets:Cash", Amount: new(10.0), Currency: "EUR"},
 			{Account: "Expenses:Food", Amount: nil},
 		},
 	}
 
 	// Act
-	got := transaction.Format(52)
+	got := ledger.NewLedgerFormatter().FormatTransaction(transaction, 52)
 
 	// Assert
 	assert.Contains(t, got, "    ; ID: 123\n")

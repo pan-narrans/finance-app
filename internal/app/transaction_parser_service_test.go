@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvided(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvided(t *testing.T) {
 	// Arrange
 	data := domain.MappingData{
 		Sources:  map[string]string{"cash": "Assets:Cash"},
 		Accounts: map[string]string{"coffee": "Expenses:Food:Coffee"},
 	}
-	settings := config.Config{
+	settings := domain.Settings{
 		DefaultCurrency: "EUR",
 	}
 	constructor := func(data domain.MappingData) ports.MappingProvider {
@@ -26,7 +26,7 @@ func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvi
 	// Inject test data
 	manager.ReloadWithData(settings, data)
 
-	svc := NewTextParserService(manager)
+	svc := NewTransactionParserService(manager)
 
 	// Act
 	tx, err := svc.ParseText("cash 3.50 morning coffee", "Telegram")
@@ -43,9 +43,9 @@ func TestTextParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvi
 	assert.Equal(t, "Telegram", tx.Metadata.Origin)
 }
 
-func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissing(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissing(t *testing.T) {
 	// Arrange
-	settings := config.Config{
+	settings := domain.Settings{
 		DefaultAssetAccount: "Assets:Checking:Main",
 		DefaultCurrency:     "USD",
 	}
@@ -55,7 +55,7 @@ func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissin
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	manager.ReloadWithData(settings, domain.MappingData{})
 
-	svc := NewTextParserService(manager)
+	svc := NewTransactionParserService(manager)
 
 	// Act
 	tx, err := svc.ParseText("10 lunch", "Bot")
@@ -66,13 +66,13 @@ func TestTextParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissin
 	assert.Equal(t, "Assets:Checking:Main", tx.Postings[1].Account)
 }
 
-func TestTextParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(t *testing.T) {
 	// Arrange
 	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
-	svc := NewTextParserService(manager)
+	svc := NewTransactionParserService(manager)
 
 	// Act
 	tx, err := svc.ParseText("12,50 dinner", "Test")
@@ -82,13 +82,13 @@ func TestTextParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(t *test
 	assert.Equal(t, 12.50, *tx.Postings[0].Amount)
 }
 
-func TestTextParserService_ParseText_ShouldFallbackToIncomeSource_WhenSourceIsUnknown(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldFallbackToIncomeSource_WhenSourceIsUnknown(t *testing.T) {
 	// Arrange
 	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
-	svc := NewTextParserService(manager)
+	svc := NewTransactionParserService(manager)
 
 	// Act
 	tx, err := svc.ParseText("alex 50 gift", "Test")
@@ -98,13 +98,13 @@ func TestTextParserService_ParseText_ShouldFallbackToIncomeSource_WhenSourceIsUn
 	assert.Equal(t, "Income:Alex", tx.Postings[1].Account)
 }
 
-func TestTextParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *testing.T) {
 	// Arrange
 	constructor := func(data domain.MappingData) ports.MappingProvider {
 		return domain.NewMappingService(data)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
-	svc := NewTextParserService(manager)
+	svc := NewTransactionParserService(manager)
 
 	// Act & Assert
 	_, err := svc.ParseText("just-description", "Test")
@@ -112,9 +112,9 @@ func TestTextParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *te
 	assert.Contains(t, err.Error(), "format not recognized")
 }
 
-func TestTextParserService_HashID_ShouldBeConsistent(t *testing.T) {
+func TestTransactionParserService_HashID_ShouldBeConsistent(t *testing.T) {
 	// Arrange
-	svc := NewTextParserService(nil)
+	svc := NewTransactionParserService(nil)
 
 	// Act
 	id1 := svc.hashID("test-data")
@@ -125,9 +125,9 @@ func TestTextParserService_HashID_ShouldBeConsistent(t *testing.T) {
 	assert.Len(t, id1, 8)
 }
 
-func TestTextParserService_HashID_ShouldReturnEmpty_WhenInputIsEmpty(t *testing.T) {
+func TestTransactionParserService_HashID_ShouldReturnEmpty_WhenInputIsEmpty(t *testing.T) {
 	// Arrange
-	svc := NewTextParserService(nil)
+	svc := NewTransactionParserService(nil)
 
 	// Act & Assert
 	assert.Empty(t, svc.hashID(""))

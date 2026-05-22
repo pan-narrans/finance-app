@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/adapters/primary/telegram"
 	"github.com/a-perez/finance-app/internal/adapters/secondary/excel"
@@ -11,6 +12,7 @@ import (
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
+	"gopkg.in/telebot.v3"
 )
 
 func main() {
@@ -36,27 +38,29 @@ func main() {
 	configManager.Watch()
 	defer configManager.Close()
 
-	// Initial snapshot for static bootstrap
-	conf := configManager.Get().Settings
-
 	// Secondary Adapters
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
-	repo := ledger.NewTransactionFileRepository(ledgerPath, conf.LedgerAlignment)
+	ledgerFormatter := ledger.NewLedgerFormatter()
+	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
-	textParserService := app.NewTextParserService(configManager)
+	transactionParserService := app.NewTransactionParserService(configManager)
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
-		env.TelegramToken,
+		telebot.Settings{
+			Token:  env.TelegramToken,
+			Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+		},
 		env.TelegramUserIDs,
 		transactionService,
-		textParserService,
+		transactionParserService,
 		importService,
 		configManager,
+		ledgerFormatter,
 	)
 
 	if err != nil {
