@@ -243,3 +243,42 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 	c.Respond(&telebot.CallbackResponse{Text: "Account created and selected."})
 	return a.sendDraftMessage(c, session.Draft)
 }
+
+/*
+handleCancelImport clears the session and informs the user.
+*/
+func (a *TelegramAdapter) handleCancelImport(c telebot.Context) error {
+	userID := c.Sender().ID
+	a.sessionManager.Delete(userID)
+	return c.Edit("Remaining transactions cancelled. 🛑")
+}
+
+/*
+handleAcceptAll saves the current draft and all pending transactions in the queue.
+*/
+func (a *TelegramAdapter) handleAcceptAll(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+
+	if !ok {
+		return c.Edit("Session expired.")
+	}
+
+	total := 1 + len(session.PendingQueue)
+	saved := 0
+
+	// Save current draft
+	if err := a.transactionUseCase.Add(session.Draft); err == nil {
+		saved++
+	}
+
+	// Save everything else in the queue
+	for _, tx := range session.PendingQueue {
+		if err := a.transactionUseCase.Add(tx); err == nil {
+			saved++
+		}
+	}
+
+	a.sessionManager.Delete(userID)
+	return c.Edit(fmt.Sprintf("Accepted all! ✅\nSaved %d/%d transactions.", saved, total), telebot.ModeHTML)
+}

@@ -139,7 +139,18 @@ sendDraftMessage helper sends or edits the transaction preview with confirmation
 */
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
 	appConfig := a.configUseCase.Get()
-	msg, selector := a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+	userID := c.Sender().ID
+	session, _ := a.sessionManager.Get(userID)
+
+	var msg string
+	var selector *telebot.ReplyMarkup
+
+	if session != nil && len(session.PendingQueue) > 0 || (session != nil && session.Draft.HasUnknownAccount() && session.Draft.Metadata.Origin != "Telegram") {
+		// Use specialized review UI for imports
+		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter)
+	} else {
+		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+	}
 
 	if c.Callback() != nil {
 		return c.Edit(msg, selector, telebot.ModeHTML)

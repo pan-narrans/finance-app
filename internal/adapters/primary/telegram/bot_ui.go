@@ -20,6 +20,8 @@ const (
 	CallbackAddSubAcc    = "add_sub_acc"
 	CallbackDoneAcc      = "done_acc"
 	CallbackSelectParent = "sel_parent"
+	CallbackCancelImport = "cancel_import"
+	CallbackAcceptAll    = "accept_all"
 )
 
 /*
@@ -62,6 +64,42 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 
 	formatted := formatter.FormatTransaction(tx, settings.LedgerAlignment)
 	msg := fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>%s", formatted, msgSuffix)
+
+	return msg, selector
+}
+
+/*
+BuildImportReviewMessage is a specialized version of BuildDraftMessage for the import review flow.
+It includes "Accept All" and "Cancel Import" options.
+*/
+func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
+	selector := &telebot.ReplyMarkup{}
+
+	rows := []telebot.Row{
+		makeRow(selector, "Confirm ✅", CallbackConfirm),
+		selector.Row(
+			selector.Data("Edit Target ✏️", CallbackEditAcc, "0"),
+			selector.Data("Edit Source ✏️", CallbackEditAcc, "1"),
+		),
+		makeRow(selector, "Discard ❌", CallbackDiscard),
+		selector.Row(
+			selector.Data("Accept All Remaining ⏩", CallbackAcceptAll),
+			selector.Data("Cancel Remaining 🛑", CallbackCancelImport),
+		),
+	}
+
+	targetAccount := tx.Postings[0].Account
+	msgSuffix := ""
+	if strings.HasSuffix(targetAccount, ":Unknown") {
+		msgSuffix = "\n\nUnknown account. Suggestions:"
+		suggestions := mappingProvider.SearchAccounts(tx.Description, 5)
+		rows = append(rows, mapToRows(selector, suggestions, CallbackSelectAcc)...)
+	}
+
+	selector.Inline(rows...)
+
+	formatted := formatter.FormatTransaction(tx, settings.LedgerAlignment)
+	msg := fmt.Sprintf("Reviewing Import (%d left):\n<pre>%s</pre>%s", pendingCount+1, formatted, msgSuffix)
 
 	return msg, selector
 }

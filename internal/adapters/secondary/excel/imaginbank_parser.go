@@ -95,7 +95,7 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		metadata.ID = p.HashID(balanceStr)
 	}
 
-	return &domain.Transaction{
+	tx := domain.Transaction{
 		Date:        date,
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
@@ -104,5 +104,8 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 			{Account: p.settings.ImaginBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
-	}, nil
+	}
+	tx.Code = tx.GenerateCode()
+
+	return &tx, nil
 }
