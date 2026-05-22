@@ -44,7 +44,7 @@ type MappingProvider interface {
 	ResolvePayer(fullDescription string) string
 	ResolveSource(keyword string) (string, bool)
 	SearchAccounts(query string, limit int) []string
-	GetData() domain.MappingData
+	GetMappingData() domain.MappingData
 }
 
 /*
