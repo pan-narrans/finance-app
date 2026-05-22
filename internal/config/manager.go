@@ -184,3 +184,16 @@ func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
 
 	return m.reload()
 }
+
+/*
+LearnMapping updates the mappings based on transaction overrides and persists them.
+*/
+func (m *Manager) LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error {
+	if !targetOverride && (!sourceOverride || originalSource == "") {
+		return nil
+	}
+
+	return m.UpdateMapping(func(data *domain.MappingData) {
+		data.Learn(transaction, targetOverride, sourceOverride, originalSource)
+	})
+}

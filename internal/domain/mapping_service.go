@@ -18,6 +18,26 @@ type MappingData struct {
 }
 
 /*
+Learn updates the mapping data based on overrides from a confirmed transaction.
+*/
+func (d *MappingData) Learn(transaction Transaction, targetOverride bool, sourceOverride bool, originalSource string) {
+	if targetOverride {
+		key := strings.ToUpper(transaction.Description)
+		if d.Accounts == nil {
+			d.Accounts = make(map[string]string)
+		}
+		d.Accounts[key] = transaction.Postings[0].Account
+	}
+	if sourceOverride && originalSource != "" {
+		key := strings.ToLower(originalSource)
+		if d.Sources == nil {
+			d.Sources = make(map[string]string)
+		}
+		d.Sources[key] = transaction.Postings[1].Account
+	}
+}
+
+/*
 MappingService provides logic for cleaning descriptions and resolving financial entities.
 
 It acts as a translation layer between raw input data (e.g., bank statements)

@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -24,7 +23,7 @@ It implements the driving adapter pattern within the Hexagonal Architecture.
 type TelegramAdapter struct {
 	teleBot             *telebot.Bot
 	allowedIDs          map[int64]struct{}
-	transactionUC       ports.TransactionUseCase
+	transactionUseCase  ports.TransactionUseCase
 	transactionParserUC ports.TransactionParserUseCase
 	importUseCase       ports.ImportUseCase
 	configUseCase       ports.ConfigurationUseCase
@@ -58,7 +57,7 @@ func NewTelegramAdapter(
 	return &TelegramAdapter{
 		teleBot:             bot,
 		allowedIDs:          allowedMap,
-		transactionUC:       txUC,
+		transactionUseCase:  txUC,
 		transactionParserUC: parserUC,
 		importUseCase:       importUC,
 		configUseCase:       configUC,
@@ -132,16 +131,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	}
 
 	// Capture source keyword for potential mapping update
-	sourceKeyword := ""
-	words := strings.Fields(text)
-	if len(words) > 0 {
-		// Simple heuristic: if first word is alphabetic and followed by a number, it's likely the source
-		if matched, _ := regexp.MatchString(`^[a-zA-Z]+$`, words[0]); matched && len(words) > 1 {
-			if matchedAmt, _ := regexp.MatchString(`^\d`, words[1]); matchedAmt {
-				sourceKeyword = strings.ToLower(words[0])
-			}
-		}
-	}
+	sourceKeyword := a.transactionParserUC.GuessSource(text)
 
 	// Store in session
 	a.sessionManager.Set(userID, &UserSession{
@@ -255,25 +245,19 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		return c.Edit("Session expired. Please send the transaction again.")
 	}
 
-	if err := a.transactionUC.Add(session.Draft); err != nil {
+	if err := a.transactionUseCase.Add(session.Draft); err != nil {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
 	// Persist mappings if overridden
-	if session.TargetOverridden || session.SourceOverridden {
-		err := a.configUseCase.UpdateMapping(func(data *domain.MappingData) {
-			if session.TargetOverridden {
-				key := strings.ToUpper(session.Draft.Description)
-				data.Accounts[key] = session.Draft.Postings[0].Account
-			}
-			if session.SourceOverridden && session.OriginalSourceKeyword != "" {
-				key := strings.ToLower(session.OriginalSourceKeyword)
-				data.Sources[key] = session.Draft.Postings[1].Account
-			}
-		})
-		if err != nil {
-			log.Printf("Error saving mappings: %v", err)
-		}
+	err := a.configUseCase.LearnMapping(
+		session.Draft,
+		session.TargetOverridden,
+		session.SourceOverridden,
+		session.OriginalSourceKeyword,
+	)
+	if err != nil {
+		log.Printf("Error saving mappings: %v", err)
 	}
 
 	a.sessionManager.Delete(userID)

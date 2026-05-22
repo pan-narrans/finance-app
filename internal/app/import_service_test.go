@@ -18,6 +18,9 @@ type MockTransactionUseCase struct {
 func (mockUseCase *MockTransactionUseCase) Add(transaction domain.Transaction) error {
 	return mockUseCase.Called(transaction).Error(0)
 }
+func (mockUseCase *MockTransactionUseCase) AddWithMappings(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error {
+	return mockUseCase.Called(transaction, targetOverride, sourceOverride, originalSource).Error(0)
+}
 func (mockUseCase *MockTransactionUseCase) Update(transaction domain.Transaction) error {
 	return mockUseCase.Called(transaction).Error(0)
 }

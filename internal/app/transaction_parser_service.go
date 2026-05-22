@@ -133,7 +133,30 @@ func (s *TransactionParserService) resolveSourceAccount(appConfig *ports.AppConf
 }
 
 /*
+GuessSource attempts to identify a potential source keyword from the input text.
+It uses a heuristic: if the first word is alphabetic and followed by a number,
+it is likely intended as the source account keyword.
+*/
+func (s *TransactionParserService) GuessSource(text string) string {
+	words := strings.Fields(text)
+	if len(words) < 2 {
+		return ""
+	}
+
+	// Heuristic: first word alphabetic, second word starts with digit (amount)
+	isAlpha := regexp.MustCompile(`^[a-zA-Z]+$`).MatchString(words[0])
+	isAmount := regexp.MustCompile(`^\d`).MatchString(words[1])
+
+	if isAlpha && isAmount {
+		return strings.ToLower(words[0])
+	}
+
+	return ""
+}
+
+/*
 hashID returns an 8-character MD5 hash of the provided string.
+...
 Used for generating stable external IDs for bot transactions.
 */
 func (s *TransactionParserService) hashID(data string) string {

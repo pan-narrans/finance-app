@@ -47,6 +47,7 @@ type ConfigurationUseCase interface {
 	Get() *AppConfig
 	SaveMappings(data domain.MappingData) error
 	UpdateMapping(fn func(data *domain.MappingData)) error
+	LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error
 }
 
 /*
@@ -54,4 +55,5 @@ TransactionParserUseCase defines the logic for converting raw input strings into
 */
 type TransactionParserUseCase interface {
 	ParseText(text, origin string) (domain.Transaction, error)
+	GuessSource(text string) string
 }
