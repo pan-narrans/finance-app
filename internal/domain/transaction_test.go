@@ -186,3 +186,57 @@ func TestTransaction_Format_ShouldIncludeArbitraryMetadataFromExtras(t *testing.
 	assert.Contains(t, got, "    ; Category: Groceries\n")
 	assert.Contains(t, got, "    ; Store: Mercadona\n")
 }
+
+func TestTransaction_HasUnknownAccount(t *testing.T) {
+	// Arrange
+	tests := []struct {
+		name     string
+		postings []domain.Posting
+		expected bool
+	}{
+		{
+			name: "Should return true when target account is unknown",
+			postings: []domain.Posting{
+				{Account: "Expenses:Unknown"},
+				{Account: "Assets:Bank"},
+			},
+			expected: true,
+		},
+		{
+			name: "Should return true when source account is unknown",
+			postings: []domain.Posting{
+				{Account: "Expenses:Food"},
+				{Account: "Income:Unknown"},
+			},
+			expected: true,
+		},
+		{
+			name: "Should return false when all accounts are known",
+			postings: []domain.Posting{
+				{Account: "Expenses:Food"},
+				{Account: "Assets:Bank"},
+			},
+			expected: false,
+		},
+		{
+			name: "Should return false when account name contains but does not end with Unknown",
+			postings: []domain.Posting{
+				{Account: "Expenses:UnknownAccount"},
+				{Account: "Assets:Bank"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := domain.Transaction{Postings: tt.postings}
+
+			// Act
+			got := tx.HasUnknownAccount()
+
+			// Assert
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}

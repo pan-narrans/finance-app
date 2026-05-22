@@ -83,7 +83,7 @@ func (a *TelegramAdapter) Start() {
 
 	a.teleBot.Handle(
 		"/start", func(c telebot.Context) error {
-			return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
+			return c.Send(MsgWelcome)
 		},
 	)
 

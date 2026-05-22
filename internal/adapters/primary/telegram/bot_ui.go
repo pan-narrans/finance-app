@@ -24,6 +24,30 @@ const (
 	CallbackAcceptAll    = "accept_all"
 )
 
+// UI message constants.
+const (
+	MsgSessionExpired         = "Session expired."
+	MsgTransactionSaved       = "Transaction saved! ✅"
+	MsgTransactionDiscarded   = "Transaction discarded. ❌"
+	MsgAccountUpdated         = "Account updated."
+	MsgAccountCreatedSelected = "Account created and selected."
+	MsgImportCancelled        = "Remaining transactions cancelled. 🛑"
+	MsgUseButtons             = "Please use the buttons provided to continue or click Cancel."
+	MsgSelectTopLevel         = "Select a top-level account:"
+	MsgWelcome                = "Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file."
+
+	LabelConfirm    = "Confirm ✅"
+	LabelDiscard    = "Discard ❌"
+	LabelEditTarget = "Edit Target ✏️"
+	LabelEditSource = "Edit Source ✏️"
+	LabelAcceptAll  = "Accept All Remaining ⏩"
+	LabelCancelRem  = "Cancel Remaining 🛑"
+	LabelDone       = "Done ✅"
+	LabelAddSub     = "Add Sub-account ➕"
+	LabelCancel     = "Cancel 🔙"
+	LabelCreateAcc  = "✨ Create New Account"
+)
+
 /*
 UI provides helpers for building Telegram-specific message layouts and keyboards.
 It is stateless and depends on configuration passed per request.
@@ -44,12 +68,12 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 	selector := &telebot.ReplyMarkup{}
 
 	rows := []telebot.Row{
-		makeRow(selector, "Confirm ✅", CallbackConfirm),
+		makeRow(selector, LabelConfirm, CallbackConfirm),
 		selector.Row(
-			selector.Data("Edit Target ✏️", CallbackEditAcc, "0"),
-			selector.Data("Edit Source ✏️", CallbackEditAcc, "1"),
+			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
 		),
-		makeRow(selector, "Discard ❌", CallbackDiscard),
+		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
 
 	targetAccount := tx.Postings[0].Account
@@ -76,15 +100,15 @@ func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, m
 	selector := &telebot.ReplyMarkup{}
 
 	rows := []telebot.Row{
-		makeRow(selector, "Confirm ✅", CallbackConfirm),
+		makeRow(selector, LabelConfirm, CallbackConfirm),
 		selector.Row(
-			selector.Data("Edit Target ✏️", CallbackEditAcc, "0"),
-			selector.Data("Edit Source ✏️", CallbackEditAcc, "1"),
+			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
 		),
-		makeRow(selector, "Discard ❌", CallbackDiscard),
+		makeRow(selector, LabelDiscard, CallbackDiscard),
 		selector.Row(
-			selector.Data("Accept All Remaining ⏩", CallbackAcceptAll),
-			selector.Data("Cancel Remaining 🛑", CallbackCancelImport),
+			selector.Data(LabelAcceptAll, CallbackAcceptAll),
+			selector.Data(LabelCancelRem, CallbackCancelImport),
 		),
 	}
 
@@ -145,11 +169,11 @@ BuildAccountParentSelector creates the keyboard for selecting the root account.
 func (u *UI) BuildAccountParentSelector(parents []string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 	rows := mapToRows(selector, parents, CallbackSelectParent)
-	rows = append(rows, makeRow(selector, "Cancel 🔙", CallbackCancelEdit))
+	rows = append(rows, makeRow(selector, LabelCancel, CallbackCancelEdit))
 
 	selector.Inline(rows...)
 
-	return "Select a top-level account:", selector
+	return MsgSelectTopLevel, selector
 }
 
 /*
@@ -157,7 +181,7 @@ BuildAccountChildPrompt creates the text for prompting a sub-account name.
 */
 func (u *UI) BuildAccountChildPrompt(currentPath string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
-	selector.Inline(makeRow(selector, "Cancel 🔙", CallbackCancelEdit))
+	selector.Inline(makeRow(selector, LabelCancel, CallbackCancelEdit))
 
 	return fmt.Sprintf("Current path: <code>%s</code>\n\nType the name of the sub-account (e.g., 'Transport'):", currentPath), selector
 }
@@ -169,9 +193,9 @@ func (u *UI) BuildAccountReview(path string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	selector.Inline(
-		makeRow(selector, "Done ✅", CallbackDoneAcc),
-		makeRow(selector, "Add Sub-account ➕", CallbackAddSubAcc),
-		makeRow(selector, "Cancel 🔙", CallbackCancelEdit),
+		makeRow(selector, LabelDone, CallbackDoneAcc),
+		makeRow(selector, LabelAddSub, CallbackAddSubAcc),
+		makeRow(selector, LabelCancel, CallbackCancelEdit),
 	)
 
 	return fmt.Sprintf("Account constructed: <code>%s</code>\n\nWhat would you like to do?", path), selector
@@ -204,7 +228,7 @@ containing "Create New Account" and "Cancel" buttons.
 */
 func searchFooter(m *telebot.ReplyMarkup) []telebot.Row {
 	return []telebot.Row{
-		makeRow(m, "✨ Create New Account", CallbackCreateAcc),
-		makeRow(m, "Cancel 🔙", CallbackCancelEdit),
+		makeRow(m, LabelCreateAcc, CallbackCreateAcc),
+		makeRow(m, LabelCancel, CallbackCancelEdit),
 	}
 }

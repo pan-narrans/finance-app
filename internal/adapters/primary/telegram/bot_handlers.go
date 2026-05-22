@@ -25,7 +25,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		case StateCreatingAccountChild:
 			return a.handleChildInput(c)
 		case StateCreatingAccountParent, StateCreatingAccountReview:
-			return c.Send("Please use the buttons provided to continue or click Cancel.", telebot.ModeHTML)
+			return c.Send(MsgUseButtons, telebot.ModeHTML)
 		}
 	}
 
@@ -120,7 +120,7 @@ func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
-		return c.Send("Session expired. Please start over.")
+		return c.Send(MsgSessionExpired + " Please start over.")
 	}
 	newPath := session.NewAccountPath + ":" + child
 	formattedPath := domain.FormatAccountPath(newPath)
@@ -145,8 +145,10 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 	var msg string
 	var selector *telebot.ReplyMarkup
 
-	if session != nil && len(session.PendingQueue) > 0 || (session != nil && session.Draft.HasUnknownAccount() && session.Draft.Metadata.Origin != "Telegram") {
-		// Use specialized review UI for imports
+	// Check if this is part of an import review flow (Origin is not Telegram)
+	isImportReview := session != nil && (len(session.PendingQueue) > 0 || session.Draft.Metadata.Origin != "Telegram")
+
+	if isImportReview {
 		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter)
 	} else {
 		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
