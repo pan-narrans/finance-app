@@ -19,9 +19,9 @@ Values map to Ledger CLI's standard indicators (* for cleared, ! for pending).
 type TransactionStatus int
 
 const (
-	StatusUncleared TransactionStatus = iota
-	StatusCleared
-	StatusPending
+	StatusNone    TransactionStatus = iota // No status marker in the ledger (default).
+	StatusCleared                          // [Transaction] has been reconciled (*).
+	StatusPending                          // [Transaction] is initiated but not yet cleared (!).
 )
 
 /*

@@ -31,9 +31,11 @@ The alignment parameter controls the start column for amounts.
 */
 func (f *LedgerFormatter) FormatTransaction(t domain.Transaction, alignment int) string {
 	var sb strings.Builder
+	var statusMark string
 
-	statusMark := ""
 	switch t.Status {
+	case domain.StatusNone:
+		statusMark = ""
 	case domain.StatusCleared:
 		statusMark = "* "
 	case domain.StatusPending:
