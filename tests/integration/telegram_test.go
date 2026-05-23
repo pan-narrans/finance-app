@@ -128,8 +128,9 @@ func (e *testEnv) sendText(text string) {
 			Chat:   &telebot.Chat{ID: e.userID},
 		},
 	}
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 }
+
 func (e *testEnv) sendCallback(unique string, data ...string) {
 	callbackData := unique
 	if len(data) > 0 {
@@ -148,7 +149,7 @@ func (e *testEnv) sendCallback(unique string, data ...string) {
 			},
 		},
 	}
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 }
 
 func (e *testEnv) sendCallbackWithRawData(data string) {
@@ -163,7 +164,7 @@ func (e *testEnv) sendCallbackWithRawData(data string) {
 			},
 		},
 	}
-	time.Sleep(400 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 }
 
 func TestTelegramIntegration_HappyPaths(t *testing.T) {
@@ -173,9 +174,11 @@ func TestTelegramIntegration_HappyPaths(t *testing.T) {
 		env.sendText("10 Dinner")
 		env.sendCallback(telegram.CallbackConfirm)
 
-		content, _ := os.ReadFile(env.ledgerPath)
-		assert.Contains(t, string(content), "Expenses:Food")
-		assert.Contains(t, string(content), "10.00")
+		assert.Eventually(t, func() bool {
+			content, _ := os.ReadFile(env.ledgerPath)
+			return strings.Contains(string(content), "Expenses:Food") && strings.Contains(string(content), "10.00")
+		}, 2*time.Second, 100*time.Millisecond)
+
 		os.Truncate(env.ledgerPath, 0)
 	})
 
@@ -183,10 +186,13 @@ func TestTelegramIntegration_HappyPaths(t *testing.T) {
 		env.sendText("Visa 20 Dinner")
 		env.sendCallback(telegram.CallbackConfirm)
 
-		content, _ := os.ReadFile(env.ledgerPath)
-		assert.Contains(t, string(content), "Expenses:Food")
-		assert.Contains(t, string(content), "Assets:Bank:Visa")
-		assert.Contains(t, string(content), "20.00")
+		assert.Eventually(t, func() bool {
+			content, _ := os.ReadFile(env.ledgerPath)
+			return strings.Contains(string(content), "Expenses:Food") &&
+				strings.Contains(string(content), "Assets:Bank:Visa") &&
+				strings.Contains(string(content), "20.00")
+		}, 2*time.Second, 100*time.Millisecond)
+
 		os.Truncate(env.ledgerPath, 0)
 	})
 }
@@ -217,11 +223,14 @@ func TestTelegramIntegration_AccountCreation(t *testing.T) {
 		// 4. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
 
-		content, _ := os.ReadFile(env.ledgerPath)
-		output := string(content)
-		assert.Contains(t, output, "Expenses:Tech")
-		assert.Contains(t, output, "Assets:Revolut")
-		assert.Contains(t, output, "50.00")
+		// 5. Verify Ledger File
+		assert.Eventually(t, func() bool {
+			content, _ := os.ReadFile(env.ledgerPath)
+			output := string(content)
+			return strings.Contains(output, "Expenses:Tech") &&
+				strings.Contains(output, "Assets:Revolut") &&
+				strings.Contains(output, "50.00")
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 }
 
@@ -264,13 +273,14 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
-		time.Sleep(1000 * time.Millisecond)
 
 		// 4. Verify Mappings File
-		var data domain.MappingData
-		content, _ := os.ReadFile(mappingsPath)
-		json.Unmarshal(content, &data)
-		assert.Equal(t, "Expenses:Drinks", data.Accounts["COFFEE"])
+		assert.Eventually(t, func() bool {
+			var data domain.MappingData
+			content, _ := os.ReadFile(mappingsPath)
+			json.Unmarshal(content, &data)
+			return data.Accounts["COFFEE"] == "Expenses:Drinks"
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 
 	t.Run("Persistence after Creation", func(t *testing.T) {
@@ -287,13 +297,14 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
-		time.Sleep(1000 * time.Millisecond)
 
 		// 4. Verify Mappings File
-		var data domain.MappingData
-		content, _ := os.ReadFile(mappingsPath)
-		json.Unmarshal(content, &data)
-		assert.Equal(t, "Expenses:Utilities", data.Accounts["INTERNET"])
+		assert.Eventually(t, func() bool {
+			var data domain.MappingData
+			content, _ := os.ReadFile(mappingsPath)
+			json.Unmarshal(content, &data)
+			return data.Accounts["INTERNET"] == "Expenses:Utilities"
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 
 	t.Run("Persistence of Source Override", func(t *testing.T) {
@@ -306,12 +317,13 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
-		time.Sleep(1000 * time.Millisecond)
 
 		// 4. Verify Mappings File
-		var data domain.MappingData
-		content, _ := os.ReadFile(mappingsPath)
-		json.Unmarshal(content, &data)
-		assert.Equal(t, "Assets:Cash:Personal", data.Accounts["CASH"])
+		assert.Eventually(t, func() bool {
+			var data domain.MappingData
+			content, _ := os.ReadFile(mappingsPath)
+			json.Unmarshal(content, &data)
+			return data.Accounts["CASH"] == "Assets:Cash:Personal"
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 }

@@ -93,6 +93,8 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle(telebot.OnDocument, a.handleDocument)
 
 	// Callback routing
+	// telebot v3 Handle() with Btn pointers only matches exact Data matches.
+	// For handlers requiring payload data, we use manual prefix routing on OnCallback.
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackConfirm}, a.handleConfirm)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDiscard}, a.handleDiscard)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelEdit}, a.handleCancelEdit)
@@ -102,16 +104,14 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelImport}, a.handleCancelImport)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAcceptAll}, a.handleAcceptAll)
 
-	// Handlers with data - manual prefix routing
 	a.teleBot.Handle(telebot.OnCallback, func(c telebot.Context) error {
 		data := c.Callback().Data
-		if strings.HasPrefix(data, "\f"+CallbackEditAcc) {
+		switch {
+		case strings.HasPrefix(data, "\f"+CallbackEditAcc):
 			return a.handleEditRequest(c)
-		}
-		if strings.HasPrefix(data, "\f"+CallbackSelectAcc) {
+		case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
 			return a.handleAccountSelect(c)
-		}
-		if strings.HasPrefix(data, "\f"+CallbackSelectParent) {
+		case strings.HasPrefix(data, "\f"+CallbackSelectParent):
 			return a.handleSelectParent(c)
 		}
 		return nil

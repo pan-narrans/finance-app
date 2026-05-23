@@ -171,16 +171,7 @@ func (s *MappingService) ResolveSource(keyword string) (string, bool) {
 	}
 
 	account, exists := s.accountMappings[strings.ToUpper(keyword)]
-	if exists {
-		return account, true
-	}
-
-	// Also try keyword search within the unified accounts map
-	if match, ok := s.findMatch(keyword, s.sortedAccountKeywords, s.accountMappings); ok {
-		return match, true
-	}
-
-	return "", false
+	return account, exists
 }
 
 /*

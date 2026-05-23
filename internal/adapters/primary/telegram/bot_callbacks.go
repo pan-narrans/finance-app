@@ -94,11 +94,7 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired)
 	}
 
-	raw := strings.TrimLeft(c.Data(), "\f|")
-	if strings.HasPrefix(strings.ToLower(raw), strings.ToLower(CallbackEditAcc)) {
-		raw = raw[len(CallbackEditAcc):]
-	}
-	payload := strings.TrimLeft(raw, "\f|")
+	payload := a.getCallbackPayload(c, CallbackEditAcc)
 	postingIdx, _ := strconv.Atoi(payload)
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
@@ -117,17 +113,10 @@ handleAccountSelect applies a selected account path to the current draft posting
 */
 func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
-	newAccount := c.Data()
+	newAccount := a.getCallbackPayload(c, CallbackSelectAcc)
 	if newAccount == "" {
 		newAccount = c.Text()
 	}
-
-	// Clean telebot v3 unique prefix if present (manual routing artifact)
-	newAccount = strings.TrimLeft(newAccount, "\f|")
-	if strings.HasPrefix(strings.ToLower(newAccount), strings.ToLower(CallbackSelectAcc)) {
-		newAccount = newAccount[len(CallbackSelectAcc):]
-	}
-	newAccount = strings.TrimLeft(newAccount, "\f|")
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
@@ -199,11 +188,7 @@ handleSelectParent captures the root account and prompts for the first sub-accou
 */
 func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 	userID := c.Sender().ID
-	parent := strings.TrimLeft(c.Data(), "\f|")
-	if strings.HasPrefix(strings.ToLower(parent), strings.ToLower(CallbackSelectParent)) {
-		parent = parent[len(CallbackSelectParent):]
-	}
-	parent = strings.TrimLeft(parent, "\f|")
+	parent := a.getCallbackPayload(c, CallbackSelectParent)
 
 	if _, ok := a.sessionManager.Get(userID); !ok {
 		return c.Edit(MsgSessionExpired + " Please start over.")
@@ -301,4 +286,22 @@ func (a *TelegramAdapter) handleAcceptAll(c telebot.Context) error {
 
 	a.sessionManager.Delete(userID)
 	return c.Edit(fmt.Sprintf("Accepted all! ✅\nSaved %d/%d transactions.", saved, total), telebot.ModeHTML)
+}
+
+/*
+getCallbackPayload extracts and cleans the data payload from a callback context.
+It removes the unique prefix and any leading/trailing separators.
+*/
+func (a *TelegramAdapter) getCallbackPayload(c telebot.Context, unique string) string {
+	if c.Callback() == nil {
+		return ""
+	}
+
+	data := c.Callback().Data
+	// Clean telebot v3 unique prefix if present (manual routing artifact)
+	data = strings.TrimLeft(data, "\f|")
+	if strings.HasPrefix(strings.ToLower(data), strings.ToLower(unique)) {
+		data = data[len(unique):]
+	}
+	return strings.TrimLeft(data, "\f|")
 }
