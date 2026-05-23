@@ -14,7 +14,7 @@ The application primarily operates through a **Telegram Bot** that interfaces wi
 
 ### 1. Manual Entry (Chat)
 Send a message to the bot in the following format:
-`[source] <amount> <description>`
+`[source] <amount> <description/target>`
 
 - **Format:** `cash 10.50 coffee` or `12.50 dinner`
 - **Source (Optional):** Keywords like `cash`, `visa`, or names map to specific asset accounts. If omitted, the default asset account is used.
@@ -41,9 +41,8 @@ The bot's behavior is driven by two JSON files in the `config/` directory:
 
 - **`config.json`**: Global settings like `default_currency`, `ledger_alignment`, and default fallback accounts.
 - **`mappings.json`**:
-  - `accounts`: Maps keywords in descriptions to specific expense accounts (e.g., `"MERCADONA": "Expenses:Groceries"`).
+  - `accounts`: Maps keywords in descriptions or manual entry sources to ledger accounts (e.g., `"MERCADONA": "Expenses:Groceries"`, `"alex": "Assets:Cash:Alex"`).
   - `prefixes`: Junk text to strip from bank descriptions (e.g., `"TARJETA Apple Pay:"`).
-  - `sources`: Keywords to map manual entry sources to accounts (e.g., `"alex": "Assets:Cash:Alex"`).
   - `cards`: Maps card numbers found in descriptions to owners for metadata tracking.
 
 ## Architecture & Design Principles

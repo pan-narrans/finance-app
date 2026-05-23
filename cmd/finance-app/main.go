@@ -3,53 +3,64 @@ package main
 import (
 	"log"
 	"path/filepath"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/adapters/primary/telegram"
 	"github.com/a-perez/finance-app/internal/adapters/secondary/excel"
 	"github.com/a-perez/finance-app/internal/adapters/secondary/ledger"
 	"github.com/a-perez/finance-app/internal/app"
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/config"
 	"github.com/a-perez/finance-app/internal/domain"
+	"gopkg.in/telebot.v3"
 )
 
 func main() {
-	// Load config
+	// Environment
 	env, err := config.LoadEnvironment()
 	if err != nil {
-		log.Fatalf("Fail load config: %v", err)
+		log.Fatalf("Fail load environment: %v", err)
 	}
 
-	// Services & Domain
-	rules, err := config.LoadMappings(filepath.Join(env.ConfigRoot, "mappings.json"))
-	if err != nil {
-		log.Fatalf("Fail load mappings: %v", err)
+	// Config Manager (Live Reload)
+	configPath := filepath.Join(env.ConfigRoot, "config.json")
+	mappingsPath := filepath.Join(env.ConfigRoot, "mappings.json")
+
+	// Domain constructor for Config Manager
+	mappingServiceConstructor := func(data domain.MappingData) ports.MappingProvider {
+		return domain.NewMappingService(data)
 	}
-	conf, err := config.LoadConfig(filepath.Join(env.ConfigRoot, "config.json"))
+
+	configManager, err := config.NewManager(configPath, mappingsPath, mappingServiceConstructor)
 	if err != nil {
-		log.Fatalf("Fail load mappings: %v", err)
+		log.Fatalf("Fail init config manager: %v", err)
 	}
+	configManager.Watch()
+	defer configManager.Close()
 
 	// Secondary Adapters
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
-	repo := ledger.NewTransactionFileRepository(ledgerPath, conf.LedgerAlignment)
+	ledgerFormatter := ledger.NewLedgerFormatter()
+	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	parserFactory := excel.NewParserFactory(configManager)
 
-	mappingService := domain.NewMappingService(rules, conf)
-
-	parserFactory := excel.NewParserFactory(mappingService)
-
+	// App Layer
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
-	textParserService := app.NewTextParserService(mappingService, conf)
+	transactionParserService := app.NewTransactionParserService(configManager)
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
-		env.TelegramToken,
+		telebot.Settings{
+			Token:  env.TelegramToken,
+			Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+		},
 		env.TelegramUserIDs,
 		transactionService,
-		textParserService,
+		transactionParserService,
 		importService,
-		mappingService,
-		conf,
+		configManager,
+		ledgerFormatter,
 	)
 
 	if err != nil {

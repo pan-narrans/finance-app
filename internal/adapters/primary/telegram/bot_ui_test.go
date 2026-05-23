@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-perez/finance-app/internal/config"
+	"github.com/a-perez/finance-app/internal/adapters/secondary/ledger"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	tx := domain.Transaction{
 		Date:        time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		Description: "Test",
@@ -20,10 +20,10 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	mappingService := domain.NewMappingService(config.MappingData{}, config.Config{})
+	mappingProvider := domain.NewMappingService(domain.MappingData{})
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingService)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
 
 	// Assert
 	assert.Contains(t, msg, "Draft Transaction:")
@@ -35,20 +35,20 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 
 func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	tx := domain.Transaction{
 		Description: "Starbucks",
 		Postings: []domain.Posting{
 			{Account: "Expenses:Unknown", Amount: new(5.0), Currency: "EUR"},
 		},
 	}
-	data := config.MappingData{
+	data := domain.MappingData{
 		Accounts: map[string]string{"STARBUCKS": "Expenses:Food:Coffee"},
 	}
-	mappingService := domain.NewMappingService(data, config.Config{})
+	mappingProvider := domain.NewMappingService(data)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingService)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
 
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")
@@ -59,20 +59,23 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 
 func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
+	results := []string{"Acc1"}
 
 	// Act & Assert (Target)
-	msg, _ := ui.BuildEditPrompt(false)
-	assert.Contains(t, msg, "target account")
+	msg, selector := ui.BuildEditPrompt(false, results)
+	assert.Contains(t, msg, "target")
+	assert.Contains(t, msg, "Suggestions")
+	assert.Len(t, selector.InlineKeyboard, 3) // 1 suggestion + 1 create + 1 cancel
 
 	// Act & Assert (Source)
-	msg, _ = ui.BuildEditPrompt(true)
-	assert.Contains(t, msg, "source account")
+	msg, _ = ui.BuildEditPrompt(true, results)
+	assert.Contains(t, msg, "source")
 }
 
 func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	// Arrange
-	ui := NewUI(52)
+	ui := NewUI()
 	results := []string{"Acc1", "Acc2"}
 
 	// Act
@@ -81,6 +84,6 @@ func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	// Assert
 	assert.Contains(t, msg, "Search results for 'query':")
 	assert.NotNil(t, selector)
-	// 2 results + 1 exact + 1 cancel = 4 rows
+	// 2 results + 1 create + 1 cancel = 4 rows
 	assert.Len(t, selector.InlineKeyboard, 4)
 }

@@ -35,7 +35,14 @@ Provide rigorous, objective code reviews to ensure project integrity and adheren
 ### 4. Code Quality
 - Is the logic "DRY" (Don't Repeat Yourself)?
 - Is it "KISS" (Keep It Simple, Stupid)?
+- **SOLID Compliance**:
+  - **SRP**: Single reason to change? No "God Objects"?
+  - **OCP**: Is new behavior added via extension rather than modification?
+  - **LSP**: Are interface implementations consistent with the contract?
+  - **ISP**: Are interfaces small and focused?
+  - **DIP**: Does logic depend on interfaces or concretions?
 - Are there any "magic strings" or hardcoded values that should be constants or config?
+- **Proactive Smell Detection**: Identify long methods (>50 lines), deep nesting, and hidden dependencies.
 
 ## Interaction Pattern
 

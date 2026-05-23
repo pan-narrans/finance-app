@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sync"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -24,21 +25,28 @@ Methods:
   - Delete: Removes a transaction block from the file by its unique code.
 */
 type TransactionFileRepository struct {
-	FilePath  string
-	Alignment int
+	FilePath      string
+	configUseCase ports.ConfigurationUseCase
+	formatter     ports.TransactionFormatter
+	mu            sync.Mutex
 }
 
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
-func NewTransactionFileRepository(filePath string, alignment int) *TransactionFileRepository {
+func NewTransactionFileRepository(filePath string, configUC ports.ConfigurationUseCase, formatter ports.TransactionFormatter) *TransactionFileRepository {
 	return &TransactionFileRepository{
-		FilePath:  filePath,
-		Alignment: alignment,
+		FilePath:      filePath,
+		configUseCase: configUC,
+		formatter:     formatter,
 	}
 }
 
 // Create writes a transaction to the end of the ledger file.
 func (fileRepository *TransactionFileRepository) Create(transaction domain.Transaction) error {
-	content := transaction.Format(fileRepository.Alignment)
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
+	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
+	content := fileRepository.formatter.FormatTransaction(transaction, alignment)
 	content += "\n"
 
 	file, err := os.OpenFile(fileRepository.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -56,6 +64,9 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 
 // FindByCode searches the file using a regex to find a transaction with the given code.
 func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domain.Transaction, error) {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -79,8 +90,11 @@ It returns a domain.DomainError if the transaction code is not found in the file
 */
 func (fileRepository *TransactionFileRepository) Update(transaction domain.Transaction) error {
 	if transaction.Code == "" {
-		return domain.NewValidationErrors("Transaction", "Code", "transaction must have a code to be updated")
+		return domain.NewDomainError("Transaction", "Code", "transaction must have a code to be updated")
 	}
+
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
 
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
@@ -90,10 +104,11 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	regex := fileRepository.transactionRegex(transaction.Code)
 
 	if !regex.Match(data) {
-		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
+		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
 	}
 
-	newContent := transaction.Format(fileRepository.Alignment) + "\n"
+	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
+	newContent := fileRepository.formatter.FormatTransaction(transaction, alignment) + "\n"
 	updatedData := regex.ReplaceAllString(string(data), newContent)
 
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
@@ -101,13 +116,16 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 
 func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	if code == "" {
-		return domain.NewValidationErrors("Transaction", "Code", "code must be provided to delete a transaction")
+		return domain.NewDomainError("Transaction", "Code", "code must be provided to delete a transaction")
 	}
+
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
 
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
+			return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 		}
 		return err
 	}
@@ -115,7 +133,7 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	regex := fileRepository.transactionRegex(code)
 
 	if !regex.Match(data) {
-		return domain.NewValidationErrors("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
+		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 	}
 
 	updatedData := regex.ReplaceAllString(string(data), "")

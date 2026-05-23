@@ -24,6 +24,7 @@ type ImportSummary struct {
 	Updated int
 	Failed  int
 	Errors  map[int]error
+	Pending []domain.Transaction
 }
 
 // ImportUseCase defines the orchestrator for bank file imports.
@@ -32,8 +33,28 @@ type ImportUseCase interface {
 }
 
 /*
-TextParserUseCase defines the logic for converting raw input strings into domain transactions.
+AppConfig combines application settings and the derived mapping service.
+It represents a single, consistent snapshot of the application configuration.
 */
-type TextParserUseCase interface {
+type AppConfig struct {
+	Settings domain.Settings
+	Mappings MappingProvider
+}
+
+/*
+ConfigurationUseCase defines the contract for accessing and updating application configuration.
+*/
+type ConfigurationUseCase interface {
+	Get() *AppConfig
+	SaveMappings(data domain.MappingData) error
+	UpdateMapping(fn func(data *domain.MappingData)) error
+	LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error
+}
+
+/*
+TransactionParserUseCase defines the logic for converting raw input strings into domain transactions.
+*/
+type TransactionParserUseCase interface {
 	ParseText(text, origin string) (domain.Transaction, error)
+	GuessSource(text string) string
 }

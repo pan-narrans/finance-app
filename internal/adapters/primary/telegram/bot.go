@@ -1,54 +1,48 @@
 package telegram
 
 import (
-	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"strconv"
-	"time"
+	"strings"
 
-	"github.com/a-perez/finance-app/internal/app"
 	"github.com/a-perez/finance-app/internal/app/ports"
-	"github.com/a-perez/finance-app/internal/config"
-	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
 )
 
 /*
 TelegramAdapter handles interactions between users and the system via Telegram.
 It implements the driving adapter pattern within the Hexagonal Architecture.
+
+Decomposition:
+  - handlers.go: Logic for processing incoming text and documents.
+  - callbacks.go: Logic for processing interactive button clicks.
+  - session.go: Thread-safe user session management.
+  - ui.go: Layout and keyboard construction.
 */
 type TelegramAdapter struct {
-	teleBot        *telebot.Bot
-	allowedIDs     map[int64]struct{}
-	transactionUC  ports.TransactionUseCase
-	textParserUC   ports.TextParserUseCase
-	importService  *app.ImportService
-	mappingService *domain.MappingService
-	sessionManager *SessionManager
-	ui             *UI
-	cfg            config.Config
+	teleBot             *telebot.Bot
+	allowedIDs          map[int64]struct{}
+	transactionUseCase  ports.TransactionUseCase
+	transactionParserUC ports.TransactionParserUseCase
+	importUseCase       ports.ImportUseCase
+	configUseCase       ports.ConfigurationUseCase
+	formatter           ports.TransactionFormatter
+	sessionManager      *SessionManager
+	ui                  *UI
 }
 
 /*
 NewTelegramAdapter creates and initializes a TelegramAdapter with its dependencies.
 */
 func NewTelegramAdapter(
-	token string,
+	settings telebot.Settings,
 	allowedIDs []int64,
 	txUC ports.TransactionUseCase,
-	parserUC ports.TextParserUseCase,
-	importService *app.ImportService,
-	mappingService *domain.MappingService,
-	cfg config.Config,
+	parserUC ports.TransactionParserUseCase,
+	importUC ports.ImportUseCase,
+	configUC ports.ConfigurationUseCase,
+	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
-	pref := telebot.Settings{
-		Token:  token,
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-	}
-
-	bot, err := telebot.NewBot(pref)
+	bot, err := telebot.NewBot(settings)
 	if err != nil {
 		return nil, err
 	}
@@ -59,15 +53,15 @@ func NewTelegramAdapter(
 	}
 
 	return &TelegramAdapter{
-		teleBot:        bot,
-		allowedIDs:     allowedMap,
-		transactionUC:  txUC,
-		textParserUC:   parserUC,
-		importService:  importService,
-		mappingService: mappingService,
-		sessionManager: NewSessionManager(),
-		ui:             NewUI(cfg.LedgerAlignment),
-		cfg:            cfg,
+		teleBot:             bot,
+		allowedIDs:          allowedMap,
+		transactionUseCase:  txUC,
+		transactionParserUC: parserUC,
+		importUseCase:       importUC,
+		configUseCase:       configUC,
+		formatter:           formatter,
+		sessionManager:      NewSessionManager(),
+		ui:                  NewUI(),
 	}, nil
 }
 
@@ -90,165 +84,39 @@ func (a *TelegramAdapter) Start() {
 
 	a.teleBot.Handle(
 		"/start", func(c telebot.Context) error {
-			return c.Send("Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file.")
+			return c.Send(MsgWelcome)
 		},
 	)
 
-	// Routing logic
+	// Message Handlers
 	a.teleBot.Handle(telebot.OnText, a.handleText)
 	a.teleBot.Handle(telebot.OnDocument, a.handleDocument)
 
-	// Callback routing using centralized constants
-	a.teleBot.Handle("\f"+CallbackConfirm, a.handleConfirm)
-	a.teleBot.Handle("\f"+CallbackDiscard, a.handleDiscard)
-	a.teleBot.Handle("\f"+CallbackEditAcc, a.handleEditRequest)
-	a.teleBot.Handle("\f"+CallbackSelectAcc, a.handleAccountSelect)
-	a.teleBot.Handle("\f"+CallbackCancelEdit, a.handleCancelEdit)
+	// Callback routing
+	// telebot v3 Handle() with Btn pointers only matches exact Data matches.
+	// For handlers requiring payload data, we use manual prefix routing on OnCallback.
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackConfirm}, a.handleConfirm)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDiscard}, a.handleDiscard)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelEdit}, a.handleCancelEdit)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCreateAcc}, a.handleCreateAcc)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAddSubAcc}, a.handleAddSubAcc)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDoneAcc}, a.handleDoneAcc)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelImport}, a.handleCancelImport)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAcceptAll}, a.handleAcceptAll)
+
+	a.teleBot.Handle(telebot.OnCallback, func(c telebot.Context) error {
+		data := c.Callback().Data
+		switch {
+		case strings.HasPrefix(data, "\f"+CallbackEditAcc):
+			return a.handleEditRequest(c)
+		case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
+			return a.handleAccountSelect(c)
+		case strings.HasPrefix(data, "\f"+CallbackSelectParent):
+			return a.handleSelectParent(c)
+		}
+		return nil
+	})
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()
-}
-
-func (a *TelegramAdapter) handleText(c telebot.Context) error {
-	userID := c.Sender().ID
-	session, exists := a.sessionManager.Get(userID)
-
-	// 1. Handle search query if in that state
-	if exists && session.State == StateAwaitingQuery {
-		return a.handleSearchQuery(c)
-	}
-
-	// 2. Otherwise, treat as a new transaction entry
-	text := c.Text()
-	tx, err := a.textParserUC.ParseText(text, "Telegram")
-	if err != nil {
-		return c.Send(err.Error())
-	}
-
-	// Store in session
-	a.sessionManager.Set(userID, &UserSession{
-		Draft: tx,
-		State: StateNone,
-	})
-
-	return a.sendDraftMessage(c, tx)
-}
-
-func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
-	msg, selector := a.ui.BuildDraftMessage(tx, a.mappingService)
-
-	if c.Callback() != nil {
-		return c.Edit(msg, selector, telebot.ModeHTML)
-	}
-	return c.Send(msg, selector, telebot.ModeHTML)
-}
-
-func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
-	userID := c.Sender().ID
-	postingIndex, _ := strconv.Atoi(c.Data())
-
-	_, ok := a.sessionManager.Get(userID)
-	if !ok {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
-	}
-
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateAwaitingQuery
-		s.EditingPosting = postingIndex
-	})
-
-	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1)
-	return c.Edit(msg, selector)
-}
-
-func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
-	userID := c.Sender().ID
-	session, ok := a.sessionManager.Get(userID)
-	if !ok {
-		return c.Edit("Session expired.")
-	}
-
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateNone
-	})
-
-	return a.sendDraftMessage(c, session.Draft)
-}
-
-func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
-	query := c.Text()
-	results := a.mappingService.SearchAccounts(query, 8)
-
-	msg, selector := a.ui.BuildSearchResults(query, results)
-	return c.Send(msg, selector)
-}
-
-func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
-	userID := c.Sender().ID
-	newAccount := c.Data()
-
-	session, ok := a.sessionManager.Get(userID)
-	if !ok {
-		return c.Respond(&telebot.CallbackResponse{Text: "Session expired."})
-	}
-
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		if len(s.Draft.Postings) > s.EditingPosting {
-			s.Draft.Postings[s.EditingPosting].Account = newAccount
-		}
-		s.State = StateNone
-	})
-
-	c.Respond(&telebot.CallbackResponse{Text: "Account updated."})
-	return a.sendDraftMessage(c, session.Draft)
-}
-
-func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
-	userID := c.Sender().ID
-	session, ok := a.sessionManager.Get(userID)
-
-	if !ok {
-		return c.Edit("Session expired. Please send the transaction again.")
-	}
-
-	if err := a.transactionUC.Add(session.Draft); err != nil {
-		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
-	}
-
-	a.sessionManager.Delete(userID)
-
-	formatted := session.Draft.Format(a.cfg.LedgerAlignment)
-	return c.Edit(fmt.Sprintf("Transaction saved! ✅\n<pre>%s</pre>", formatted), telebot.ModeHTML)
-}
-
-func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
-	userID := c.Sender().ID
-	a.sessionManager.Delete(userID)
-	return c.Edit("Transaction discarded. ❌")
-}
-
-func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
-	doc := c.Message().Document
-
-	// Create a temporary file to save the download in a writable directory
-	tmpDir := os.TempDir()
-	tmpFile := filepath.Join(tmpDir, doc.FileName)
-
-	err := a.teleBot.Download(&doc.File, tmpFile)
-	if err != nil {
-		return c.Send(fmt.Sprintf("Failed to download file: %v", err))
-	}
-	defer os.Remove(tmpFile)
-
-	summary, err := a.importService.Import(tmpFile)
-	if err != nil {
-		return c.Send(fmt.Sprintf("Import failed: %v", err))
-	}
-
-	response := fmt.Sprintf(
-		"Import Complete!\nTotal: %d\nAdded: %d\nUpdated: %d\nFailed: %d",
-		summary.Total, summary.Added, summary.Updated, summary.Failed,
-	)
-
-	return c.Send(response)
 }

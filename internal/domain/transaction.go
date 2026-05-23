@@ -5,18 +5,16 @@ package domain
 import (
 	"crypto/sha256"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 /*
 TransactionStatus represents the clearing status of a transaction.
-
-Values:
-  - StatusNone: No status marker (default).
-  - StatusCleared: Reconciled [Transaction] (*).
-  - StatusPending: [Transaction] initiated but not cleared (!).
+Values map to Ledger CLI's standard indicators (* for cleared, ! for pending).
 */
 type TransactionStatus int
 
@@ -27,91 +25,55 @@ const (
 )
 
 /*
-String implements the fmt.Stringer interface.
-Returns the single-character marker used by Ledger CLI.
+Posting represents a single line item within a transaction.
+It includes the account, amount, and currency.
 */
-func (transactionStatus TransactionStatus) String() string {
-	switch transactionStatus {
-	case StatusCleared:
-		return "*"
-	case StatusPending:
-		return "!"
-	default:
-		return ""
-	}
+type Posting struct {
+	Account  string
+	Amount   *float64 // Pointer to handle implicit (nil) amounts
+	Currency string
 }
 
 /*
-Metadata represents key-value pairs stored as comments in a Ledger transaction.
-Supports specific fields for identification and origin tracking, plus arbitrary extras.
+Metadata stores non-accounting information about a transaction.
+Used for tracking origin, external IDs, and attribution.
 */
 type Metadata struct {
-	ID      string
 	Origin  string
+	ID      string
 	PayedBy string
 	Extras  map[string]string
 }
 
 /*
-Transaction represents a single financial entry in a Ledger file.
-
-Fields:
-  - Date: The date of the transaction (YYYY/MM/DD).
-  - Status: The clearing status (* for cleared, ! for pending, or none).
-  - Code: Optional unique identifier or reference number in parentheses.
-  - Description: Human-readable description, usually storing the payee.
-  - Metadata: Specific attributes stored as comments (e.g., ID, Origin, PayedBy).
-  - Postings: Detailed line items (at least two required).
+Transaction represents a single financial entry in the system.
+It is the primary domain entity, aggregating all relevant accounting data.
 */
 type Transaction struct {
 	Date        time.Time
 	Status      TransactionStatus
-	Code        string
 	Description string
+	Code        string
 	Metadata    Metadata
 	Postings    []Posting
 }
 
 /*
-Posting represents a single line item within a transaction.
-
-Fields:
-  - Account: Full hierarchical account path (e.g., "Expenses:Food").
-  - Amount: Numerical value. If nil, Ledger calculates the balancing amount.
-  - Currency: Mandatory if Amount is provided (e.g., "EUR", "$").
+GenerateCode creates a unique 16-character identifier for the transaction.
+The code is derived from the transaction's stable properties (Date, Description, Postings).
 */
-type Posting struct {
-	Account  string
-	Amount   *float64
-	Currency string
-}
-
-/*
-GenerateCode creates a deterministic unique identifier for the transaction
-based on its date, description, and postings.
-
-It uses SHA-256 and pipe delimiters to prevent field-boundary collisions.
-Status is excluded as it is mutable. Specific stable metadata "ID" is
-included to differentiate otherwise identical transactions.
-
-Since the account is dependent on the description, it is excluded from code generation.
-This ensures that changes to the account mappings file do not alter existing transaction codes.
-*/
-func (transaction *Transaction) GenerateCode() string {
+func (t *Transaction) GenerateCode() string {
 	hasher := sha256.New()
-	hash := func(data string) {
-		hasher.Write([]byte(data))
-		hasher.Write([]byte("|"))
+	hash := func(s string) { hasher.Write([]byte(s)) }
+
+	hash(t.Date.Format("2006-01-02"))
+	hash(t.Description)
+
+	if t.Metadata.ID != "" {
+		hash(t.Metadata.ID)
 	}
 
-	hash(transaction.Date.Format("2006-01-02"))
-	hash(transaction.Description)
-
-	if transaction.Metadata.ID != "" {
-		hash(transaction.Metadata.ID)
-	}
-
-	for _, posting := range transaction.Postings {
+	for _, posting := range t.Postings {
 		if posting.Amount != nil {
 			hash(fmt.Sprintf("%.2f", *posting.Amount))
 			hash(posting.Currency)
@@ -120,102 +82,6 @@ func (transaction *Transaction) GenerateCode() string {
 
 	fullHash := fmt.Sprintf("%x", hasher.Sum(nil))
 	return fullHash[:16]
-}
-
-/*
-Format returns a multi-line string compatible with Ledger CLI.
-
-It applies the following formatting rules:
-  - Dates use YYYY/MM/DD format.
-  - Payees and descriptions are appended to the header.
-  - Metadata is stored as indented comments below the header.
-  - Account names are indented by four spaces.
-  - Amounts are right-aligned to a standard column.
-  - 1-character currencies (e.g. $) prefix the amount; others suffix it (e.g. EUR).
-*/
-func (transaction *Transaction) Format(alignment int) string {
-	var sb strings.Builder
-
-	transaction.writeLine(&sb, "%s", transaction.Date.Format("2006/01/02"))
-	transaction.writeLine(&sb, " %s", transaction.Status.String())
-	transaction.writeLine(&sb, " (%s)", transaction.Code)
-	transaction.writeLine(&sb, " %s", transaction.Description)
-	sb.WriteByte('\n')
-
-	transaction.addMetadata(&sb)
-	transaction.addPostings(&sb, alignment)
-
-	return sb.String()
-}
-
-/*
-writeLine prints to the buffer unless any provided string argument is empty.
-
-This allows handling optional segments (status, code, metadata) concisely by
-skipping the entire line if a required component is missing, ensuring that
-related parts stay together or die together.
-*/
-func (transaction *Transaction) writeLine(sb *strings.Builder, format string, args ...any) {
-	for _, arg := range args {
-		if s, ok := arg.(string); ok && s == "" {
-			return
-		}
-	}
-	_, _ = fmt.Fprintf(sb, format, args...)
-}
-
-/*
-addMetadata appends the transaction's metadata as comments to the builder.
-
-It processes ID, Origin, and PayedBy fields first, followed by any
-alphabetically sorted extra fields. Empty fields are omitted.
-*/
-func (transaction *Transaction) addMetadata(sb *strings.Builder) {
-	const metadataFormat = "    ; %s: %s\n"
-
-	transaction.writeLine(sb, metadataFormat, "ID", transaction.Metadata.ID)
-	transaction.writeLine(sb, metadataFormat, "Origin", transaction.Metadata.Origin)
-	transaction.writeLine(sb, metadataFormat, "PayedBy", transaction.Metadata.PayedBy)
-
-	// Write arbitrary metadata in alphabetical order for stability
-	if len(transaction.Metadata.Extras) > 0 {
-		keys := make([]string, 0, len(transaction.Metadata.Extras))
-		for k := range transaction.Metadata.Extras {
-			keys = append(keys, k)
-		}
-
-		slices.Sort(keys)
-		for _, k := range keys {
-			transaction.writeLine(sb, metadataFormat, k, transaction.Metadata.Extras[k])
-		}
-	}
-}
-
-/*
-addPostings appends all transaction postings to the builder.
-
-It ensures account names are correctly indented and amounts are right-aligned
-according to the provided alignment column. Numeric formatting follows
-Ledger standards (prefix for 1-char symbols, suffix for others).
-*/
-func (transaction *Transaction) addPostings(sb *strings.Builder, alignment int) {
-	for _, posting := range transaction.Postings {
-		transaction.writeLine(sb, "    %s", posting.Account)
-
-		if posting.Amount != nil {
-			padding := alignment - len(posting.Account)
-			padding = max(padding, 2)
-			sb.WriteString(strings.Repeat(" ", padding))
-
-			if len(posting.Currency) == 1 {
-				transaction.writeLine(sb, "%s%.2f", posting.Currency, *posting.Amount)
-			} else {
-				transaction.writeLine(sb, "%.2f %s", *posting.Amount, posting.Currency)
-			}
-		}
-
-		sb.WriteByte('\n')
-	}
 }
 
 /*
@@ -229,30 +95,30 @@ Validation checks:
 
 It returns a structured DomainError if any validation failures occur.
 */
-func (transaction *Transaction) Validate() error {
-	validationErrors := &ValidationErrors{}
+func (t *Transaction) Validate() error {
+	domainError := &DomainError{}
 	entity := "Transaction"
 
-	if transaction.Date.IsZero() {
-		validationErrors.Add(entity, "Date", "transaction date is required")
+	if t.Date.IsZero() {
+		domainError.Add(entity, "Date", "transaction date is required")
 	}
-	if transaction.Description == "" {
-		validationErrors.Add(entity, "Description", "transaction description is required")
+	if t.Description == "" {
+		domainError.Add(entity, "Description", "transaction description is required")
 	}
-	if len(transaction.Postings) < 2 {
-		validationErrors.Add(entity, "Postings", "transaction must have at least two postings to balance")
+	if len(t.Postings) < 2 {
+		domainError.Add(entity, "Postings", "transaction must have at least two postings to balance")
 	}
 
 	nilCount := 0
-	for i, posting := range transaction.Postings {
+	for i, posting := range t.Postings {
 		if posting.Account == "" {
 			field := fmt.Sprintf("Postings[%d].Account", i)
-			validationErrors.Add(entity, field, "account name is required")
+			domainError.Add(entity, field, "account name is required")
 		}
 
 		if posting.Amount != nil && posting.Currency == "" {
 			field := fmt.Sprintf("Postings[%d].Currency", i)
-			validationErrors.Add(entity, field, fmt.Sprintf("currency is mandatory for posting to account %q", posting.Account))
+			domainError.Add(entity, field, fmt.Sprintf("currency is mandatory for posting to account %q", posting.Account))
 		}
 		if posting.Amount == nil {
 			nilCount++
@@ -260,12 +126,38 @@ func (transaction *Transaction) Validate() error {
 	}
 
 	if nilCount > 1 {
-		validationErrors.Add(entity, "Postings", "at most one posting can have an implicit amount")
+		domainError.Add(entity, "Postings", "at most one posting can have an implicit amount")
 	}
 
-	if len(validationErrors.Errors) > 0 {
-		return validationErrors
+	if len(domainError.Errors) > 0 {
+		return domainError
 	}
 
 	return nil
+}
+
+/*
+HasUnknownAccount returns true if any of the transaction's postings use an "Unknown" account.
+Unknown accounts are identified by the ":Unknown" suffix.
+*/
+func (t *Transaction) HasUnknownAccount() bool {
+	for _, p := range t.Postings {
+		if strings.HasSuffix(p.Account, ":Unknown") {
+			return true
+		}
+	}
+	return false
+}
+
+/*
+FormatAccountPath ensures all segments of an account path are Title Cased.
+(e.g., "expenses:food:dining" -> "Expenses:Food:Dining")
+*/
+func FormatAccountPath(path string) string {
+	segments := strings.Split(path, ":")
+	caser := cases.Title(language.Und)
+	for i, seg := range segments {
+		segments[i] = caser.String(strings.ToLower(strings.TrimSpace(seg)))
+	}
+	return strings.Join(segments, ":")
 }

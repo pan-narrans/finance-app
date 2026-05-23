@@ -16,8 +16,9 @@ graph LR
     
     subgraph Application Layer
         IUC[Import Use Case]
-        TPUC[Text Parser Use Case]
+        TPUC[Transaction Parser Use Case]
         TUC[Transaction Use Case]
+        CUC[Configuration Use Case]
     end
 
     subgraph Domain Layer
@@ -30,11 +31,13 @@ graph LR
     TBot --> TPUC
     TBot --> IUC
     TBot --> TUC
+    TBot --> CUC
 
     %% Application to Domain
     TPUC --> DMS
     IUC  --> DT
     TUC  --> DT
+    CUC  --> DMS
 
     %% Component links inside Domain
     DT  -.-> DE
@@ -43,6 +46,7 @@ graph LR
     %% Application to Secondary
     IUC --> EP
     TUC --> LR
+    CUC --> LR
 ```
 
 ## Layers
@@ -51,17 +55,17 @@ graph LR
 The "Heart" of the system. Contains pure business rules and entities.
 - **Independence**: Zero dependencies on any other layer or external libraries (except standard library).
 - **Transaction**: The central entity. Handles its own validation and formatting for Ledger CLI.
-- **Mapping Service**: Logic for keyword resolution and search scoring.
+- **Mapping Service**: Logic for keyword resolution, search scoring, and **Learning** from user overrides.
 
 ### 2. Application Layer (`internal/app`)
 The "Orchestrator". Defines the use cases (actions) the system can perform.
 - **Ports**: Interfaces that define how the outside world interacts with the core (`primary.go`) and how the core interacts with the outside world (`secondary.go`).
-- **Services**: Implementations of use cases (e.g., `ImportService`, `TransactionService`). They coordinate domain entities and secondary adapters to achieve a goal.
+- **Services**: Implementations of use cases (e.g., `ImportService`, `TransactionService`, `TransactionParserService`, `ConfigurationManager`). They coordinate domain entities and secondary adapters.
 
 ### 3. Adapters Layer (`internal/adapters`)
 The "Translation" layer.
 - **Primary Adapters (Driving)**: Convert external triggers (Telegram messages, CLI commands) into calls to the Application layer.
-    - `telegram`: Manages bot sessions, UI keyboards, and translates user text into system commands.
+    - `telegram`: Manages bot sessions, UI keyboards, and decomposes logic into handlers, callbacks, and UI construction.
 - **Secondary Adapters (Driven)**: Implement ports defined by the application layer to interact with infrastructure.
     - `ledger`: Handles raw file I/O for the `.ledger` database.
     - `excel`: Implements specific bank format parsing (OpenBank, ImaginBank).
@@ -69,10 +73,10 @@ The "Translation" layer.
 ## Data Flow: Manual Entry Example
 
 1.  **Trigger**: User sends "10 coffee" to Telegram.
-2.  **Primary Adapter**: `TelegramAdapter` receives text and calls `TextParserUseCase.ParseText("10 coffee", "Telegram")`.
-3.  **Application Layer**: `TextParserService` uses `MappingService` (Domain) to resolve "coffee" -> "Expenses:Food".
+2.  **Primary Adapter**: `TelegramAdapter` receives text and calls `TransactionParserUseCase.ParseText("10 coffee", "Telegram")`.
+3.  **Application Layer**: `TransactionParserService` uses `MappingService` (Domain) to resolve "coffee" -> "Expenses:Food".
 4.  **Interaction**: `TelegramAdapter` stores a draft in its `SessionManager` and asks the user for confirmation via inline buttons.
-5.  **Persistence**: User clicks "Confirm". `TelegramAdapter` calls `TransactionUseCase.Add(draft)`.
+5.  **Persistence**: User clicks "Confirm". `TelegramAdapter` calls `TransactionUseCase.Add(draft)` and `ConfigurationUseCase.LearnMapping(...)`.
 6.  **Validation**: `TransactionService` (App) runs `draft.Validate()` (Domain).
 7.  **Output**: `TransactionService` calls `TransactionRepository.Create(transaction)` (Secondary Adapter).
 8.  **Final Action**: `TransactionFileRepository` writes the formatted string to the physical `.ledger` file.

@@ -6,26 +6,50 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
-	"github.com/a-perez/finance-app/internal/config"
 )
+
+// MappingData holds the raw configuration for transaction mappings.
+type MappingData struct {
+	Accounts     map[string]string `json:"accounts"`
+	Descriptions map[string]string `json:"descriptions"`
+	Cards        map[string]string `json:"cards"`
+	Prefixes     []string          `json:"prefixes"`
+}
+
+/*
+Learn updates the mapping data based on overrides from a confirmed transaction.
+*/
+func (d *MappingData) Learn(transaction Transaction, targetOverride bool, sourceOverride bool, originalSource string) {
+	if d.Accounts == nil {
+		d.Accounts = make(map[string]string)
+	}
+
+	if targetOverride {
+		key := strings.ToUpper(transaction.Description)
+		d.Accounts[key] = transaction.Postings[0].Account
+	}
+
+	if sourceOverride && originalSource != "" {
+		key := strings.ToUpper(originalSource)
+		d.Accounts[key] = transaction.Postings[1].Account
+	}
+}
 
 /*
 MappingService provides logic for cleaning descriptions and resolving financial entities.
 
 It acts as a translation layer between raw input data (e.g., bank statements)
-and domain-specific values (accounts, payers, sources) using configurable rules.
+and domain-specific values (accounts, payers) using configurable rules.
 */
 type MappingService struct {
+	data                      MappingData
 	accountMappings           map[string]string
 	descriptionMappings       map[string]string
-	sourceMappings            map[string]string
 	sortedAccountKeywords     []string
 	sortedDescriptionKeywords []string
 	cardMappings              map[string]string
 	prefixRegexes             []*regexp.Regexp
 	accounts                  []string
-	cfg                       config.Config
 }
 
 /*
@@ -36,7 +60,7 @@ It pre-processes mapping data by:
   - Compiling case-insensitive prefix regular expressions.
   - Extracting a unique, sorted list of known account names.
 */
-func NewMappingService(data config.MappingData, cfg config.Config) *MappingService {
+func NewMappingService(data MappingData) *MappingService {
 	sortedAccountKeywords := sortKeywords(data.Accounts)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
 
@@ -52,16 +76,22 @@ func NewMappingService(data config.MappingData, cfg config.Config) *MappingServi
 	uniqueAccounts = slices.Compact(uniqueAccounts)
 
 	return &MappingService{
+		data:                      data,
 		accountMappings:           data.Accounts,
 		descriptionMappings:       data.Descriptions,
-		sourceMappings:            data.Sources,
 		sortedAccountKeywords:     sortedAccountKeywords,
 		sortedDescriptionKeywords: sortedDescriptionKeywords,
 		cardMappings:              data.Cards,
 		prefixRegexes:             prefixRegexes,
 		accounts:                  uniqueAccounts,
-		cfg:                       cfg,
 	}
+}
+
+/*
+GetMappingData returns the raw mapping data.
+*/
+func (s *MappingService) GetMappingData() MappingData {
+	return s.data
 }
 
 /*
@@ -93,18 +123,18 @@ ResolveAccount matches description against keywords to determine the target acco
 
 Resolution logic:
   - Return mapped account if description contains a known keyword.
-  - Fallback to default income account if amount is positive.
-  - Fallback to default expense account if amount is negative or zero.
+  - Fallback to defaultIncome if amount is positive.
+  - Fallback to defaultExpense if amount is negative or zero.
 */
-func (s *MappingService) ResolveAccount(description string, amount float64) string {
+func (s *MappingService) ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string {
 	account := ""
 
 	if match, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
 		account = match
 	} else if amount > 0 {
-		account = s.cfg.DefaultIncomeAccount
+		account = defaultIncome
 	} else {
-		account = s.cfg.DefaultExpenseAccount
+		account = defaultExpense
 	}
 
 	return account
@@ -140,7 +170,7 @@ func (s *MappingService) ResolveSource(keyword string) (string, bool) {
 		return "", false
 	}
 
-	account, exists := s.sourceMappings[strings.ToLower(keyword)]
+	account, exists := s.accountMappings[strings.ToUpper(keyword)]
 	return account, exists
 }
 
@@ -181,7 +211,6 @@ func (s *MappingService) SearchAccounts(query string, limit int) []string {
 /*
 findMatch searches for the first keyword contained within the text.
 It returns the mapped value and true if found; otherwise, empty string and false.
-
 Matches are case-insensitive.
 */
 func (s *MappingService) findMatch(text string, keywords []string, mappings map[string]string) (string, bool) {
@@ -200,16 +229,20 @@ func (s *MappingService) findMatch(text string, keywords []string, mappings map[
 	return result, found
 }
 
+// scoredAccount represents an account name paired with its search relevance score.
+type scoredAccount struct {
+	name  string
+	score int
+}
+
 // scoreAccounts returns a map of scores based on matches against direct account names.
 func (s *MappingService) scoreAccounts(queryUpper string, tokens []string) map[string]int {
 	scores := make(map[string]int)
-
 	for _, account := range s.accounts {
 		if score, ok := calculateScore(account, queryUpper, tokens); ok {
 			scores[account] = score
 		}
 	}
-
 	return scores
 }
 
@@ -219,16 +252,16 @@ Mapping matches are slightly penalized to prioritize direct account name matches
 */
 func (s *MappingService) scoreMappingKeys(queryUpper string, tokens []string) map[string]int {
 	scores := make(map[string]int)
-
 	for key, account := range s.accountMappings {
 		if score, ok := calculateScore(key, queryUpper, tokens); ok {
+			// Mapping key matches are slightly penalized vs direct name matches
+			// to prioritize names if both match.
 			mappingScore := score - 1
 			if mappingScore > scores[account] {
 				scores[account] = mappingScore
 			}
 		}
 	}
-
 	return scores
 }
 
@@ -270,12 +303,6 @@ func calculateScore(text, queryUpper string, tokens []string) (int, bool) {
 	}
 
 	return score, true
-}
-
-// scoredAccount represents an account name paired with its search relevance score.
-type scoredAccount struct {
-	name  string
-	score int
 }
 
 /*
