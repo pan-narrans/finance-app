@@ -14,7 +14,7 @@ The application primarily operates through a **Telegram Bot** that interfaces wi
 
 ### 1. Manual Entry (Chat)
 Send a message to the bot in the following format:
-`[source] <amount> <description>`
+`[source] <amount> <description/target>`
 
 - **Format:** `cash 10.50 coffee` or `12.50 dinner`
 - **Source (Optional):** Keywords like `cash`, `visa`, or names map to specific asset accounts. If omitted, the default asset account is used.

@@ -70,8 +70,8 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
 		selector.Row(
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
 			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
+			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
 		),
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
@@ -102,8 +102,8 @@ func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, m
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
 		selector.Row(
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
 			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
+			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
 		),
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 		selector.Row(
