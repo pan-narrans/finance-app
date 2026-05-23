@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"log"
+	"strings"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"gopkg.in/telebot.v3"
@@ -91,18 +92,30 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle(telebot.OnText, a.handleText)
 	a.teleBot.Handle(telebot.OnDocument, a.handleDocument)
 
-	// Callback routing using centralized constants
-	a.teleBot.Handle("\f"+CallbackConfirm, a.handleConfirm)
-	a.teleBot.Handle("\f"+CallbackDiscard, a.handleDiscard)
-	a.teleBot.Handle("\f"+CallbackEditAcc, a.handleEditRequest)
-	a.teleBot.Handle("\f"+CallbackSelectAcc, a.handleAccountSelect)
-	a.teleBot.Handle("\f"+CallbackCancelEdit, a.handleCancelEdit)
-	a.teleBot.Handle("\f"+CallbackCreateAcc, a.handleCreateAcc)
-	a.teleBot.Handle("\f"+CallbackSelectParent, a.handleSelectParent)
-	a.teleBot.Handle("\f"+CallbackAddSubAcc, a.handleAddSubAcc)
-	a.teleBot.Handle("\f"+CallbackDoneAcc, a.handleDoneAcc)
-	a.teleBot.Handle("\f"+CallbackCancelImport, a.handleCancelImport)
-	a.teleBot.Handle("\f"+CallbackAcceptAll, a.handleAcceptAll)
+	// Callback routing
+	// telebot v3 Handle() with Btn pointers only matches exact Data matches.
+	// For handlers requiring payload data, we use manual prefix routing on OnCallback.
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackConfirm}, a.handleConfirm)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDiscard}, a.handleDiscard)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelEdit}, a.handleCancelEdit)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCreateAcc}, a.handleCreateAcc)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAddSubAcc}, a.handleAddSubAcc)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDoneAcc}, a.handleDoneAcc)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelImport}, a.handleCancelImport)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAcceptAll}, a.handleAcceptAll)
+
+	a.teleBot.Handle(telebot.OnCallback, func(c telebot.Context) error {
+		data := c.Callback().Data
+		switch {
+		case strings.HasPrefix(data, "\f"+CallbackEditAcc):
+			return a.handleEditRequest(c)
+		case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
+			return a.handleAccountSelect(c)
+		case strings.HasPrefix(data, "\f"+CallbackSelectParent):
+			return a.handleSelectParent(c)
+		}
+		return nil
+	})
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()

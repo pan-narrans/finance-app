@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -70,10 +71,8 @@ func setupTestEnv(t *testing.T) *testEnv {
 	}`
 	mappingsJSON := `{
 		"accounts": {
-			"DINNER": "Expenses:Food"
-		},
-		"sources": {
-			"visa": "Assets:Bank:Visa"
+			"DINNER": "Expenses:Food",
+			"VISA": "Assets:Bank:Visa"
 		}
 	}`
 	require.NoError(t, os.WriteFile(configPath, []byte(configJSON), 0644))
@@ -108,7 +107,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 	require.NoError(t, err)
 
 	go adapter.Start()
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(400 * time.Millisecond)
 
 	return &testEnv{
 		adapter:       adapter,
@@ -129,15 +128,20 @@ func (e *testEnv) sendText(text string) {
 			Chat:   &telebot.Chat{ID: e.userID},
 		},
 	}
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 }
 
-func (e *testEnv) sendCallback(data string) {
+func (e *testEnv) sendCallback(unique string, data ...string) {
+	callbackData := unique
+	if len(data) > 0 {
+		callbackData += "\f" + strings.Join(data, "\f")
+	}
+
 	e.poller.updates <- telebot.Update{
 		Callback: &telebot.Callback{
 			ID:     "cb",
-			Unique: data,
-			Data:   "\f" + data,
+			Unique: unique,
+			Data:   "\f" + callbackData,
 			Sender: &telebot.User{ID: e.userID},
 			Message: &telebot.Message{
 				ID:   2,
@@ -145,7 +149,7 @@ func (e *testEnv) sendCallback(data string) {
 			},
 		},
 	}
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 }
 
 func (e *testEnv) sendCallbackWithRawData(data string) {
@@ -160,7 +164,7 @@ func (e *testEnv) sendCallbackWithRawData(data string) {
 			},
 		},
 	}
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 }
 
 func TestTelegramIntegration_HappyPaths(t *testing.T) {
@@ -170,9 +174,11 @@ func TestTelegramIntegration_HappyPaths(t *testing.T) {
 		env.sendText("10 Dinner")
 		env.sendCallback(telegram.CallbackConfirm)
 
-		content, _ := os.ReadFile(env.ledgerPath)
-		assert.Contains(t, string(content), "Expenses:Food")
-		assert.Contains(t, string(content), "10.00")
+		assert.Eventually(t, func() bool {
+			content, _ := os.ReadFile(env.ledgerPath)
+			return strings.Contains(string(content), "Expenses:Food") && strings.Contains(string(content), "10.00")
+		}, 2*time.Second, 100*time.Millisecond)
+
 		os.Truncate(env.ledgerPath, 0)
 	})
 
@@ -180,10 +186,13 @@ func TestTelegramIntegration_HappyPaths(t *testing.T) {
 		env.sendText("Visa 20 Dinner")
 		env.sendCallback(telegram.CallbackConfirm)
 
-		content, _ := os.ReadFile(env.ledgerPath)
-		assert.Contains(t, string(content), "Expenses:Food")
-		assert.Contains(t, string(content), "Assets:Bank:Visa")
-		assert.Contains(t, string(content), "20.00")
+		assert.Eventually(t, func() bool {
+			content, _ := os.ReadFile(env.ledgerPath)
+			return strings.Contains(string(content), "Expenses:Food") &&
+				strings.Contains(string(content), "Assets:Bank:Visa") &&
+				strings.Contains(string(content), "20.00")
+		}, 2*time.Second, 100*time.Millisecond)
+
 		os.Truncate(env.ledgerPath, 0)
 	})
 }
@@ -196,29 +205,32 @@ func TestTelegramIntegration_AccountCreation(t *testing.T) {
 		env.sendText("50 NewGadget")
 
 		// 2. Edit Expense Account (Target)
-		env.sendCallback(telegram.CallbackEditAcc + "0")
+		env.sendCallback(telegram.CallbackEditAcc, "0")
 		env.sendText("Gadgets") // Search query
 		env.sendCallback(telegram.CallbackCreateAcc)
-		env.sendCallback(telegram.CallbackSelectParent + "Expenses")
+		env.sendCallback(telegram.CallbackSelectParent, "Expenses")
 		env.sendText("Tech")
 		env.sendCallback(telegram.CallbackDoneAcc)
 
 		// 3. Edit Source Account
-		env.sendCallback(telegram.CallbackEditAcc + "1")
+		env.sendCallback(telegram.CallbackEditAcc, "1")
 		env.sendText("Bank") // Search query
 		env.sendCallback(telegram.CallbackCreateAcc)
-		env.sendCallback(telegram.CallbackSelectParent + "Assets")
+		env.sendCallback(telegram.CallbackSelectParent, "Assets")
 		env.sendText("Revolut")
 		env.sendCallback(telegram.CallbackDoneAcc)
 
 		// 4. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
 
-		content, _ := os.ReadFile(env.ledgerPath)
-		output := string(content)
-		assert.Contains(t, output, "Expenses:Tech")
-		assert.Contains(t, output, "Assets:Revolut")
-		assert.Contains(t, output, "50.00")
+		// 5. Verify Ledger File
+		assert.Eventually(t, func() bool {
+			content, _ := os.ReadFile(env.ledgerPath)
+			output := string(content)
+			return strings.Contains(output, "Expenses:Tech") &&
+				strings.Contains(output, "Assets:Revolut") &&
+				strings.Contains(output, "50.00")
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 }
 
@@ -233,7 +245,7 @@ func TestTelegramIntegration_EdgeCases(t *testing.T) {
 				Chat:   &telebot.Chat{ID: 999},
 			},
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(400 * time.Millisecond)
 
 		_, err := os.Stat(env.ledgerPath)
 		assert.True(t, os.IsNotExist(err) || env.isLedgerEmpty())
@@ -257,14 +269,18 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendText("10 Coffee")
 
 		// 2. Select an account from suggestions or manual
-		env.sendCallback(telegram.CallbackSelectAcc + "Expenses:Drinks")
+		env.sendCallback(telegram.CallbackSelectAcc, "Expenses:Drinks")
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
 
 		// 4. Verify Mappings File
-		content, _ := os.ReadFile(mappingsPath)
-		assert.Contains(t, string(content), `"COFFEE": "Expenses:Drinks"`)
+		assert.Eventually(t, func() bool {
+			var data domain.MappingData
+			content, _ := os.ReadFile(mappingsPath)
+			json.Unmarshal(content, &data)
+			return data.Accounts["COFFEE"] == "Expenses:Drinks"
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 
 	t.Run("Persistence after Creation", func(t *testing.T) {
@@ -272,10 +288,10 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendText("25 Internet")
 
 		// 2. Create new account
-		env.sendCallback(telegram.CallbackEditAcc + "0")
+		env.sendCallback(telegram.CallbackEditAcc, "0")
 		env.sendText("Web")
 		env.sendCallback(telegram.CallbackCreateAcc)
-		env.sendCallback(telegram.CallbackSelectParent + "Expenses")
+		env.sendCallback(telegram.CallbackSelectParent, "Expenses")
 		env.sendText("Utilities")
 		env.sendCallback(telegram.CallbackDoneAcc)
 
@@ -283,8 +299,12 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendCallback(telegram.CallbackConfirm)
 
 		// 4. Verify Mappings File
-		content, _ := os.ReadFile(mappingsPath)
-		assert.Contains(t, string(content), `"INTERNET": "Expenses:Utilities"`)
+		assert.Eventually(t, func() bool {
+			var data domain.MappingData
+			content, _ := os.ReadFile(mappingsPath)
+			json.Unmarshal(content, &data)
+			return data.Accounts["INTERNET"] == "Expenses:Utilities"
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 
 	t.Run("Persistence of Source Override", func(t *testing.T) {
@@ -292,14 +312,18 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 		env.sendText("Cash 15 Beer")
 
 		// 2. Edit Source Account
-		env.sendCallback(telegram.CallbackEditAcc + "1")
-		env.sendCallback(telegram.CallbackSelectAcc + "Assets:Cash:Personal")
+		env.sendCallback(telegram.CallbackEditAcc, "1")
+		env.sendCallback(telegram.CallbackSelectAcc, "Assets:Cash:Personal")
 
 		// 3. Confirm
 		env.sendCallback(telegram.CallbackConfirm)
 
 		// 4. Verify Mappings File
-		content, _ := os.ReadFile(mappingsPath)
-		assert.Contains(t, string(content), `"cash": "Assets:Cash:Personal"`)
+		assert.Eventually(t, func() bool {
+			var data domain.MappingData
+			content, _ := os.ReadFile(mappingsPath)
+			json.Unmarshal(content, &data)
+			return data.Accounts["CASH"] == "Assets:Cash:Personal"
+		}, 2*time.Second, 100*time.Millisecond)
 	})
 }

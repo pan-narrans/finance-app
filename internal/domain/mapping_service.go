@@ -12,7 +12,6 @@ import (
 type MappingData struct {
 	Accounts     map[string]string `json:"accounts"`
 	Descriptions map[string]string `json:"descriptions"`
-	Sources      map[string]string `json:"sources"`
 	Cards        map[string]string `json:"cards"`
 	Prefixes     []string          `json:"prefixes"`
 }
@@ -21,19 +20,18 @@ type MappingData struct {
 Learn updates the mapping data based on overrides from a confirmed transaction.
 */
 func (d *MappingData) Learn(transaction Transaction, targetOverride bool, sourceOverride bool, originalSource string) {
+	if d.Accounts == nil {
+		d.Accounts = make(map[string]string)
+	}
+
 	if targetOverride {
 		key := strings.ToUpper(transaction.Description)
-		if d.Accounts == nil {
-			d.Accounts = make(map[string]string)
-		}
 		d.Accounts[key] = transaction.Postings[0].Account
 	}
+
 	if sourceOverride && originalSource != "" {
-		key := strings.ToLower(originalSource)
-		if d.Sources == nil {
-			d.Sources = make(map[string]string)
-		}
-		d.Sources[key] = transaction.Postings[1].Account
+		key := strings.ToUpper(originalSource)
+		d.Accounts[key] = transaction.Postings[1].Account
 	}
 }
 
@@ -41,13 +39,12 @@ func (d *MappingData) Learn(transaction Transaction, targetOverride bool, source
 MappingService provides logic for cleaning descriptions and resolving financial entities.
 
 It acts as a translation layer between raw input data (e.g., bank statements)
-and domain-specific values (accounts, payers, sources) using configurable rules.
+and domain-specific values (accounts, payers) using configurable rules.
 */
 type MappingService struct {
 	data                      MappingData
 	accountMappings           map[string]string
 	descriptionMappings       map[string]string
-	sourceMappings            map[string]string
 	sortedAccountKeywords     []string
 	sortedDescriptionKeywords []string
 	cardMappings              map[string]string
@@ -82,7 +79,6 @@ func NewMappingService(data MappingData) *MappingService {
 		data:                      data,
 		accountMappings:           data.Accounts,
 		descriptionMappings:       data.Descriptions,
-		sourceMappings:            data.Sources,
 		sortedAccountKeywords:     sortedAccountKeywords,
 		sortedDescriptionKeywords: sortedDescriptionKeywords,
 		cardMappings:              data.Cards,
@@ -174,7 +170,7 @@ func (s *MappingService) ResolveSource(keyword string) (string, bool) {
 		return "", false
 	}
 
-	account, exists := s.sourceMappings[strings.ToLower(keyword)]
+	account, exists := s.accountMappings[strings.ToUpper(keyword)]
 	return account, exists
 }
 

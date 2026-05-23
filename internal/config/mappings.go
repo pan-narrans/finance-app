@@ -19,7 +19,6 @@ func LoadMappings(path string) (domain.MappingData, error) {
 	data := domain.MappingData{
 		Accounts:     make(map[string]string),
 		Descriptions: make(map[string]string),
-		Sources:      make(map[string]string),
 		Cards:        make(map[string]string),
 		Prefixes:     make([]string, 0),
 	}
