@@ -4,16 +4,14 @@ A core feature of the Finance App is its ability to deterministically map messy 
 
 ## Keyword Resolution
 
-The system uses three main mapping types defined in `mappings.json`:
+The system uses two main mapping types defined in `mappings.json`:
 
-1.  **Account Mappings**: Maps description keywords to expense/income accounts.
+1.  **Account Mappings**: Maps description keywords or source keywords to specific ledger accounts (Assets, Liabilities, Expenses, Income).
     - *Logic*: Iterates through keywords sorted by length (descending). The first keyword found as a substring in the input wins.
     - *Example*: `"AMAZON MARKETPLACE"` is checked before `"AMAZON"`.
+    - **Collision Warning**: Since sources and targets share the same mapping pool, avoid very short keywords (e.g., "a", "c") that might appear accidentally in descriptions. Use descriptive keywords like "cash" or "visa" to ensure deterministic resolution.
 
-2.  **Source Mappings**: Maps manual entry prefixes to asset/income accounts.
-    - *Example*: `"cash 10 coffee"` -> `cash` maps to `Assets:Cash`.
-
-3.  **Description Cleaning**: Strips technical "junk" from bank descriptions.
+2.  **Description Cleaning**: Strips technical "junk" from bank descriptions.
     - *Example*: `"TARJETA Apple Pay: Mercadona"` -> `"Mercadona"`.
 
 ## Search Scoring Algorithm
@@ -49,6 +47,6 @@ The `Transaction.GenerateCode()` method then creates a 16-character SHA-256 pref
 The system can "learn" from user overrides to improve future auto-mapping accuracy. This logic resides in `domain.MappingData.Learn`.
 
 1.  **Target Learning**: When a user overrides the expense/income account, the system maps the **UPPERCASE** description to the selected account.
-2.  **Source Learning**: When a user overrides a source keyword (e.g., "cash"), the system maps the **lowercase** keyword to the selected asset account.
+2.  **Source Learning**: When a user overrides a source keyword (e.g., "cash"), the system maps the **UPPERCASE** keyword to the selected asset/liability account.
 
 Learned mappings are persisted back to `mappings.json` via the `ConfigurationUseCase`.

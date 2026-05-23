@@ -3,9 +3,7 @@
     "EXAMPLE_STORE": "Expenses:Food"
   },
   "accounts": {
-    "EMPLOYER_NAME": "Income:Salary"
-  },
-  "sources": {
+    "EMPLOYER_NAME": "Income:Salary",
     "cash": "Assets:Cash"
   },
   "cards": {

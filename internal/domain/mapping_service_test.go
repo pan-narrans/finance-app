@@ -96,10 +96,10 @@ func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 func TestMappingService_ResolveSource_ShouldReturnCorrectAccount(t *testing.T) {
 	// Arrange
 	data := MappingData{
-		Sources: map[string]string{
-			"alex":     "Income:Alex",
-			"pilar":    "Income:Pilar",
-			"efectivo": "Assets:Cash",
+		Accounts: map[string]string{
+			"ALEX":     "Income:Alex",
+			"PILAR":    "Income:Pilar",
+			"EFECTIVO": "Assets:Cash",
 		},
 	}
 	svc := NewMappingService(data)

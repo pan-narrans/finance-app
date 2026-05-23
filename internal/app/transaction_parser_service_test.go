@@ -13,8 +13,10 @@ import (
 func TestTransactionParserService_ParseText_ShouldReturnTransaction_WhenValidInputProvided(t *testing.T) {
 	// Arrange
 	data := domain.MappingData{
-		Sources:  map[string]string{"cash": "Assets:Cash"},
-		Accounts: map[string]string{"coffee": "Expenses:Food:Coffee"},
+		Accounts: map[string]string{
+			"CASH":   "Assets:Cash",
+			"COFFEE": "Expenses:Food:Coffee",
+		},
 	}
 	settings := domain.Settings{
 		DefaultCurrency: "EUR",

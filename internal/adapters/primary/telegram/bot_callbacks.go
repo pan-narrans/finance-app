@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
@@ -88,20 +89,26 @@ handleEditRequest transitions the session to search state for a specific posting
 */
 func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	userID := c.Sender().ID
-	postingIndex, _ := strconv.Atoi(c.Data())
-
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
+		return c.Edit(MsgSessionExpired)
 	}
+
+	raw := strings.TrimLeft(c.Data(), "\f|")
+	if strings.HasPrefix(strings.ToLower(raw), strings.ToLower(CallbackEditAcc)) {
+		raw = raw[len(CallbackEditAcc):]
+	}
+	payload := strings.TrimLeft(raw, "\f|")
+	postingIdx, _ := strconv.Atoi(payload)
 
 	a.sessionManager.Update(userID, func(s *UserSession) {
 		s.State = StateAwaitingQuery
-		s.EditingPosting = postingIndex
+		s.EditingPosting = postingIdx
 	})
 
 	results := a.configUseCase.Get().Mappings.SearchAccounts(session.Draft.Description, 5)
 
-	msg, selector := a.ui.BuildEditPrompt(postingIndex == 1, results)
+	msg, selector := a.ui.BuildEditPrompt(postingIdx == 1, results)
 	return c.Edit(msg, selector, telebot.ModeHTML)
 }
 
@@ -114,6 +121,13 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	if newAccount == "" {
 		newAccount = c.Text()
 	}
+
+	// Clean telebot v3 unique prefix if present (manual routing artifact)
+	newAccount = strings.TrimLeft(newAccount, "\f|")
+	if strings.HasPrefix(strings.ToLower(newAccount), strings.ToLower(CallbackSelectAcc)) {
+		newAccount = newAccount[len(CallbackSelectAcc):]
+	}
+	newAccount = strings.TrimLeft(newAccount, "\f|")
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
@@ -185,10 +199,13 @@ handleSelectParent captures the root account and prompts for the first sub-accou
 */
 func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 	userID := c.Sender().ID
-	parent := c.Data()
+	parent := strings.TrimLeft(c.Data(), "\f|")
+	if strings.HasPrefix(strings.ToLower(parent), strings.ToLower(CallbackSelectParent)) {
+		parent = parent[len(CallbackSelectParent):]
+	}
+	parent = strings.TrimLeft(parent, "\f|")
 
-	_, ok := a.sessionManager.Get(userID)
-	if !ok {
+	if _, ok := a.sessionManager.Get(userID); !ok {
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
 
