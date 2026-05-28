@@ -21,7 +21,6 @@ bin/
 
 # Documentation and Project Management
 README.md
-TODO.md
 GEMINI.md
 .gemini/
 .geminiignore
