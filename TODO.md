@@ -51,14 +51,15 @@ This file tracks the upcoming tasks and development milestones for the Finance A
 
 ## Future ideas and features
 
-- [ ] **Config QoL:**
+- [X] **Config QoL:**
   - [X] Config/ live reload on changes.
   - [X] Persist config changes via telegram. Modify mappings.json via Telegram Bot when editing accounts.
-  - [ ] When uploading a file, review every trasanction with unknown accounts.
-  - [ ] Add option to register incomes, not only expenses, via chat.
+  - [X] When uploading a file, review every trasanction with unknown accounts.
+  - [X] Add option to register incomes, not only expenses, via chat.
 - [ ] Optimize the CRUD performance for large ledger files.
 - [ ] Add logging and error reporting.
 - [ ] **Ticket photo analyser:**
   - [ ] Check image models.
 - [ ] **Bank Aggregator API:**
   - [ ] Research possible API providers (e.g., Salt Edge, Nordigen, or local alternatives).
+- [ ] **YNAB-style Budgeting**
