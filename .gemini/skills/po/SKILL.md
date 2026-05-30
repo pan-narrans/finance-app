@@ -26,6 +26,13 @@ Manage project lifecycle, maintain roadmap, and ensure documentation clarity usi
 - Use standards in `references/doc-standards.md` for Issue titles and descriptions.
 - Ensure GitHub Milestone descriptions reflect high-level goals.
 
+### 4. Task Completion
+- **Commit & Push:** Commit changes with a short, clear message and push to the remote.
+- **Merge Request:** Create an MR against the target release branch. If unsure of the target, ask the user.
+- **Summary:** Activate the `summarizer` skill to generate a high-signal MR summary.
+- **Linking:** Link the relevant GitHub Issue to the MR (e.g., "Ref #61").
+- **No Manual Closing:** Do NOT manually close issues via tools; let the MR merge handle state or leave for user review.
+
 ## Guidelines
 - **Be Terse:** Follow the project's caveman style for internal communication.
 - **Direct Questions:** Ask, don't assume. "This feature necessary for MVP?"

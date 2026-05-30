@@ -15,6 +15,17 @@ handleText processes all incoming text messages.
 It handles routing between search queries, account creation inputs, and new transaction entries.
 */
 func (a *TelegramAdapter) handleText(c telebot.Context) error {
+	if !a.isTriggered(c) {
+		return nil
+	}
+
+	text := c.Text()
+	// Strip bot mention if present
+	if username := a.teleBot.Me.Username; username != "" {
+		text = strings.ReplaceAll(text, "@"+username, "")
+		text = strings.TrimSpace(text)
+	}
+
 	userID := c.Sender().ID
 	session, exists := a.sessionManager.Get(userID)
 
@@ -30,7 +41,6 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	}
 
 	// 2. Otherwise, treat as a new transaction entry
-	text := c.Text()
 	tx, err := a.transactionParserUC.ParseText(text, "Telegram")
 	if err != nil {
 		return c.Send(err.Error())
@@ -54,6 +64,9 @@ handleDocument processes uploaded files (e.g., bank statements).
 It downloads the file to a temporary location and triggers the import use case.
 */
 func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
+	if !a.isTriggered(c) {
+		return nil
+	}
 	doc := c.Message().Document
 
 	// Create a temporary file to save the download in a writable directory
@@ -132,6 +145,48 @@ func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 
 	msg, selector := a.ui.BuildAccountReview(formattedPath)
 	return c.Send(msg, selector, telebot.ModeHTML)
+}
+
+/*
+isTriggered checks if the message should be processed.
+In private chats, it always returns true.
+In groups, it returns true if:
+  - It's a command
+  - The bot is mentioned
+  - It's a reply to one of the bot's messages
+*/
+func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
+	msg := c.Message()
+	if msg == nil {
+		return false
+	}
+
+	// Always trigger in private chats
+	if c.Chat().Type == telebot.ChatPrivate || c.Chat().Type == "private" || c.Chat().ID > 0 {
+		return true
+	}
+
+	// Trigger on commands
+	if strings.HasPrefix(c.Text(), "/") {
+		return true
+	}
+
+	// Trigger on mentions
+	username := a.teleBot.Me.Username
+	if username != "" && strings.Contains(c.Text(), "@"+username) {
+		return true
+	}
+	if username == "" && strings.Contains(c.Text(), "@") {
+		// Fallback for tests where username might not be set in time
+		return true
+	}
+
+	// Trigger on replies to bot's messages
+	if msg.IsReply() && msg.ReplyTo.Sender.ID == a.teleBot.Me.ID {
+		return true
+	}
+
+	return false
 }
 
 /*

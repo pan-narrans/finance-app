@@ -73,8 +73,13 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Use(
 		func(next telebot.HandlerFunc) telebot.HandlerFunc {
 			return func(c telebot.Context) error {
-				if _, ok := a.allowedIDs[c.Sender().ID]; !ok {
-					log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
+				chatID := c.Chat().ID
+				senderID := c.Sender().ID
+				_, chatAllowed := a.allowedIDs[chatID]
+				_, senderAllowed := a.allowedIDs[senderID]
+
+				if !chatAllowed && !senderAllowed {
+					log.Printf("Unauthorized access attempt from Chat ID: %d, Sender ID: %d", chatID, senderID)
 					return nil
 				}
 				return next(c)
