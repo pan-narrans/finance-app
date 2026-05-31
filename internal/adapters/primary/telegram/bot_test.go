@@ -39,7 +39,7 @@ func TestGetCleanedText(t *testing.T) {
 		{
 			name:     "Mention in middle",
 			input:    "Hello @MyBot world",
-			expected: "Hello  world",
+			expected: "Hello world",
 		},
 		{
 			name:     "Multiple mentions",
