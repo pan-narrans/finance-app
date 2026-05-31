@@ -216,6 +216,23 @@ func (s *MappingService) SearchAccounts(query string, limit int) []string {
 }
 
 /*
+LoadAccounts merges external account names into the service's internal list.
+It ensures the final list is unique and sorted alphabetically.
+*/
+func (s *MappingService) LoadAccounts(accounts []string) {
+	if len(accounts) == 0 {
+		return
+	}
+
+	// Merge with existing accounts
+	s.accounts = append(s.accounts, accounts...)
+
+	// Ensure uniqueness and sort
+	slices.Sort(s.accounts)
+	s.accounts = slices.Compact(s.accounts)
+}
+
+/*
 findMatch searches for the first keyword contained within the text.
 It returns the mapped value and true if found; otherwise, empty string and false.
 Matches are case-insensitive.

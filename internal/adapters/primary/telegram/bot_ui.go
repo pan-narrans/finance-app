@@ -35,6 +35,7 @@ const (
 	MsgUseButtons             = "Please use the buttons provided to continue or click Cancel."
 	MsgSelectTopLevel         = "Select a top-level account:"
 	MsgWelcome                = "Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file."
+	MsgPromptTransaction      = "Please send transaction details in format:\n<code>[source] &lt;amount&gt; &lt;description/target&gt;</code>\n\nExample: <code>Cash 10 steam</code>"
 
 	LabelConfirm    = "Confirm ✅"
 	LabelDiscard    = "Discard ❌"

@@ -38,6 +38,11 @@ func (mockTransactionRepository *MockTransactionRepository) Delete(code string) 
 	return args.Error(0)
 }
 
+func (mockTransactionRepository *MockTransactionRepository) GetAccounts() ([]string, error) {
+	args := mockTransactionRepository.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+
 func TestTransactionService_Add_ShouldSaveTransaction_WhenInputIsValid(t *testing.T) {
 	// Arrange
 	mockTransactionRepository := new(MockTransactionRepository)

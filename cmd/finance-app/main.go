@@ -42,12 +42,14 @@ func main() {
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
 	ledgerFormatter := ledger.NewLedgerFormatter()
 	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	configManager.SetRepository(repo)
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
 	transactionParserService := app.NewTransactionParserService(configManager)
+	reportService := app.NewReportService(repo, configManager)
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
@@ -62,6 +64,7 @@ func main() {
 		transactionService,
 		transactionParserService,
 		importService,
+		reportService,
 		configManager,
 		ledgerFormatter,
 	)

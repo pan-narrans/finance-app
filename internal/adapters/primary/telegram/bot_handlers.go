@@ -10,6 +10,32 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+func (a *TelegramAdapter) handleReport(c telebot.Context) error {
+	period := "this month"
+	args := c.Args()
+	if len(args) > 0 && args[0] == "last" {
+		period = "last month"
+	}
+
+	sections, err := a.reportUseCase.GetMonthlyReport(period)
+	if err != nil {
+		return c.Send(fmt.Sprintf("Failed to generate report: %v", err))
+	}
+
+	if len(sections) == 0 {
+		return c.Send(fmt.Sprintf("No data for %s.", period))
+	}
+
+	for _, section := range sections {
+		msg := fmt.Sprintf("<b>%s %s</b>\n<pre>%s</pre>", section.Title, section.DateRange, section.Content)
+		if err := c.Send(msg, telebot.ModeHTML); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 /*
 handleText processes all incoming text messages.
 It handles routing between search queries, account creation inputs, and new transaction entries.
@@ -20,17 +46,43 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	}
 
 	text := c.Text()
-	// Strip bot mention if present
-	if username := a.teleBot.Me.Username; username != "" {
-		text = strings.ReplaceAll(text, "@"+username, "")
-		text = strings.TrimSpace(text)
-	}
-
 	userID := c.Sender().ID
 	session, exists := a.sessionManager.Get(userID)
 
-	if exists {
+	// 1. Handle Commands
+	if strings.HasPrefix(text, "/") {
+		parts := strings.Fields(text)
+		if len(parts) > 1 {
+			// Command with arguments (e.g. /transaction 10 steam)
+			text = strings.Join(parts[1:], " ")
+		} else if parts[0] == "/transaction" || strings.HasPrefix(parts[0], "/transaction@") {
+			// Bare command - start interactive flow
+			a.sessionManager.Set(userID, &UserSession{
+				State: StateAwaitingTransactionInput,
+			})
+
+			// Use ForceReply to ensure the reply is delivered to the bot in groups
+			// and InputFieldPlaceholder to guide the user.
+			selector := &telebot.ReplyMarkup{
+				ForceReply:  true,
+				Selective:   true,
+				Placeholder: "e.g. Cash 10 steam",
+			}
+			return c.Send(MsgPromptTransaction, selector, telebot.ModeHTML)
+		} else {
+			return nil
+		}
+	}
+
+	// 2. Handle State-based inputs
+	if exists && session.State != StateNone {
 		switch session.State {
+		case StateAwaitingTransactionInput:
+			// Process as transaction text and proceed
+			a.sessionManager.Update(userID, func(s *UserSession) {
+				s.State = StateNone
+			})
+			// fallthrough to cleaning logic
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
 		case StateCreatingAccountChild:
@@ -40,7 +92,18 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		}
 	}
 
-	// 2. Otherwise, treat as a new transaction entry
+	// 3. Clean mentions and formatting
+	text = a.getCleanedText(c)
+
+	// 4. Strip leading @ if it survived getCleanedText (e.g. misspelled mention)
+	if strings.HasPrefix(text, "@") {
+		fields := strings.Fields(text)
+		if len(fields) > 1 {
+			text = strings.Join(fields[1:], " ")
+		}
+	}
+
+	// 5. Otherwise, treat as a new transaction entry
 	tx, err := a.transactionParserUC.ParseText(text, "Telegram")
 	if err != nil {
 		return c.Send(err.Error())
@@ -111,7 +174,7 @@ handleSearchQuery processes text input when the user is searching for an account
 If the query contains a colon, it's treated as a direct account path selection.
 */
 func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
-	query := c.Text()
+	query := a.getCleanedText(c)
 
 	// Direct Path Override
 	if strings.Contains(query, ":") {
@@ -129,7 +192,7 @@ handleChildInput processes text input when the user is providing a sub-account n
 */
 func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 	userID := c.Sender().ID
-	child := c.Text()
+	child := a.getCleanedText(c)
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
@@ -153,6 +216,7 @@ In private chats, it always returns true.
 In groups, it returns true if:
   - It's a command
   - The bot is mentioned
+  - The user has an active session state
   - It's a reply to one of the bot's messages
 */
 func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
@@ -171,13 +235,22 @@ func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
 		return true
 	}
 
-	// Trigger on mentions
+	// Trigger on mentions (case-insensitive)
 	username := a.teleBot.Me.Username
-	if username != "" && strings.Contains(c.Text(), "@"+username) {
+	if username != "" {
+		lowerText := strings.ToLower(c.Text())
+		lowerMention := "@" + strings.ToLower(username)
+		if strings.Contains(lowerText, lowerMention) {
+			return true
+		}
+	} else if strings.Contains(c.Text(), "@") {
+		// Fallback for cases where username might be delayed
 		return true
 	}
-	if username == "" && strings.Contains(c.Text(), "@") {
-		// Fallback for tests where username might not be set in time
+
+	// Trigger on active session state (important for group flows)
+	userID := c.Sender().ID
+	if session, exists := a.sessionManager.Get(userID); exists && session.State != StateNone {
 		return true
 	}
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -19,6 +20,7 @@ Decomposition:
   - callbacks.go: Logic for processing interactive button clicks.
   - session.go: Thread-safe user session management.
   - ui.go: Layout and keyboard construction.
+  - webapp_handlers.go: Logic for the Telegram Mini App API.
 */
 type TelegramAdapter struct {
 	teleBot             *telebot.Bot
@@ -26,6 +28,7 @@ type TelegramAdapter struct {
 	transactionUseCase  ports.TransactionUseCase
 	transactionParserUC ports.TransactionParserUseCase
 	importUseCase       ports.ImportUseCase
+	reportUseCase       ports.ReportUseCase
 	configUseCase       ports.ConfigurationUseCase
 	formatter           ports.TransactionFormatter
 	sessionManager      *SessionManager
@@ -47,6 +50,7 @@ func NewTelegramAdapter(
 	txUC ports.TransactionUseCase,
 	parserUC ports.TransactionParserUseCase,
 	importUC ports.ImportUseCase,
+	reportUC ports.ReportUseCase,
 	configUC ports.ConfigurationUseCase,
 	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
@@ -66,6 +70,7 @@ func NewTelegramAdapter(
 		transactionUseCase:  txUC,
 		transactionParserUC: parserUC,
 		importUseCase:       importUC,
+		reportUseCase:       reportUC,
 		configUseCase:       configUC,
 		formatter:           formatter,
 		sessionManager:      NewSessionManager(),
@@ -104,6 +109,12 @@ func (a *TelegramAdapter) Start() {
 		},
 	)
 
+	a.teleBot.Handle("/transaction", a.handleText)
+
+	a.teleBot.Handle(
+		"/report", a.handleReport,
+	)
+
 	// Message Handlers
 	a.teleBot.Handle(telebot.OnText, a.handleText)
 	a.teleBot.Handle(telebot.OnDocument, a.handleDocument)
@@ -133,6 +144,16 @@ func (a *TelegramAdapter) Start() {
 		return nil
 	})
 
+	// Set Commands Menu for Autocomplete
+	commands := []telebot.Command{
+		{Text: "start", Description: "Show welcome message"},
+		{Text: "transaction", Description: "Record new transaction: /transaction <amount> <description>"},
+		{Text: "report", Description: "View monthly summary (optional: 'last')"},
+	}
+	if err := a.teleBot.SetCommands(commands); err != nil {
+		log.Printf("Warning: failed to set bot commands: %v", err)
+	}
+
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 
 	// Start HTTP Server for WebApp
@@ -151,7 +172,7 @@ func (a *TelegramAdapter) startHTTPServer() {
 	// Static Assets (WebApp)
 	distDir := "internal/adapters/primary/telegram/webapp/dist"
 	fs := http.FileServer(http.Dir(distDir))
-	
+
 	// Handler with logging
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
@@ -165,4 +186,20 @@ func (a *TelegramAdapter) startHTTPServer() {
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Printf("HTTP server error: %v", err)
 	}
+}
+
+/*
+getCleanedText returns the message text with the bot's username mention stripped.
+This ensures that mentions in group chats don't leak into business logic (e.g. account names).
+*/
+func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
+	text := c.Text()
+	if username := a.teleBot.Me.Username; username != "" {
+		mention := "@" + username
+		// Case-insensitive removal of all occurrences
+		re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(mention))
+		text = re.ReplaceAllString(text, "")
+		text = strings.Join(strings.Fields(text), " ")
+	}
+	return text
 }

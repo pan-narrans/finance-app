@@ -12,6 +12,14 @@ Reduce friction when recording daily expenses by providing multiple input channe
 
 The application primarily operates through a **Telegram Bot** that interfaces with your Ledger file.
 
+### Telegram Bot Setup
+
+To use the bot in **Telegram Groups**, you must configure the following:
+
+1.  **Group Privacy:** In [@BotFather](https://t.me/botfather), select your bot and go to `Bot Settings` > `Group Privacy` > **Turn OFF**.
+    - This allows the bot to read messages in the group to detect commands, mentions, and replies.
+2.  **Permissions:** Ensure the bot has "Read Messages" permission in the group settings.
+
 ### 1. Manual Entry (Chat)
 Send a message to the bot in the following format:
 `[source] <amount> <description/target>`
@@ -36,7 +44,16 @@ Upload a supported bank export file (CSV/XLS) directly to the chat.
 - **Deduplication:** Uses stable MD5 hashing of transaction data to prevent duplicate entries in your ledger.
 - **Summary:** After processing, the bot returns a summary of added, updated, and failed rows.
 
-### 3. Configuration & Mappings
+### 3. Financial Reports
+Get segmented overviews of your spending and income with automatic date ranges.
+
+- **Commands:**
+  - `/report`: Summary for **this month** (01/MM/YYYY - Today).
+  - `/report last`: Summary for **last month** (01/MM/YYYY - 31/MM/YYYY).
+- **Output:** Hierarchical balance reports, segmented into separate blocks (e.g., **Expenses 01/05/2026 - 31/05/2026**) based on your `RootAccounts` configuration.
+- **Source:** Direct execution of `ledger balance` with period and account filters.
+
+### 4. Configuration & Mappings
 The bot's behavior is driven by two JSON files in the `config/` directory:
 
 - **`config.json`**: Global settings like `default_currency`, `ledger_alignment`, and default fallback accounts.
