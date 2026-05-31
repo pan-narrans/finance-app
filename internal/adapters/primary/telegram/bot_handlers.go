@@ -171,10 +171,6 @@ func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
 	if username != "" && strings.Contains(c.Text(), "@"+username) {
 		return true
 	}
-	if username == "" && strings.Contains(c.Text(), "@") {
-		// Fallback for tests where username might not be set in time
-		return true
-	}
 
 	// Trigger on replies to bot's messages
 	if msg.IsReply() && msg.ReplyTo.Sender.ID == a.teleBot.Me.ID {
