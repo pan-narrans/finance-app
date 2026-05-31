@@ -65,5 +65,5 @@ type TransactionFormatter interface {
 ReportProvider defines the contract for generating financial reports.
 */
 type ReportProvider interface {
-	GetBalanceReport(period string) (string, error)
+	GetBalanceReport(period string, filter string) (string, error)
 }

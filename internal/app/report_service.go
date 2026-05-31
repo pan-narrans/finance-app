@@ -16,29 +16,40 @@ It implements the ports.ReportUseCase interface.
 */
 type ReportService struct {
 	reportProvider ports.ReportProvider
+	configUseCase  ports.ConfigurationUseCase
 }
 
 /*
 NewReportService creates a new ReportService.
 */
-func NewReportService(reportProvider ports.ReportProvider) *ReportService {
+func NewReportService(reportProvider ports.ReportProvider, configUseCase ports.ConfigurationUseCase) *ReportService {
 	return &ReportService{
 		reportProvider: reportProvider,
+		configUseCase:  configUseCase,
 	}
 }
 
 /*
-GetMonthlyReport returns a formatted balance report for the current month.
+GetMonthlyReport returns segmented balance reports for the current month.
+It iterates through root accounts defined in configuration.
 */
-func (s *ReportService) GetMonthlyReport() (string, error) {
-	report, err := s.reportProvider.GetBalanceReport("this month")
-	if err != nil {
-		return "", fmt.Errorf("failed to get monthly report: %w", err)
+func (s *ReportService) GetMonthlyReport() ([]ports.ReportSection, error) {
+	rootAccounts := s.configUseCase.Get().Settings.RootAccounts
+	var sections []ports.ReportSection
+
+	for _, root := range rootAccounts {
+		report, err := s.reportProvider.GetBalanceReport("this month", root)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get report for %s: %w", root, err)
+		}
+
+		if strings.TrimSpace(report) != "" {
+			sections = append(sections, ports.ReportSection{
+				Title:   root,
+				Content: report,
+			})
+		}
 	}
 
-	if strings.TrimSpace(report) == "" {
-		return "No data for this month.", nil
-	}
-
-	return report, nil
+	return sections, nil
 }

@@ -267,7 +267,7 @@ func TestFileRepository_GetBalanceReport_ShouldReturnReport_WhenFileHasTransacti
 	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
 
 	// Act
-	report, err := fileRepository.GetBalanceReport("")
+	report, err := fileRepository.GetBalanceReport("", "")
 
 	// Assert
 	assert.NoError(t, err)

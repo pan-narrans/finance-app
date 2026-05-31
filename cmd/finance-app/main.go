@@ -49,7 +49,7 @@ func main() {
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
 	transactionParserService := app.NewTransactionParserService(configManager)
-	reportService := app.NewReportService(repo)
+	reportService := app.NewReportService(repo, configManager)
 
 	// Primary Adapter
 	bot, err := telegram.NewTelegramAdapter(
