@@ -74,12 +74,15 @@ func (m *Manager) Reload() error {
 }
 
 /*
-SetRepository sets the transaction repository for dynamic account discovery.
+SetRepository sets the transaction repository for dynamic account discovery and triggers a reload.
 */
 func (m *Manager) SetRepository(repo ports.TransactionRepository) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.repo = repo
+	if err := m.reload(); err != nil {
+		log.Printf("Warning: Failed to reload mappings after setting repository: %v", err)
+	}
 }
 
 /*

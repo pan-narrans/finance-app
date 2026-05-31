@@ -52,6 +52,7 @@ func main() {
 	reportService := app.NewReportService(repo, configManager)
 
 	// Primary Adapter
+	log.Printf("Initializing Telegram Bot with WebApp URL: %s", env.WebAppBaseURL)
 	bot, err := telegram.NewTelegramAdapter(
 		telebot.Settings{
 			Token:  env.TelegramToken,
