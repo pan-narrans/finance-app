@@ -75,13 +75,11 @@ func (m *Manager) Reload() error {
 
 /*
 SetRepository sets the transaction repository for dynamic account discovery.
-It triggers a reload to fetch the initial list of accounts.
 */
 func (m *Manager) SetRepository(repo ports.TransactionRepository) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.repo = repo
-	m.mu.Unlock()
-	_ = m.Reload()
 }
 
 /*
