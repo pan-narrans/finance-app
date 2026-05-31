@@ -134,7 +134,6 @@ func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
 	text := c.Text()
 	if username := a.teleBot.Me.Username; username != "" {
 		text = strings.ReplaceAll(text, "@"+username, "")
-		// Collapse multiple spaces and trim
 		text = strings.Join(strings.Fields(text), " ")
 	}
 	return text
