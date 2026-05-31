@@ -73,8 +73,13 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Use(
 		func(next telebot.HandlerFunc) telebot.HandlerFunc {
 			return func(c telebot.Context) error {
-				if _, ok := a.allowedIDs[c.Sender().ID]; !ok {
-					log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
+				chatID := c.Chat().ID
+				senderID := c.Sender().ID
+				_, chatAllowed := a.allowedIDs[chatID]
+				_, senderAllowed := a.allowedIDs[senderID]
+
+				if !chatAllowed && !senderAllowed {
+					log.Printf("Unauthorized access attempt from Chat ID: %d, Sender ID: %d", chatID, senderID)
 					return nil
 				}
 				return next(c)
@@ -119,4 +124,17 @@ func (a *TelegramAdapter) Start() {
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()
+}
+
+/*
+getCleanedText returns the message text with the bot's username mention stripped.
+This ensures that mentions in group chats don't leak into business logic (e.g. account names).
+*/
+func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
+	text := c.Text()
+	if username := a.teleBot.Me.Username; username != "" {
+		text = strings.ReplaceAll(text, "@"+username, "")
+		text = strings.Join(strings.Fields(text), " ")
+	}
+	return text
 }

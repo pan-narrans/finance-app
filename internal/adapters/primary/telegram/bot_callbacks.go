@@ -115,7 +115,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
 	newAccount := a.getCallbackPayload(c, CallbackSelectAcc)
 	if newAccount == "" {
-		newAccount = c.Text()
+		newAccount = a.getCleanedText(c)
 	}
 
 	session, ok := a.sessionManager.Get(userID)

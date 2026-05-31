@@ -15,6 +15,12 @@ handleText processes all incoming text messages.
 It handles routing between search queries, account creation inputs, and new transaction entries.
 */
 func (a *TelegramAdapter) handleText(c telebot.Context) error {
+	if !a.isTriggered(c) {
+		return nil
+	}
+
+	text := a.getCleanedText(c)
+
 	userID := c.Sender().ID
 	session, exists := a.sessionManager.Get(userID)
 
@@ -30,7 +36,6 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	}
 
 	// 2. Otherwise, treat as a new transaction entry
-	text := c.Text()
 	tx, err := a.transactionParserUC.ParseText(text, "Telegram")
 	if err != nil {
 		return c.Send(err.Error())
@@ -54,6 +59,9 @@ handleDocument processes uploaded files (e.g., bank statements).
 It downloads the file to a temporary location and triggers the import use case.
 */
 func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
+	if !a.isTriggered(c) {
+		return nil
+	}
 	doc := c.Message().Document
 
 	// Create a temporary file to save the download in a writable directory
@@ -98,7 +106,7 @@ handleSearchQuery processes text input when the user is searching for an account
 If the query contains a colon, it's treated as a direct account path selection.
 */
 func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
-	query := c.Text()
+	query := a.getCleanedText(c)
 
 	// Direct Path Override
 	if strings.Contains(query, ":") {
@@ -116,7 +124,7 @@ handleChildInput processes text input when the user is providing a sub-account n
 */
 func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 	userID := c.Sender().ID
-	child := c.Text()
+	child := a.getCleanedText(c)
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
@@ -132,6 +140,44 @@ func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 
 	msg, selector := a.ui.BuildAccountReview(formattedPath)
 	return c.Send(msg, selector, telebot.ModeHTML)
+}
+
+/*
+isTriggered checks if the message should be processed.
+In private chats, it always returns true.
+In groups, it returns true if:
+  - It's a command
+  - The bot is mentioned
+  - It's a reply to one of the bot's messages
+*/
+func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
+	msg := c.Message()
+	if msg == nil {
+		return false
+	}
+
+	// Always trigger in private chats
+	if c.Chat().Type == telebot.ChatPrivate || c.Chat().Type == "private" || c.Chat().ID > 0 {
+		return true
+	}
+
+	// Trigger on commands
+	if strings.HasPrefix(c.Text(), "/") {
+		return true
+	}
+
+	// Trigger on mentions
+	username := a.teleBot.Me.Username
+	if username != "" && strings.Contains(c.Text(), "@"+username) {
+		return true
+	}
+
+	// Trigger on replies to bot's messages
+	if msg.IsReply() && msg.ReplyTo.Sender.ID == a.teleBot.Me.ID {
+		return true
+	}
+
+	return false
 }
 
 /*

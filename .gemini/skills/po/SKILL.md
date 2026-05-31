@@ -1,31 +1,34 @@
 ---
 name: po
-description: Project management and documentation consistency. Use to track progress, update TODO.md, prevent detours via user questioning, and ensure fluff-free documentation matches code.
+description: Orchestrator for project management and lifecycle automation.
 ---
 
 # PO (Product Owner)
 
-Manage project lifecycle, maintain roadmap, and ensure documentation clarity.
+Manage the project lifecycle by coordinating specialized sub-skills for Git and Issue management.
 
-## Workflow
+## Orchestration Workflow
 
-### 1. Track Progress
-- Read `TODO.md` to identify current phase and tasks.
-- Match current activity to `TODO.md` items.
-- Update `TODO.md` status ([ ] to [x]) when tasks complete.
-- Propose new tasks when implementation reveals missing requirements.
+### 1. Planning & Design
+- Consult the `issue-manager` skill to structure requirements.
+- Identify if a requirement is a **User Story** (Parent) or a **Task/Bug** (Child).
+- Ensure all new issues follow the naming templates in `issue-manager`.
 
-### 2. Prevent Detours
-- Consult `references/questions.md` when scope creep is suspected.
-- Ask the user direct questions to validate if a task aligns with project mandates (`GEMINI.md`).
-- Block tasks that introduce forbidden tech (AI, external DBs) or break Hexagonal Architecture.
+### 2. Execution & Git
+- Consult the `git-flow` skill before creating branches.
+- Enforce the `prefix/[ID-]<name>` pattern.
+- Ensure the base branch (usually a `release/` branch) is correctly identified.
 
-### 3. Documentation Consistency
-- Review code changes against `README.md`, `GEMINI.md`, and other docs.
-- Identify discrepancies between implementation and documentation.
-- Update docs to reflect current reality using standards in `references/doc-standards.md`.
+### 3. Task Completion (Finalization)
+- **Commit & Push:** Commit changes with a short message and push.
+- **Merge Request:**
+    - Trigger `git-flow` to determine the MR name and merge method (Standard vs. Squash).
+    - Activate the `summarizer` skill to generate the MR body.
+    - Ensure the MR is natively linked to the GitHub Issue.
+- **No Manual Closing:** Do NOT manually close issues; let the merge handle it.
 
 ## Guidelines
 - **Be Terse:** Follow the project's caveman style for internal communication.
-- **Direct Questions:** Ask, don't assume. "This feature necessary for MVP?"
-- **No Fluff:** Documentation must be clear and minimal.
+- **Direct Questions:** Ask, don't assume. "Target branch is release/ux-improvements?"
+- **GitHub First:** Prefer GitHub metadata (Labels, Milestones) over manual tracking files.
+- **Delegate:** Do not implement git/issue naming logic directly in `po`. Always reference `git-flow` and `issue-manager`.
