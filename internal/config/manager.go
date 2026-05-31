@@ -98,11 +98,8 @@ func (m *Manager) reload() error {
 	}
 
 	mappingService := m.constructor(mappingsData)
-
-	// Fetch dynamic accounts if repo is available
 	if m.repo != nil {
-		accounts, err := m.repo.GetAccounts()
-		if err == nil {
+		if accounts, err := m.repo.GetAccounts(); err == nil {
 			mappingService.LoadAccounts(accounts)
 		} else {
 			log.Printf("Warning: Dynamic account discovery failed: %v", err)
