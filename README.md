@@ -45,12 +45,12 @@ Upload a supported bank export file (CSV/XLS) directly to the chat.
 - **Summary:** After processing, the bot returns a summary of added, updated, and failed rows.
 
 ### 3. Financial Reports
-Get segmented overviews of your spending and income.
+Get segmented overviews of your spending and income with automatic date ranges.
 
 - **Commands:**
-  - `/report`: Summary for **this month**.
-  - `/report last`: Summary for **last month**.
-- **Output:** Hierarchical balance reports, segmented into separate blocks (Assets, Expenses, Income, etc.) based on your `RootAccounts` configuration.
+  - `/report`: Summary for **this month** (01/MM/YYYY - Today).
+  - `/report last`: Summary for **last month** (01/MM/YYYY - 31/MM/YYYY).
+- **Output:** Hierarchical balance reports, segmented into separate blocks (e.g., **Expenses 01/05/2026 - 31/05/2026**) based on your `RootAccounts` configuration.
 - **Source:** Direct execution of `ledger balance` with period and account filters.
 
 ### 4. Configuration & Mappings
