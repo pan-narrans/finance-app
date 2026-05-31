@@ -14,6 +14,14 @@ The system uses two main mapping types defined in `mappings.json`:
 2.  **Description Cleaning**: Strips technical "junk" from bank descriptions.
     - *Example*: `"TARJETA Apple Pay: Mercadona"` -> `"Mercadona"`.
 
+## Dynamic Account Discovery
+
+To improve suggestion accuracy without manual configuration, the system automatically discovers existing accounts directly from your `.ledger` file.
+
+1.  **Extraction**: The `TransactionRepository` (Secondary Adapter) executes the `ledger -f <file> accounts` command.
+2.  **Synchronization**: Discovered accounts are synchronized with the `MappingService` during application startup and whenever the ledger file is modified.
+3.  **Scoring Integration**: These accounts are included in the search scoring algorithm, ensuring that your existing ledger structure is always available for autocomplete suggestions even without explicit mappings in `mappings.json`.
+
 ## Search Scoring Algorithm
 
 When an account cannot be resolved automatically, the system provides ranked suggestions. The score for each account is calculated based on the following rules:

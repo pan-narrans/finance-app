@@ -20,6 +20,7 @@ Manage the project lifecycle by coordinating specialized sub-skills for Git and 
 - Ensure the base branch (usually a `release/` branch) is correctly identified.
 
 ### 3. Task Completion (Finalization)
+- **Documentation & Requirements:** Update project documentation (e.g., README.md, docs/) and requirements as features are added.
 - **Commit & Push:** Commit changes with a short message and push.
 - **Merge Request:**
     - Trigger `git-flow` to determine the MR name and merge method (Standard vs. Squash).
