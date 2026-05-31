@@ -106,6 +106,8 @@ func (m *Manager) reload() error {
 		accounts, err := m.repo.GetAccounts()
 		if err == nil {
 			mappingService.LoadAccounts(accounts)
+		} else {
+			log.Printf("Warning: Dynamic account discovery failed: %v", err)
 		}
 	}
 

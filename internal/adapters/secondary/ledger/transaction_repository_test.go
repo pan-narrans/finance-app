@@ -222,6 +222,8 @@ func TestFileRepository_GetAccounts_ShouldReturnAccounts_WhenFileHasTransactions
 	defer os.Remove(tmpFile.Name())
 
 	content := `
+account Expenses:Mascotas:Veterinario
+
 2026/01/01 Breakfast
     Expenses:Food:Morning    10.00 EUR
     Assets:Checking
@@ -242,8 +244,9 @@ func TestFileRepository_GetAccounts_ShouldReturnAccounts_WhenFileHasTransactions
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Len(t, accounts, 3)
+	assert.Len(t, accounts, 4)
 	assert.Contains(t, accounts, "Assets:Checking")
 	assert.Contains(t, accounts, "Expenses:Food:Morning")
 	assert.Contains(t, accounts, "Expenses:Ocio:VideoGames")
+	assert.Contains(t, accounts, "Expenses:Mascotas:Veterinario")
 }

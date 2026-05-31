@@ -143,28 +143,57 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
 }
 
-// GetAccounts retrieves the list of accounts from the ledger file using the ledger CLI.
+// GetAccounts retrieves the list of accounts from the ledger file.
+// It combines accounts found via 'ledger accounts' and manual parsing of 'account' declarations.
 func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error) {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
+	// 1. Get accounts with postings via ledger CLI
 	cmd := exec.Command("ledger", "-f", fileRepository.FilePath, "accounts")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// If file doesn't exist yet, return empty list instead of error
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to execute ledger accounts: %w", err)
+		// We still try to parse declarations even if ledger fails (e.g. syntax error in transactions)
 	}
 
-	lines := strings.Split(string(output), "\n")
-	var accounts []string
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			accounts = append(accounts, trimmed)
+	accountMap := make(map[string]bool)
+
+	// Add accounts from ledger output
+	if err == nil {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed != "" {
+				accountMap[trimmed] = true
+			}
 		}
+	}
+
+	// 2. Manual parsing for 'account' declarations (even if unused or file has errors)
+	data, readErr := os.ReadFile(fileRepository.FilePath)
+	if readErr == nil {
+		// Regex to match: account Expenses:Something
+		re := regexp.MustCompile(`(?m)^account\s+([^\n\r;]+)`)
+		matches := re.FindAllStringSubmatch(string(data), -1)
+		for _, m := range matches {
+			if len(m) > 1 {
+				accountMap[strings.TrimSpace(m[1])] = true
+			}
+		}
+	}
+
+	var accounts []string
+	for acc := range accountMap {
+		accounts = append(accounts, acc)
+	}
+
+	// If both failed and we have no accounts, return the ledger error
+	if len(accounts) == 0 && err != nil {
+		return nil, fmt.Errorf("ledger accounts failed: %w (output: %q)", err, string(output))
 	}
 
 	return accounts, nil
