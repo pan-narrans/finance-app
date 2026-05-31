@@ -52,13 +52,17 @@ const (
 UI provides helpers for building Telegram-specific message layouts and keyboards.
 It is stateless and depends on configuration passed per request.
 */
-type UI struct{}
+type UI struct {
+	webAppBaseURL string
+}
 
 /*
 NewUI creates a new UI helper instance.
 */
-func NewUI() *UI {
-	return &UI{}
+func NewUI(webAppBaseURL string) *UI {
+	return &UI{
+		webAppBaseURL: webAppBaseURL,
+	}
 }
 
 /*
@@ -70,8 +74,8 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
 		selector.Row(
-			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
+			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
 		),
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
@@ -102,8 +106,8 @@ func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, m
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
 		selector.Row(
-			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
+			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
 		),
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 		selector.Row(

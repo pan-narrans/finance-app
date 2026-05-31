@@ -19,3 +19,4 @@ tmp/
 
 # Mac
 .DS_Store
+internal/adapters/primary/telegram/webapp/node_modules

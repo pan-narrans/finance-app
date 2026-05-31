@@ -88,6 +88,13 @@ func NewMappingService(data MappingData) *MappingService {
 }
 
 /*
+GetAllAccounts returns a unique, sorted list of all known account names.
+*/
+func (s *MappingService) GetAllAccounts() []string {
+	return s.accounts
+}
+
+/*
 GetMappingData returns the raw mapping data.
 */
 func (s *MappingService) GetMappingData() MappingData {

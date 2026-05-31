@@ -31,6 +31,8 @@ type UserSession struct {
 	SourceOverridden      bool
 	OriginalSourceKeyword string
 	PendingQueue          []domain.Transaction
+	LastMessageID         int
+	LastChatID            int64
 }
 
 /*

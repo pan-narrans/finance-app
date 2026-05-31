@@ -15,6 +15,24 @@ The Telegram bot acts as the primary interface for manual transaction entry and 
 | **Confirmation**       | Click "Confirm ✅"                       | Transaction is appended to the Ledger file. Any manual overrides are saved to `mappings.json`.   |
 | **Discard**            | Click "Discard ❌"                       | Session deleted. No changes to Ledger or Mappings.                                               |
 
+## Group Chat Support
+
+The bot can be added to Telegram Groups for collaborative expense tracking. To minimize noise, it uses specific trigger logic in groups:
+
+- **Command Trigger**: Starts with `/transaction`.
+- **Mention Trigger**: Mentions the bot (e.g., `@miroceanicecream_bot 10 pizza`).
+- **Reply Trigger**: Replies to one of the bot's own messages.
+- **Interactive Flow**: Once a transaction is initiated via `/transaction`, the bot enters a "listening" mode with the user, using **ForceReply** to capture the next message regardless of mentions.
+
+## Telegram Mini App (WebApp)
+
+For complex account selection and creation, the bot integrates a **Telegram Mini App**. 
+
+- **Access**: Triggered via "Edit Source" or "Edit Target" buttons.
+- **Search**: Features a full-screen search bar with a virtual keyboard, providing real-time filtering of all known Ledger accounts.
+- **Creation Wizard**: A built-in wizard allows for quick creation of new account paths with auto-colon completion (press Enter to add a `:`).
+- **Auto-Sync**: Once a selection is made, the Mini App closes and the bot message in the chat updates asynchronously to reflect the change.
+
 ## Guided Account Creation
 
 When an account is not found, the user can create it through a structured flow:

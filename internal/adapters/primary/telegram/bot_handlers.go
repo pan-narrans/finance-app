@@ -209,8 +209,54 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
 	}
 
+	var sentMsg *telebot.Message
+	var err error
+
 	if c.Callback() != nil {
-		return c.Edit(msg, selector, telebot.ModeHTML)
+		sentMsg, err = a.teleBot.Edit(c.Message(), msg, selector, telebot.ModeHTML)
+	} else {
+		sentMsg, err = a.teleBot.Send(c.Chat(), msg, selector, telebot.ModeHTML)
 	}
-	return c.Send(msg, selector, telebot.ModeHTML)
+
+	if err == nil && sentMsg != nil {
+		a.sessionManager.Update(userID, func(s *UserSession) {
+			s.LastMessageID = sentMsg.ID
+			s.LastChatID = sentMsg.Chat.ID
+		})
+	}
+
+	return err
+}
+
+/*
+refreshDraftMessage updates the existing draft message for a user.
+Used primarily for asynchronous updates (like from the Mini App).
+*/
+func (a *TelegramAdapter) refreshDraftMessage(userID int64) error {
+	session, ok := a.sessionManager.Get(userID)
+	if !ok || session.LastMessageID == 0 {
+		return fmt.Errorf("no active session or message to refresh")
+	}
+
+	appConfig := a.configUseCase.Get()
+	tx := session.Draft
+
+	var msg string
+	var selector *telebot.ReplyMarkup
+
+	isImportReview := len(session.PendingQueue) > 0 || tx.Metadata.Origin != "Telegram"
+
+	if isImportReview {
+		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter)
+	} else {
+		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+	}
+
+	editable := &telebot.Message{
+		ID:   session.LastMessageID,
+		Chat: &telebot.Chat{ID: session.LastChatID},
+	}
+
+	_, err := a.teleBot.Edit(editable, msg, selector, telebot.ModeHTML)
+	return err
 }

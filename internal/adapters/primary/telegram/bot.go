@@ -1,7 +1,9 @@
 package telegram
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -28,6 +30,9 @@ type TelegramAdapter struct {
 	formatter           ports.TransactionFormatter
 	sessionManager      *SessionManager
 	ui                  *UI
+	botToken            string
+	webAppBaseURL       string
+	httpPort            int
 }
 
 /*
@@ -36,6 +41,9 @@ NewTelegramAdapter creates and initializes a TelegramAdapter with its dependenci
 func NewTelegramAdapter(
 	settings telebot.Settings,
 	allowedIDs []int64,
+	botToken string,
+	webAppBaseURL string,
+	httpPort int,
 	txUC ports.TransactionUseCase,
 	parserUC ports.TransactionParserUseCase,
 	importUC ports.ImportUseCase,
@@ -61,7 +69,10 @@ func NewTelegramAdapter(
 		configUseCase:       configUC,
 		formatter:           formatter,
 		sessionManager:      NewSessionManager(),
-		ui:                  NewUI(),
+		ui:                  NewUI(webAppBaseURL),
+		botToken:            botToken,
+		webAppBaseURL:       webAppBaseURL,
+		httpPort:            httpPort,
 	}, nil
 }
 
@@ -123,5 +134,35 @@ func (a *TelegramAdapter) Start() {
 	})
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
+
+	// Start HTTP Server for WebApp
+	go a.startHTTPServer()
+
 	a.teleBot.Start()
+}
+
+func (a *TelegramAdapter) startHTTPServer() {
+	mux := http.NewServeMux()
+
+	// API Endpoints
+	mux.HandleFunc("/api/accounts", a.handleAPIGetAccounts)
+	mux.HandleFunc("/api/select", a.handleAPISelectAccount)
+
+	// Static Assets (WebApp)
+	distDir := "internal/adapters/primary/telegram/webapp/dist"
+	fs := http.FileServer(http.Dir(distDir))
+	
+	// Handler with logging
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
+		mux.ServeHTTP(w, r)
+	})
+
+	mux.Handle("/", fs)
+
+	addr := fmt.Sprintf(":%d", a.httpPort)
+	log.Printf("WebApp server listening on %s (serving from %s)", addr, distDir)
+	if err := http.ListenAndServe(addr, handler); err != nil {
+		log.Printf("HTTP server error: %v", err)
+	}
 }
