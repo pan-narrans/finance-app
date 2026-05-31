@@ -101,6 +101,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 		txService,
 		parserService,
 		nil,
+		nil,
 		configManager,
 		ledger.NewLedgerFormatter(),
 	)

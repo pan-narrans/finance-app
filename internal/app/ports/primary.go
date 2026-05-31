@@ -58,3 +58,10 @@ type TransactionParserUseCase interface {
 	ParseText(text, origin string) (domain.Transaction, error)
 	GuessSource(text string) string
 }
+
+/*
+ReportUseCase defines the logic for generating monthly financial reports.
+*/
+type ReportUseCase interface {
+	GetMonthlyReport() (string, error)
+}

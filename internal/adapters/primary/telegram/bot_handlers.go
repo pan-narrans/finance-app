@@ -10,6 +10,15 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+func (a *TelegramAdapter) handleReport(c telebot.Context) error {
+	report, err := a.reportUseCase.GetMonthlyReport()
+	if err != nil {
+		return c.Send(fmt.Sprintf("Failed to generate report: %v", err))
+	}
+
+	return c.Send(fmt.Sprintf("<pre>%s</pre>", report), telebot.ModeHTML)
+}
+
 /*
 handleText processes all incoming text messages.
 It handles routing between search queries, account creation inputs, and new transaction entries.

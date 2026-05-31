@@ -247,3 +247,30 @@ func TestFileRepository_GetAccounts_ShouldReturnAccounts_WhenFileHasTransactions
 	assert.Contains(t, accounts, "Expenses:Food:Morning")
 	assert.Contains(t, accounts, "Expenses:Ocio:VideoGames")
 }
+
+func TestFileRepository_GetBalanceReport_ShouldReturnReport_WhenFileHasTransactions(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_bal_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	content := `
+2026/01/01 Breakfast
+    Expenses:Food    10.00 EUR
+    Assets:Checking
+`
+	err = os.WriteFile(tmpFile.Name(), []byte(content), 0644)
+	require.NoError(t, err)
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	// Act
+	report, err := fileRepository.GetBalanceReport("")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Contains(t, report, "Expenses:Food")
+	assert.Contains(t, report, "10.00 EUR")
+}
