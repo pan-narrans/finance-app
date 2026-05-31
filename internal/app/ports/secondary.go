@@ -60,3 +60,10 @@ TransactionFormatter defines the contract for converting a transaction into a to
 type TransactionFormatter interface {
 	FormatTransaction(tx domain.Transaction, alignment int) string
 }
+
+/*
+ReportProvider defines the contract for generating financial reports.
+*/
+type ReportProvider interface {
+	GetBalanceReport(period string, filter string) (string, error)
+}

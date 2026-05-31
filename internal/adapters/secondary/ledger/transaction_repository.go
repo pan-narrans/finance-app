@@ -171,6 +171,37 @@ func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error)
 	return accounts, nil
 }
 
+// GetBalanceReport executes the ledger balance command for the given period and filter.
+func (fileRepository *TransactionFileRepository) GetBalanceReport(period string, filter string) (string, error) {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
+	// Check if file exists
+	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	args := []string{"-f", fileRepository.FilePath, "bal"}
+	if period != "" {
+		args = append(args, "--period", period)
+	}
+	if filter != "" {
+		args = append(args, filter)
+	}
+
+	cmd := exec.Command("ledger", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Ledger returns error 1 if no matches found for filter
+		if len(output) == 0 {
+			return "", nil
+		}
+		return "", fmt.Errorf("ledger balance failed: %w (output: %q)", err, string(output))
+	}
+
+	return string(output), nil
+}
+
 /*
 transactionRegex compiles a regular expression to match a transaction block
 by its unique code. It looks for the DATE followed by the (CODE) marker.

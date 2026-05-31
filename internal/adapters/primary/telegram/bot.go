@@ -24,6 +24,7 @@ type TelegramAdapter struct {
 	transactionUseCase  ports.TransactionUseCase
 	transactionParserUC ports.TransactionParserUseCase
 	importUseCase       ports.ImportUseCase
+	reportUseCase       ports.ReportUseCase
 	configUseCase       ports.ConfigurationUseCase
 	formatter           ports.TransactionFormatter
 	sessionManager      *SessionManager
@@ -39,6 +40,7 @@ func NewTelegramAdapter(
 	txUC ports.TransactionUseCase,
 	parserUC ports.TransactionParserUseCase,
 	importUC ports.ImportUseCase,
+	reportUC ports.ReportUseCase,
 	configUC ports.ConfigurationUseCase,
 	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
@@ -58,6 +60,7 @@ func NewTelegramAdapter(
 		transactionUseCase:  txUC,
 		transactionParserUC: parserUC,
 		importUseCase:       importUC,
+		reportUseCase:       reportUC,
 		configUseCase:       configUC,
 		formatter:           formatter,
 		sessionManager:      NewSessionManager(),
@@ -91,6 +94,10 @@ func (a *TelegramAdapter) Start() {
 		"/start", func(c telebot.Context) error {
 			return c.Send(MsgWelcome)
 		},
+	)
+
+	a.teleBot.Handle(
+		"/report", a.handleReport,
 	)
 
 	// Message Handlers

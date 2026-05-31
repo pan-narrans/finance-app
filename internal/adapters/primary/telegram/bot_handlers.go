@@ -10,6 +10,32 @@ import (
 	"gopkg.in/telebot.v3"
 )
 
+func (a *TelegramAdapter) handleReport(c telebot.Context) error {
+	period := "this month"
+	args := c.Args()
+	if len(args) > 0 && args[0] == "last" {
+		period = "last month"
+	}
+
+	sections, err := a.reportUseCase.GetMonthlyReport(period)
+	if err != nil {
+		return c.Send(fmt.Sprintf("Failed to generate report: %v", err))
+	}
+
+	if len(sections) == 0 {
+		return c.Send(fmt.Sprintf("No data for %s.", period))
+	}
+
+	for _, section := range sections {
+		msg := fmt.Sprintf("<b>%s %s</b>\n<pre>%s</pre>", section.Title, section.DateRange, section.Content)
+		if err := c.Send(msg, telebot.ModeHTML); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 /*
 handleText processes all incoming text messages.
 It handles routing between search queries, account creation inputs, and new transaction entries.
