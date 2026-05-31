@@ -12,6 +12,14 @@ Reduce friction when recording daily expenses by providing multiple input channe
 
 The application primarily operates through a **Telegram Bot** that interfaces with your Ledger file.
 
+### Telegram Bot Setup
+
+To use the bot in **Telegram Groups**, you must configure the following:
+
+1.  **Group Privacy:** In [@BotFather](https://t.me/botfather), select your bot and go to `Bot Settings` > `Group Privacy` > **Turn OFF**.
+    - This allows the bot to read messages in the group to detect commands, mentions, and replies.
+2.  **Permissions:** Ensure the bot has "Read Messages" permission in the group settings.
+
 ### 1. Manual Entry (Chat)
 Send a message to the bot in the following format:
 `[source] <amount> <description/target>`
