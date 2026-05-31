@@ -42,6 +42,7 @@ func main() {
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
 	ledgerFormatter := ledger.NewLedgerFormatter()
 	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	configManager.SetRepository(repo)
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer
