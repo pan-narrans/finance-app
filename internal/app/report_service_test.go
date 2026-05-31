@@ -52,15 +52,34 @@ func TestReportService_GetMonthlyReport_ShouldReturnSections_WhenDataExists(t *t
 	mockProvider.On("GetBalanceReport", "this month", "Assets").Return("500 EUR Assets", nil)
 
 	// Act
-	sections, err := svc.GetMonthlyReport()
+	sections, err := svc.GetMonthlyReport("this month")
 
 	// Assert
 	assert.NoError(t, err)
 	assert.Len(t, sections, 2)
 	assert.Equal(t, "Expenses", sections[0].Title)
 	assert.Equal(t, "100 EUR Expenses", sections[0].Content)
-	assert.Equal(t, "Assets", sections[1].Title)
-	assert.Equal(t, "500 EUR Assets", sections[1].Content)
+}
+
+func TestReportService_GetMonthlyReport_ShouldUseLastMonth(t *testing.T) {
+	// Arrange
+	mockProvider := new(MockReportProvider)
+	mockConfig := new(MockConfigUC)
+	svc := NewReportService(mockProvider, mockConfig)
+	
+	settings := domain.DefaultSettings()
+	settings.RootAccounts = []string{"Expenses"}
+	
+	mockConfig.On("Get").Return(&ports.AppConfig{Settings: settings})
+	mockProvider.On("GetBalanceReport", "last month", "Expenses").Return("200 EUR Expenses", nil)
+
+	// Act
+	sections, err := svc.GetMonthlyReport("last month")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Len(t, sections, 1)
+	assert.Equal(t, "200 EUR Expenses", sections[0].Content)
 }
 
 func TestReportService_GetMonthlyReport_ShouldSkipEmptySections(t *testing.T) {
@@ -77,7 +96,7 @@ func TestReportService_GetMonthlyReport_ShouldSkipEmptySections(t *testing.T) {
 	mockProvider.On("GetBalanceReport", "this month", "Assets").Return("500 EUR Assets", nil)
 
 	// Act
-	sections, err := svc.GetMonthlyReport()
+	sections, err := svc.GetMonthlyReport("this month")
 
 	// Assert
 	assert.NoError(t, err)

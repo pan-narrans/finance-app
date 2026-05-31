@@ -11,17 +11,23 @@ import (
 )
 
 func (a *TelegramAdapter) handleReport(c telebot.Context) error {
-	sections, err := a.reportUseCase.GetMonthlyReport()
+	period := "this month"
+	args := c.Args()
+	if len(args) > 0 && args[0] == "last" {
+		period = "last month"
+	}
+
+	sections, err := a.reportUseCase.GetMonthlyReport(period)
 	if err != nil {
 		return c.Send(fmt.Sprintf("Failed to generate report: %v", err))
 	}
 
 	if len(sections) == 0 {
-		return c.Send("No data for this month.")
+		return c.Send(fmt.Sprintf("No data for %s.", period))
 	}
 
 	for _, section := range sections {
-		msg := fmt.Sprintf("<b>%s</b>\n<pre>%s</pre>", section.Title, section.Content)
+		msg := fmt.Sprintf("<b>%s (%s)</b>\n<pre>%s</pre>", section.Title, period, section.Content)
 		if err := c.Send(msg, telebot.ModeHTML); err != nil {
 			return err
 		}

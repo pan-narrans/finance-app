@@ -69,5 +69,5 @@ type ReportSection struct {
 ReportUseCase defines the logic for generating monthly financial reports.
 */
 type ReportUseCase interface {
-	GetMonthlyReport() ([]ReportSection, error)
+	GetMonthlyReport(period string) ([]ReportSection, error)
 }

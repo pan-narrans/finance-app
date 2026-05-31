@@ -30,15 +30,18 @@ func NewReportService(reportProvider ports.ReportProvider, configUseCase ports.C
 }
 
 /*
-GetMonthlyReport returns segmented balance reports for the current month.
+GetMonthlyReport returns segmented balance reports for the given period.
 It iterates through root accounts defined in configuration.
 */
-func (s *ReportService) GetMonthlyReport() ([]ports.ReportSection, error) {
+func (s *ReportService) GetMonthlyReport(period string) ([]ports.ReportSection, error) {
+	if period == "" {
+		period = "this month"
+	}
 	rootAccounts := s.configUseCase.Get().Settings.RootAccounts
 	var sections []ports.ReportSection
 
 	for _, root := range rootAccounts {
-		report, err := s.reportProvider.GetBalanceReport("this month", root)
+		report, err := s.reportProvider.GetBalanceReport(period, root)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get report for %s: %w", root, err)
 		}
