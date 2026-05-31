@@ -125,3 +125,16 @@ func (a *TelegramAdapter) Start() {
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 	a.teleBot.Start()
 }
+
+/*
+getCleanedText returns the message text with the bot's username mention stripped.
+This ensures that mentions in group chats don't leak into business logic (e.g. account names).
+*/
+func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
+	text := c.Text()
+	if username := a.teleBot.Me.Username; username != "" {
+		text = strings.ReplaceAll(text, "@"+username, "")
+		text = strings.TrimSpace(text)
+	}
+	return text
+}

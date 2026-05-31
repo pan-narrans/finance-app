@@ -19,12 +19,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		return nil
 	}
 
-	text := c.Text()
-	// Strip bot mention if present
-	if username := a.teleBot.Me.Username; username != "" {
-		text = strings.ReplaceAll(text, "@"+username, "")
-		text = strings.TrimSpace(text)
-	}
+	text := a.getCleanedText(c)
 
 	userID := c.Sender().ID
 	session, exists := a.sessionManager.Get(userID)
@@ -111,7 +106,7 @@ handleSearchQuery processes text input when the user is searching for an account
 If the query contains a colon, it's treated as a direct account path selection.
 */
 func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
-	query := c.Text()
+	query := a.getCleanedText(c)
 
 	// Direct Path Override
 	if strings.Contains(query, ":") {
@@ -129,7 +124,7 @@ handleChildInput processes text input when the user is providing a sub-account n
 */
 func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 	userID := c.Sender().ID
-	child := c.Text()
+	child := a.getCleanedText(c)
 
 	session, ok := a.sessionManager.Get(userID)
 	if !ok {
