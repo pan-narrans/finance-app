@@ -18,11 +18,11 @@ The system uses two main mapping types defined in `mappings.json`:
 
 To improve suggestion accuracy without manual configuration, the system automatically discovers existing accounts directly from your `.ledger` file.
 
-1.  **Extraction**: The system uses a hybrid approach:
-    - **CLI**: Executes `ledger accounts` to find accounts used in transactions.
-    - **Manual Parsing**: Scans the file for `account` directives to discover declared but unused accounts.
+1.  **Extraction**: The system executes the `ledger accounts` command via the Ledger CLI. This command automatically handles `include` directives and traverses your entire ledger structure.
 2.  **Synchronization**: Discovered accounts are synchronized with the `MappingService` during application startup and whenever the ledger file is modified.
-3.  **Resilience**: The manual parsing ensures that account declarations are discovered even if the ledger file has syntax errors in its transactions that prevent the CLI from running.
+3.  **Limitations**:
+    - Only accounts with at least one transaction are discovered by the CLI. Declared but unused accounts (using the `account` keyword) are not listed.
+    - If the ledger file has syntax errors, the discovery process will fail, and a warning will be logged.
 4.  **Scoring Integration**: These accounts are included in the search scoring algorithm, ensuring that your existing ledger structure is always available for autocomplete suggestions even without explicit mappings in `mappings.json`.
 
 ## Search Scoring Algorithm
