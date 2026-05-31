@@ -14,6 +14,7 @@ The Telegram bot acts as the primary interface for manual transaction entry and 
 | **Account Creation**   | Click "Create New Account"              | Multi-step flow: Select Root -> Type Sub-account -> Review/Extend -> Done.                       |
 | **Confirmation**       | Click "Confirm ✅"                       | Transaction is appended to the Ledger file. Any manual overrides are saved to `mappings.json`.   |
 | **Discard**            | Click "Discard ❌"                       | Session deleted. No changes to Ledger or Mappings.                                               |
+| **Monthly Report**     | `/report`                               | Bot returns a hierarchical balance report for the current month in a monospaced block.           |
 
 ## Guided Account Creation
 
