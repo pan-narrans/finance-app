@@ -148,12 +148,14 @@ func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error)
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
+	// Check if file exists first to avoid unnecessary CLI errors
+	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
+		return nil, nil
+	}
+
 	cmd := exec.Command("ledger", "-f", fileRepository.FilePath, "accounts")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("ledger accounts failed: %w (output: %q)", err, string(output))
 	}
 
