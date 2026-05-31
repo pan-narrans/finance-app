@@ -27,7 +27,7 @@ func (a *TelegramAdapter) handleReport(c telebot.Context) error {
 	}
 
 	for _, section := range sections {
-		msg := fmt.Sprintf("<b>%s (%s)</b>\n<pre>%s</pre>", section.Title, period, section.Content)
+		msg := fmt.Sprintf("<b>%s %s</b>\n<pre>%s</pre>", section.Title, section.DateRange, section.Content)
 		if err := c.Send(msg, telebot.ModeHTML); err != nil {
 			return err
 		}

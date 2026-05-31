@@ -61,8 +61,9 @@ type TransactionParserUseCase interface {
 
 // ReportSection represents a distinct part of a financial report.
 type ReportSection struct {
-	Title   string
-	Content string
+	Title     string
+	DateRange string
+	Content   string
 }
 
 /*
