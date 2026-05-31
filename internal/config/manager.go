@@ -21,6 +21,7 @@ type Manager struct {
 	configPath   string
 	mappingsPath string
 	constructor  ports.MappingServiceConstructor
+	repo         ports.TransactionRepository
 	mu           sync.Mutex
 }
 
@@ -73,6 +74,17 @@ func (m *Manager) Reload() error {
 }
 
 /*
+SetRepository sets the transaction repository for dynamic account discovery.
+It triggers a reload to fetch the initial list of accounts.
+*/
+func (m *Manager) SetRepository(repo ports.TransactionRepository) {
+	m.mu.Lock()
+	m.repo = repo
+	m.mu.Unlock()
+	_ = m.Reload()
+}
+
+/*
 reload performs the actual loading logic without acquiring the lock.
 Must be called from a method that already holds m.mu.
 */
@@ -88,6 +100,14 @@ func (m *Manager) reload() error {
 	}
 
 	mappingService := m.constructor(mappingsData)
+
+	// Fetch dynamic accounts if repo is available
+	if m.repo != nil {
+		accounts, err := m.repo.GetAccounts()
+		if err == nil {
+			mappingService.LoadAccounts(accounts)
+		}
+	}
 
 	m.current.Store(&ports.AppConfig{
 		Settings: settings,

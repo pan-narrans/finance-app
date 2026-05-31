@@ -214,3 +214,36 @@ func TestFileRepository_Delete_ShouldReturnDomainError_WhenCodeIsNotFound(t *tes
 	assert.Equal(t, "Code", domainError.Errors[0].Field)
 	assert.Contains(t, domainError.Errors[0].Message, "not found")
 }
+
+func TestFileRepository_GetAccounts_ShouldReturnAccounts_WhenFileHasTransactions(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_accounts_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	content := `
+2026/01/01 Breakfast
+    Expenses:Food:Morning    10.00 EUR
+    Assets:Checking
+
+2026/01/02 Games
+    Expenses:Ocio:VideoGames  50.00 EUR
+    Assets:Checking
+`
+	err = os.WriteFile(tmpFile.Name(), []byte(content), 0644)
+	require.NoError(t, err)
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	// Act
+	accounts, err := fileRepository.GetAccounts()
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Len(t, accounts, 3)
+	assert.Contains(t, accounts, "Assets:Checking")
+	assert.Contains(t, accounts, "Expenses:Food:Morning")
+	assert.Contains(t, accounts, "Expenses:Ocio:VideoGames")
+}

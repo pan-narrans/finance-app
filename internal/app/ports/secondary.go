@@ -16,6 +16,7 @@ type TransactionRepository interface {
 	FindByCode(code string) (*domain.Transaction, error)
 	Update(transaction domain.Transaction) error
 	Delete(code string) error
+	GetAccounts() ([]string, error)
 }
 
 /*
@@ -45,6 +46,7 @@ type MappingProvider interface {
 	ResolveSource(keyword string) (string, bool)
 	SearchAccounts(query string, limit int) []string
 	GetMappingData() domain.MappingData
+	LoadAccounts(accounts []string)
 }
 
 /*
