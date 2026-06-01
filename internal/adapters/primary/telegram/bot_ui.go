@@ -69,21 +69,23 @@ func NewUI(webAppBaseURL string) *UI {
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool, botUsername string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	var editRow telebot.Row
 	if isPrivate {
-		// WebApp buttons only work in Private Chats
+		// Integrated WebApp buttons work in Private Chats
 		editRow = selector.Row(
 			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
 			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
 		)
 	} else {
-		// Fallback to standard buttons in Groups
+		// Direct Link buttons work in Groups (Requires /setwebapp in @BotFather)
+		sourceURL := fmt.Sprintf("https://t.me/%s?startapp=source", botUsername)
+		targetURL := fmt.Sprintf("https://t.me/%s?startapp=target", botUsername)
 		editRow = selector.Row(
-			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+			selector.URL(LabelEditSource, sourceURL),
+			selector.URL(LabelEditTarget, targetURL),
 		)
 	}
 
@@ -113,7 +115,7 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 BuildImportReviewMessage is a specialized version of BuildDraftMessage for the import review flow.
 It includes "Accept All" and "Cancel Import" options.
 */
-func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool, botUsername string) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	var editRow telebot.Row
@@ -123,9 +125,11 @@ func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, m
 			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
 		)
 	} else {
+		sourceURL := fmt.Sprintf("https://t.me/%s?startapp=source", botUsername)
+		targetURL := fmt.Sprintf("https://t.me/%s?startapp=target", botUsername)
 		editRow = selector.Row(
-			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+			selector.URL(LabelEditSource, sourceURL),
+			selector.URL(LabelEditTarget, targetURL),
 		)
 	}
 

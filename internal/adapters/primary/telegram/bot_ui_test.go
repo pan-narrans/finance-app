@@ -23,7 +23,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	mappingProvider := domain.NewMappingService(domain.MappingData{})
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true, "bot")
 
 	// Assert
 	assert.Contains(t, msg, "Draft Transaction:")
@@ -48,7 +48,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	mappingProvider := domain.NewMappingService(data)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true)
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true, "bot")
 
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")
@@ -88,7 +88,7 @@ func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	assert.Len(t, selector.InlineKeyboard, 4)
 }
 
-func TestUI_BuildDraftMessage_ShouldUseDataButtons_InGroups(t *testing.T) {
+func TestUI_BuildDraftMessage_ShouldUseURLButtons_InGroups(t *testing.T) {
 	// Arrange
 	ui := NewUI("http://localhost")
 	tx := domain.Transaction{
@@ -100,12 +100,12 @@ func TestUI_BuildDraftMessage_ShouldUseDataButtons_InGroups(t *testing.T) {
 	mappingProvider := domain.NewMappingService(domain.MappingData{})
 
 	// Act (isPrivate = false)
-	_, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), false)
+	_, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), false, "mybot")
 
 	// Assert
-	// Row 1 (index 1) should be standard Data buttons, not WebApp buttons
-	// In telebot, Data buttons have Data field, WebApp buttons have WebApp field.
+	// Row 1 (index 1) should be URL buttons in groups
 	row := selector.InlineKeyboard[1]
-	assert.NotEmpty(t, row[0].Data)
+	assert.NotEmpty(t, row[0].URL)
+	assert.Contains(t, row[0].URL, "https://t.me/mybot?startapp=source")
 	assert.Nil(t, row[0].WebApp)
 }

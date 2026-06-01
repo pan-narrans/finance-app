@@ -53,3 +53,6 @@ The Mini App features a multi-step creation wizard:
 ## Environment Configuration
 - `WEBAPP_BASE_URL`: The public HTTPS URL where the WebApp is accessible (required for Telegram buttons).
 - `HTTP_PORT`: The local port the server listens on (default: `8080`).
+
+## Deployment
+The Mini App is automatically built and packaged during the Docker build process. For detailed instructions on setting up a reverse proxy (e.g., Nginx, Caddy) for your domain, see the [Deployment Guide](deployment.md).

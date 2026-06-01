@@ -2,7 +2,6 @@ package ledger
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"regexp"
@@ -156,7 +155,6 @@ func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error)
 
 	cmd := exec.Command("ledger", "-f", fileRepository.FilePath, "accounts")
 	output, err := cmd.CombinedOutput()
-	log.Printf("[DEBUG] Ledger accounts command: %s (Output: %q)", cmd.String(), string(output))
 	if err != nil {
 		return nil, fmt.Errorf("ledger accounts failed: %w (output: %q)", err, string(output))
 	}

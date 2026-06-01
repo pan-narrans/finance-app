@@ -13,9 +13,9 @@ function App() {
   const [selectedParent, setSelectedParent] = useState('');
   const [newSubAccount, setNewSubAccount] = useState('');
 
-  // Get search type from URL params (source or target)
+  // Get search type from URL params (source or target) or start_param
   const queryParams = new URLSearchParams(window.location.search);
-  const type = queryParams.get('type') || 'target';
+  const type = queryParams.get('type') || (WebApp.initDataUnsafe as any).start_param || 'target';
 
   useEffect(() => {
     WebApp.ready();

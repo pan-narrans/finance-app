@@ -110,6 +110,9 @@ The project uses `godoc` for documentation. You can view it in the terminal or b
 ## Technical Documentation
 For deep dives into the system's design and logic, see the following documents:
 - [Architecture](docs/architecture.md): Hexagonal design, layers, and data flow.
+- [Telegram Bot](docs/telegram_bot.md): User interactions and group chat support.
+- [Telegram Mini App](docs/webapp.md): Technical details of the React frontend and sync API.
 - [Mappings & Scoring](docs/mappings.md): Details on keyword resolution and search ranking algorithms.
+- [Deployment & Proxy](docs/deployment.md): Manual steps for Docker and reverse proxy (HTTPS) setup.
 
 > **Note:** If `godoc` is not installed, run `go install golang.org/x/tools/cmd/godoc@latest`.
