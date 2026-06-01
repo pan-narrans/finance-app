@@ -273,13 +273,14 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 	var msg string
 	var selector *telebot.ReplyMarkup
 
+	isPrivate := c.Chat().Type == telebot.ChatPrivate || c.Chat().Type == "private" || c.Chat().ID > 0
 	// Check if this is part of an import review flow (Origin is not Telegram)
 	isImportReview := session != nil && (len(session.PendingQueue) > 0 || session.Draft.Metadata.Origin != "Telegram")
 
 	if isImportReview {
-		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter)
+		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate)
 	} else {
-		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate)
 	}
 
 	var sentMsg *telebot.Message
@@ -317,12 +318,14 @@ func (a *TelegramAdapter) refreshDraftMessage(userID int64) error {
 	var msg string
 	var selector *telebot.ReplyMarkup
 
+	// We assume refresh happens in Private Chat since it's triggered by the Mini App (PM only)
+	isPrivate := true
 	isImportReview := len(session.PendingQueue) > 0 || tx.Metadata.Origin != "Telegram"
 
 	if isImportReview {
-		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter)
+		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate)
 	} else {
-		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter)
+		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate)
 	}
 
 	editable := &telebot.Message{

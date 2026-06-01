@@ -69,15 +69,27 @@ func NewUI(webAppBaseURL string) *UI {
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
+
+	var editRow telebot.Row
+	if isPrivate {
+		// WebApp buttons only work in Private Chats
+		editRow = selector.Row(
+			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
+			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
+		)
+	} else {
+		// Fallback to standard buttons in Groups
+		editRow = selector.Row(
+			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
+			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+		)
+	}
 
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
-		selector.Row(
-			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
-			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
-		),
+		editRow,
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
 
@@ -101,15 +113,25 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 BuildImportReviewMessage is a specialized version of BuildDraftMessage for the import review flow.
 It includes "Accept All" and "Cancel Import" options.
 */
-func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
+
+	var editRow telebot.Row
+	if isPrivate {
+		editRow = selector.Row(
+			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
+			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
+		)
+	} else {
+		editRow = selector.Row(
+			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
+			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
+		)
+	}
 
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
-		selector.Row(
-			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
-			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
-		),
+		editRow,
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 		selector.Row(
 			selector.Data(LabelAcceptAll, CallbackAcceptAll),

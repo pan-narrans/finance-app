@@ -23,7 +23,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	mappingProvider := domain.NewMappingService(domain.MappingData{})
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true)
 
 	// Assert
 	assert.Contains(t, msg, "Draft Transaction:")
@@ -48,7 +48,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	mappingProvider := domain.NewMappingService(data)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true)
 
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")
@@ -86,4 +86,26 @@ func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	assert.NotNil(t, selector)
 	// 2 results + 1 create + 1 cancel = 4 rows
 	assert.Len(t, selector.InlineKeyboard, 4)
+}
+
+func TestUI_BuildDraftMessage_ShouldUseDataButtons_InGroups(t *testing.T) {
+	// Arrange
+	ui := NewUI("http://localhost")
+	tx := domain.Transaction{
+		Description: "Test",
+		Postings: []domain.Posting{
+			{Account: "Expenses:Food", Amount: new(10.0), Currency: "EUR"},
+		},
+	}
+	mappingProvider := domain.NewMappingService(domain.MappingData{})
+
+	// Act (isPrivate = false)
+	_, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), false)
+
+	// Assert
+	// Row 1 (index 1) should be standard Data buttons, not WebApp buttons
+	// In telebot, Data buttons have Data field, WebApp buttons have WebApp field.
+	row := selector.InlineKeyboard[1]
+	assert.NotEmpty(t, row[0].Data)
+	assert.Nil(t, row[0].WebApp)
 }
