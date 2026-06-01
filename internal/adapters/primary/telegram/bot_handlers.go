@@ -96,7 +96,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	text = a.getCleanedText(c)
 
 	// 4. Treat as a new transaction entry
-	tx, err := a.transactionParserUC.ParseText(text, "Telegram")
+	tx, err := a.transactionParserUC.ParseText(text, domain.OriginTelegram)
 	if err != nil {
 		return c.Send(err.Error())
 	}
@@ -213,7 +213,7 @@ In groups, it returns true if:
 */
 func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
 	msg := c.Message()
-	if msg == nil {
+	if msg == nil || a.teleBot.Me == nil {
 		return false
 	}
 
@@ -260,14 +260,14 @@ sendDraftMessage helper sends or edits the transaction preview with confirmation
 func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transaction) error {
 	appConfig := a.configUseCase.Get()
 	userID := c.Sender().ID
-	session, _ := a.sessionManager.Get(userID)
+	session, exists := a.sessionManager.Get(userID)
 
 	var msg string
 	var selector *telebot.ReplyMarkup
 
 	isPrivate := c.Chat().Type == telebot.ChatPrivate || c.Chat().Type == "private" || c.Chat().ID > 0
 	// Check if this is part of an import review flow (Origin is not Telegram)
-	isImportReview := session != nil && (len(session.PendingQueue) > 0 || session.Draft.Metadata.Origin != "Telegram")
+	isImportReview := exists && (len(session.PendingQueue) > 0 || session.Draft.Metadata.Origin != domain.OriginTelegram)
 
 	botUsername := a.teleBot.Me.Username
 
@@ -315,7 +315,7 @@ func (a *TelegramAdapter) refreshDraftMessage(userID int64) error {
 	// We assume refresh happens in Private Chat since it's triggered by the Mini App (PM only)
 	isPrivate := true
 	botUsername := a.teleBot.Me.Username
-	isImportReview := len(session.PendingQueue) > 0 || tx.Metadata.Origin != "Telegram"
+	isImportReview := len(session.PendingQueue) > 0 || tx.Metadata.Origin != domain.OriginTelegram
 
 	if isImportReview {
 		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate, botUsername)

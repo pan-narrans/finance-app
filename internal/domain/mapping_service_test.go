@@ -14,7 +14,7 @@ func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 			"AMAZON MARKETPLACE": "Expenses:Shopping",
 		},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	// Act
 	account := svc.ResolveAccount("AMAZON MARKETPLACE LUX", -10.0, "Income:Unknown", "Expenses:Unknown")
@@ -25,7 +25,7 @@ func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 
 func TestMappingService_ResolveAccount_ShouldReturnFallback_WhenNoMatchFound(t *testing.T) {
 	// Arrange
-	svc := NewMappingService(MappingData{})
+	svc := NewMappingService(MappingData{}, nil)
 
 	// Act & Assert
 	assert.Equal(t, "Expenses:Unknown", svc.ResolveAccount("Some unknown expense", -10.0, "Income:Unknown", "Expenses:Unknown"))
@@ -37,7 +37,7 @@ func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	data := MappingData{
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	tests := []struct {
 		input    string
@@ -63,7 +63,7 @@ func TestMappingService_CleanDescription_ShouldApplyDescriptionMappings(t *testi
 			"AMZN MKTP":         "Amazon",
 		},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	tests := []struct {
 		input    string
@@ -85,7 +85,7 @@ func TestMappingService_ResolvePayer_ShouldReturnCorrectOwner(t *testing.T) {
 	data := MappingData{
 		Cards: map[string]string{"*1234": "Alex", "*5678": "Maria"},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	// Act & Assert
 	assert.Equal(t, "Alex", svc.ResolvePayer("Purchase with card *1234"))
@@ -102,7 +102,7 @@ func TestMappingService_ResolveSource_ShouldReturnCorrectAccount(t *testing.T) {
 			"EFECTIVO": "Assets:Cash",
 		},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	// Act & Assert
 	acc, found := svc.ResolveSource("Alex")
@@ -147,7 +147,7 @@ func TestMappingService_GetAllAccounts_ShouldReturnDeduplicatedAndSortedList(t *
 			"key4": "Assets:Cash",
 		},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	// Act
 	results := svc.accounts
@@ -168,7 +168,7 @@ func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
 			"key5": "Income:Salary",
 		},
 	}
-	svc := NewMappingService(data)
+	svc := NewMappingService(data, nil)
 
 	tests := []struct {
 		name     string

@@ -37,7 +37,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	}
 
 	if len(session.PendingQueue) > 0 {
-		return a.advanceToNextPending(c, userID, session)
+		return a.advanceToNextPending(c, userID, &session)
 	}
 
 	a.sessionManager.Delete(userID)
@@ -55,7 +55,7 @@ func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 	session, ok := a.sessionManager.Get(userID)
 
 	if ok && len(session.PendingQueue) > 0 {
-		return a.advanceToNextPending(c, userID, session)
+		return a.advanceToNextPending(c, userID, &session)
 	}
 
 	a.sessionManager.Delete(userID)

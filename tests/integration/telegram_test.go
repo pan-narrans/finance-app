@@ -49,7 +49,11 @@ type testEnv struct {
 func setupTestEnv(t *testing.T) *testEnv {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"result":{"message_id":1}}`)
+		if strings.Contains(r.URL.Path, "getMe") {
+			fmt.Fprintln(w, `{"ok":true,"result":{"id":1,"is_bot":true,"first_name":"Test Bot","username":"miroceanicecream_bot"}}`)
+			return
+		}
+		fmt.Fprintln(w, `{"ok":true,"result":{"message_id":1,"chat":{"id":12345,"type":"private"}}}`)
 	}))
 	t.Cleanup(server.Close)
 
@@ -78,8 +82,8 @@ func setupTestEnv(t *testing.T) *testEnv {
 	require.NoError(t, os.WriteFile(configPath, []byte(configJSON), 0644))
 	require.NoError(t, os.WriteFile(mappingsPath, []byte(mappingsJSON), 0644))
 
-	configManager, err := config.NewManager(configPath, mappingsPath, func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	configManager, err := config.NewManager(configPath, mappingsPath, func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	})
 	require.NoError(t, err)
 
@@ -98,6 +102,9 @@ func setupTestEnv(t *testing.T) *testEnv {
 	adapter, err := telegram.NewTelegramAdapter(
 		settings,
 		[]int64{userID},
+		"fake-token",
+		"http://localhost",
+		0,
 		txService,
 		parserService,
 		nil,

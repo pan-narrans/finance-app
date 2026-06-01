@@ -47,13 +47,12 @@ type MappingProvider interface {
 	SearchAccounts(query string, limit int) []string
 	GetAllAccounts() []string
 	GetMappingData() domain.MappingData
-	LoadAccounts(accounts []string)
 }
 
 /*
 MappingServiceConstructor is a function type that creates a MappingProvider.
 */
-type MappingServiceConstructor func(data domain.MappingData) MappingProvider
+type MappingServiceConstructor func(data domain.MappingData, discoveredAccounts []string) MappingProvider
 
 /*
 TransactionFormatter defines the contract for converting a transaction into a tool-specific string.

@@ -14,6 +14,8 @@ RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+# Copy built frontend assets so go:embed can package them
+COPY --from=frontend-builder /app/internal/adapters/primary/telegram/webapp/dist ./internal/adapters/primary/telegram/webapp/dist
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o finance-app ./cmd/finance-app/main.go
 
 # Run stage
@@ -21,12 +23,11 @@ FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata ledger
 WORKDIR /app
 RUN adduser -D financeuser
-RUN mkdir -p /app/ledger /app/config /app/internal/adapters/primary/telegram/webapp/dist && \
+RUN mkdir -p /app/ledger /app/config && \
     chown -R financeuser:financeuser /app
 USER financeuser
 
 COPY --from=builder /app/finance-app .
-COPY --from=frontend-builder /app/internal/adapters/primary/telegram/webapp/dist ./internal/adapters/primary/telegram/webapp/dist
 COPY config/templates ./config
 
 # Default Env Vars (can be overridden)

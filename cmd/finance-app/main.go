@@ -27,8 +27,8 @@ func main() {
 	mappingsPath := filepath.Join(env.ConfigRoot, "mappings.json")
 
 	// Domain constructor for Config Manager
-	mappingServiceConstructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	mappingServiceConstructor := func(data domain.MappingData, discoveredAccounts []string) ports.MappingProvider {
+		return domain.NewMappingService(data, discoveredAccounts)
 	}
 
 	configManager, err := config.NewManager(configPath, mappingsPath, mappingServiceConstructor)

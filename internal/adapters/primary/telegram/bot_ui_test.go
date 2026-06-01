@@ -20,7 +20,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	mappingProvider := domain.NewMappingService(domain.MappingData{})
+	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
 
 	// Act
 	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true, "bot")
@@ -45,7 +45,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	data := domain.MappingData{
 		Accounts: map[string]string{"STARBUCKS": "Expenses:Food:Coffee"},
 	}
-	mappingProvider := domain.NewMappingService(data)
+	mappingProvider := domain.NewMappingService(data, nil)
 
 	// Act
 	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true, "bot")
@@ -97,7 +97,7 @@ func TestUI_BuildDraftMessage_ShouldUseURLButtons_InGroups(t *testing.T) {
 			{Account: "Expenses:Food", Amount: new(10.0), Currency: "EUR"},
 		},
 	}
-	mappingProvider := domain.NewMappingService(domain.MappingData{})
+	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
 
 	// Act (isPrivate = false)
 	_, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), false, "mybot")

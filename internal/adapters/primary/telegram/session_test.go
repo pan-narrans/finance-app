@@ -23,7 +23,7 @@ func TestSessionManager_CRUD_ShouldWorkAsExpected(t *testing.T) {
 
 	// Assert
 	assert.True(t, ok)
-	assert.Equal(t, session, got)
+	assert.Equal(t, *session, got)
 
 	// Act: Update
 	manager.Update(userID, func(s *UserSession) {

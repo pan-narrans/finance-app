@@ -24,6 +24,12 @@ const (
 	StatusPending                          // [Transaction] is initiated but not yet cleared (!).
 )
 
+// Origin constants
+const (
+	OriginTelegram = "Telegram"
+	OriginImport   = "Import"
+)
+
 /*
 Posting represents a single line item within a transaction.
 It includes the account, amount, and currency.

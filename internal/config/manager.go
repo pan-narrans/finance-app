@@ -100,14 +100,16 @@ func (m *Manager) reload() error {
 		return err
 	}
 
-	mappingService := m.constructor(mappingsData)
+	var discoveredAccounts []string
 	if m.repo != nil {
-		if accounts, err := m.repo.GetAccounts(); err == nil {
-			mappingService.LoadAccounts(accounts)
-		} else {
+		var err error
+		discoveredAccounts, err = m.repo.GetAccounts()
+		if err != nil {
 			log.Printf("Warning: Dynamic account discovery failed: %v", err)
 		}
 	}
+
+	mappingService := m.constructor(mappingsData, discoveredAccounts)
 
 	m.current.Store(&ports.AppConfig{
 		Settings: settings,
@@ -125,7 +127,7 @@ func (m *Manager) ReloadWithData(settings domain.Settings, mappings domain.Mappi
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	mappingService := m.constructor(mappings)
+	mappingService := m.constructor(mappings, nil)
 	m.current.Store(&ports.AppConfig{
 		Settings: settings,
 		Mappings: mappingService,

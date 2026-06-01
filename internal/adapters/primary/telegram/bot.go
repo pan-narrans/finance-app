@@ -1,9 +1,7 @@
 package telegram
 
 import (
-	"fmt"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 
@@ -35,7 +33,7 @@ type TelegramAdapter struct {
 	ui                  *UI
 	botToken            string
 	webAppBaseURL       string
-	httpPort            int
+	webAppServer        *WebAppServer
 }
 
 /*
@@ -64,7 +62,8 @@ func NewTelegramAdapter(
 		allowedMap[id] = struct{}{}
 	}
 
-	return &TelegramAdapter{
+	sessionManager := NewSessionManager()
+	adapter := &TelegramAdapter{
 		teleBot:             bot,
 		allowedIDs:          allowedMap,
 		transactionUseCase:  txUC,
@@ -73,12 +72,15 @@ func NewTelegramAdapter(
 		reportUseCase:       reportUC,
 		configUseCase:       configUC,
 		formatter:           formatter,
-		sessionManager:      NewSessionManager(),
+		sessionManager:      sessionManager,
 		ui:                  NewUI(webAppBaseURL),
 		botToken:            botToken,
 		webAppBaseURL:       webAppBaseURL,
-		httpPort:            httpPort,
-	}, nil
+	}
+
+	adapter.webAppServer = NewWebAppServer(httpPort, botToken, configUC, sessionManager, adapter)
+
+	return adapter, nil
 }
 
 /*
@@ -157,36 +159,26 @@ func (a *TelegramAdapter) Start() {
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
 
 	// Start HTTP Server for WebApp
-	go a.startHTTPServer()
+	go func() {
+		if err := a.webAppServer.Start(); err != nil {
+			log.Printf("WebApp server error: %v", err)
+		}
+	}()
 
 	a.teleBot.Start()
 }
 
-func (a *TelegramAdapter) startHTTPServer() {
-	mux := http.NewServeMux()
-
-	// API Endpoints
-	mux.HandleFunc("/api/accounts", a.handleAPIGetAccounts)
-	mux.HandleFunc("/api/select", a.handleAPISelectAccount)
-
-	// Static Assets (WebApp)
-	distDir := "internal/adapters/primary/telegram/webapp/dist"
-	fs := http.FileServer(http.Dir(distDir))
-
-	// Handler with logging
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
-		mux.ServeHTTP(w, r)
-	})
-
-	mux.Handle("/", fs)
-
-	addr := fmt.Sprintf(":%d", a.httpPort)
-	log.Printf("WebApp server listening on %s (serving from %s)", addr, distDir)
-	if err := http.ListenAndServe(addr, handler); err != nil {
-		log.Printf("HTTP server error: %v", err)
-	}
+/*
+RefreshDraftMessage updates the existing draft message for a user.
+Satisfies the MessageRefresher interface for the WebAppServer.
+*/
+func (a *TelegramAdapter) RefreshDraftMessage(userID int64) error {
+	return a.refreshDraftMessage(userID)
 }
+
+/*
+getCleanedText returns the message text with the bot's username mention stripped.
+...
 
 /*
 getCleanedText returns the message text with the bot's username mention stripped.
