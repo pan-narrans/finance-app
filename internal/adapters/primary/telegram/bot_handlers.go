@@ -95,15 +95,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	// 3. Clean mentions and formatting
 	text = a.getCleanedText(c)
 
-	// 4. Strip leading @ if it survived getCleanedText (e.g. misspelled mention)
-	if strings.HasPrefix(text, "@") {
-		fields := strings.Fields(text)
-		if len(fields) > 1 {
-			text = strings.Join(fields[1:], " ")
-		}
-	}
-
-	// 5. Otherwise, treat as a new transaction entry
+	// 4. Treat as a new transaction entry
 	tx, err := a.transactionParserUC.ParseText(text, "Telegram")
 	if err != nil {
 		return c.Send(err.Error())
