@@ -13,6 +13,7 @@ tmp/
 
 # WebApp (Node/React)
 node_modules/
+dist/
 npm-debug.log*
 
 # Configuration & Secrets
