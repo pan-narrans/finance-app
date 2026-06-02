@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react';
 
 interface AccountSearchProps {
   accounts: string[];
@@ -15,7 +15,7 @@ export const AccountSearch: React.FC<AccountSearchProps> = ({
   setSearch,
   type,
   onSelect,
-  onCreateNew,
+  onCreateNew
 }) => {
   const filteredAccounts = useMemo(() => {
     if (!search) {

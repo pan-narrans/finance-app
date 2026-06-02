@@ -1,36 +1,36 @@
-import WebApp from "@twa-dev/sdk";
-import { useEffect, useState } from "react";
-import "./index.css";
-import { AccountSearch } from "./components/AccountSearch";
-import { CreateAccountWizard } from "./components/CreateAccountWizard";
+import WebApp from '@twa-dev/sdk';
+import { useEffect, useState } from 'react';
+import './index.css';
+import { AccountSearch } from './components/AccountSearch';
+import { CreateAccountWizard } from './components/CreateAccountWizard';
 
-type Mode = "search" | "create-parent" | "create-child";
+type Mode = 'search' | 'create-parent' | 'create-child';
 
 function App() {
   const [accounts, setAccounts] = useState<string[]>([]);
   const [roots, setRoots] = useState<string[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>("search");
-  const [selectedParent, setSelectedParent] = useState("");
-  const [newSubAccount, setNewSubAccount] = useState("");
+  const [mode, setMode] = useState<Mode>('search');
+  const [selectedParent, setSelectedParent] = useState('');
+  const [newSubAccount, setNewSubAccount] = useState('');
 
   // Get search type from URL params (source or target) or start_param
   const queryParams = new URLSearchParams(window.location.search);
   const type =
-    queryParams.get("type") ||
+    queryParams.get('type') ||
     (WebApp.initDataUnsafe as any).start_param ||
-    "target";
+    'target';
 
   useEffect(() => {
     WebApp.ready();
     WebApp.expand();
 
-    fetch("/api/accounts")
+    fetch('/api/accounts')
       .then((res) => {
         if (!res.ok) {
-          throw new Error("Failed to fetch accounts");
+          throw new Error('Failed to fetch accounts');
         }
         return res.json();
       })
@@ -47,45 +47,45 @@ function App() {
 
   useEffect(() => {
     // Back button behavior
-    if (mode === "search") {
+    if (mode === 'search') {
       WebApp.BackButton.hide();
     } else {
       WebApp.BackButton.show();
     }
 
     const handleBack = () => {
-      if (mode === "create-parent") {
-        setMode("search");
+      if (mode === 'create-parent') {
+        setMode('search');
       }
-      if (mode === "create-child") {
-        setMode("create-parent");
+      if (mode === 'create-child') {
+        setMode('create-parent');
       }
     };
 
-    WebApp.onEvent("backButtonClicked", handleBack);
-    return () => WebApp.offEvent("backButtonClicked", handleBack);
+    WebApp.onEvent('backButtonClicked', handleBack);
+    return () => WebApp.offEvent('backButtonClicked', handleBack);
   }, [mode]);
 
   const handleSelect = async (account: string) => {
-    WebApp.HapticFeedback.impactOccurred("medium");
+    WebApp.HapticFeedback.impactOccurred('medium');
 
     try {
-      const response = await fetch("/api/select", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           initData: WebApp.initData,
           account,
-          type,
-        }),
+          type
+        })
       });
 
       if (!response.ok) {
-        throw new Error("Selection failed");
+        throw new Error('Selection failed');
       }
       WebApp.close();
     } catch (err) {
-      WebApp.showAlert("Failed to save selection. Please try again.");
+      WebApp.showAlert('Failed to save selection. Please try again.');
     }
   };
 
@@ -96,7 +96,7 @@ function App() {
     return <div className="error">{error}</div>;
   }
 
-  if (mode === "search") {
+  if (mode === 'search') {
     return (
       <AccountSearch
         accounts={accounts}
@@ -104,7 +104,7 @@ function App() {
         setSearch={setSearch}
         type={type}
         onSelect={handleSelect}
-        onCreateNew={() => setMode("create-parent")}
+        onCreateNew={() => setMode('create-parent')}
       />
     );
   }
@@ -117,7 +117,7 @@ function App() {
       newSubAccount={newSubAccount}
       onSelectParent={(parent) => {
         setSelectedParent(parent);
-        setMode("create-child");
+        setMode('create-child');
       }}
       onSubAccountChange={setNewSubAccount}
       onSelectFinal={handleSelect}

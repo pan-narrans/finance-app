@@ -1,8 +1,8 @@
-import WebApp from "@twa-dev/sdk";
-import React, { useEffect } from "react";
+import WebApp from '@twa-dev/sdk';
+import React, { useEffect } from 'react';
 
 interface CreateAccountWizardProps {
-  mode: "create-parent" | "create-child";
+  mode: 'create-parent' | 'create-child';
   roots: string[];
   selectedParent: string;
   newSubAccount: string;
@@ -18,13 +18,13 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
   newSubAccount,
   onSelectParent,
   onSubAccountChange,
-  onSelectFinal,
+  onSelectFinal
 }) => {
   useEffect(() => {
     // Main button behavior for account creation
-    if (mode === "create-child" && newSubAccount.trim()) {
+    if (mode === 'create-child' && newSubAccount.trim()) {
       WebApp.MainButton.setText(
-        `CREATE & SELECT ${selectedParent}:${newSubAccount}`,
+        `CREATE & SELECT ${selectedParent}:${newSubAccount}`
       );
       WebApp.MainButton.show();
     } else {
@@ -33,11 +33,11 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
 
     const handleSubmit = () =>
       onSelectFinal(`${selectedParent}:${newSubAccount}`);
-    WebApp.onEvent("mainButtonClicked", handleSubmit);
-    return () => WebApp.offEvent("mainButtonClicked", handleSubmit);
+    WebApp.onEvent('mainButtonClicked', handleSubmit);
+    return () => WebApp.offEvent('mainButtonClicked', handleSubmit);
   }, [mode, newSubAccount, selectedParent, onSelectFinal]);
 
-  if (mode === "create-parent") {
+  if (mode === 'create-parent') {
     return (
       <div className="container">
         <div className="wizard-header">Select Top-Level Account</div>
@@ -58,11 +58,11 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
 
   // mode === 'create-child'
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.preventDefault();
       const trimmed = newSubAccount.trim();
-      if (trimmed && !trimmed.endsWith(":")) {
-        onSubAccountChange(trimmed + ":");
+      if (trimmed && !trimmed.endsWith(':')) {
+        onSubAccountChange(trimmed + ':');
       }
     }
   };
@@ -81,9 +81,9 @@ export const CreateAccountWizard: React.FC<CreateAccountWizardProps> = ({
           autoFocus
         />
         <div className="preview">
-          Full path:{" "}
+          Full path:{' '}
           <code>
-            {selectedParent}:{newSubAccount || "..."}
+            {selectedParent}:{newSubAccount || '...'}
           </code>
         </div>
       </div>
