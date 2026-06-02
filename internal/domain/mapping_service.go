@@ -71,8 +71,27 @@ func NewMappingService(data MappingData, discoveredAccounts []string) *MappingSe
 		}
 	}
 
+	uniqueAccounts := mergeAndSortAccounts(data.Accounts, discoveredAccounts)
+
+	return &MappingService{
+		data:                      data,
+		accountMappings:           data.Accounts,
+		descriptionMappings:       data.Descriptions,
+		sortedAccountKeywords:     sortedAccountKeywords,
+		sortedDescriptionKeywords: sortedDescriptionKeywords,
+		cardMappings:              data.Cards,
+		prefixRegexes:             prefixRegexes,
+		accounts:                  uniqueAccounts,
+	}
+}
+
+/*
+mergeAndSortAccounts combines mapped accounts and discovered accounts into a single,
+deduplicated, and alphabetically sorted slice.
+*/
+func mergeAndSortAccounts(mappedAccounts map[string]string, discoveredAccounts []string) []string {
 	uniqueMap := make(map[string]struct{})
-	for _, acc := range data.Accounts {
+	for _, acc := range mappedAccounts {
 		uniqueMap[acc] = struct{}{}
 	}
 	for _, acc := range discoveredAccounts {
@@ -85,16 +104,7 @@ func NewMappingService(data MappingData, discoveredAccounts []string) *MappingSe
 	}
 	slices.Sort(uniqueAccounts)
 
-	return &MappingService{
-		data:                      data,
-		accountMappings:           data.Accounts,
-		descriptionMappings:       data.Descriptions,
-		sortedAccountKeywords:     sortedAccountKeywords,
-		sortedDescriptionKeywords: sortedDescriptionKeywords,
-		cardMappings:              data.Cards,
-		prefixRegexes:             prefixRegexes,
-		accounts:                  uniqueAccounts,
-	}
+	return uniqueAccounts
 }
 
 /*
