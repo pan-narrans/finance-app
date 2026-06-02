@@ -17,7 +17,11 @@ import (
 // Ensure TransactionParserService implements ports.TransactionParserUseCase at compile time.
 var _ ports.TransactionParserUseCase = (*TransactionParserService)(nil)
 
-var entryRegex = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
+var (
+	entryRegex  = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
+	alphaRegex  = regexp.MustCompile(`^[a-zA-Z]+$`)
+	amountRegex = regexp.MustCompile(`^\d`)
+)
 
 /*
 TransactionParserService handles the conversion of raw text input into domain transactions.
@@ -144,8 +148,8 @@ func (s *TransactionParserService) GuessSource(text string) string {
 	}
 
 	// Heuristic: first word alphabetic, second word starts with digit (amount)
-	isAlpha := regexp.MustCompile(`^[a-zA-Z]+$`).MatchString(words[0])
-	isAmount := regexp.MustCompile(`^\d`).MatchString(words[1])
+	isAlpha := alphaRegex.MatchString(words[0])
+	isAmount := amountRegex.MatchString(words[1])
 
 	if isAlpha && isAmount {
 		return strings.ToLower(words[0])

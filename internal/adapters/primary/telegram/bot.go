@@ -2,7 +2,6 @@ package telegram
 
 import (
 	"log"
-	"regexp"
 	"strings"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -181,24 +180,4 @@ Satisfies the MessageRefresher interface for the WebAppServer.
 */
 func (a *TelegramAdapter) RefreshDraftMessage(userID int64) error {
 	return a.refreshDraftMessage(userID)
-}
-
-/*
-getCleanedText returns the message text with the bot's username mention stripped.
-...
-
-/*
-getCleanedText returns the message text with the bot's username mention stripped.
-This ensures that mentions in group chats don't leak into business logic (e.g. account names).
-*/
-func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
-	text := c.Text()
-	if username := a.teleBot.Me.Username; username != "" {
-		mention := "@" + username
-		// Case-insensitive removal of all occurrences
-		re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(mention))
-		text = re.ReplaceAllString(text, "")
-		text = strings.Join(strings.Fields(text), " ")
-	}
-	return text
 }

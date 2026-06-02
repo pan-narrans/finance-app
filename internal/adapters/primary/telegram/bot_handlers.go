@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/a-perez/finance-app/internal/domain"
@@ -330,4 +331,20 @@ func (a *TelegramAdapter) refreshDraftMessage(userID int64) error {
 
 	_, err := a.teleBot.Edit(editable, msg, selector, telebot.ModeHTML)
 	return err
+}
+
+/*
+getCleanedText returns the message text with the bot's username mention stripped.
+This ensures that mentions in group chats don't leak into business logic (e.g. account names).
+*/
+func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
+	text := c.Text()
+	if username := a.teleBot.Me.Username; username != "" {
+		mention := "@" + username
+		// Case-insensitive removal of all occurrences
+		re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(mention))
+		text = re.ReplaceAllString(text, "")
+		text = strings.Join(strings.Fields(text), " ")
+	}
+	return text
 }
