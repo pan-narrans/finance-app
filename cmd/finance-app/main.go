@@ -52,15 +52,19 @@ func main() {
 	reportService := app.NewReportService(repo, configManager)
 
 	// Primary Adapter
-	bot, err := telegram.NewTelegramAdapter(
-		telebot.Settings{
+	tgConfig := telegram.TelegramConfig{
+		Settings: telebot.Settings{
 			Token:  env.TelegramToken,
 			Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 		},
-		env.TelegramUserIDs,
-		env.TelegramToken,
-		env.WebAppBaseURL,
-		env.HTTPPort,
+		AllowedIDs:    env.TelegramUserIDs,
+		BotToken:      env.TelegramToken,
+		WebAppBaseURL: env.WebAppBaseURL,
+		HTTPPort:      env.HTTPPort,
+	}
+
+	bot, err := telegram.NewTelegramAdapter(
+		tgConfig,
 		transactionService,
 		transactionParserService,
 		importService,

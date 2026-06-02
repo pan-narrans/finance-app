@@ -99,12 +99,16 @@ func setupTestEnv(t *testing.T) *testEnv {
 	}
 
 	userID := int64(12345)
+	tgConfig := telegram.TelegramConfig{
+		Settings:      settings,
+		AllowedIDs:    []int64{userID},
+		BotToken:      "fake-token",
+		WebAppBaseURL: "http://localhost",
+		HTTPPort:      0,
+	}
+
 	adapter, err := telegram.NewTelegramAdapter(
-		settings,
-		[]int64{userID},
-		"fake-token",
-		"http://localhost",
-		0,
+		tgConfig,
 		txService,
 		parserService,
 		nil,

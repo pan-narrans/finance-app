@@ -37,14 +37,21 @@ type TelegramAdapter struct {
 }
 
 /*
+TelegramConfig holds all infrastructure-specific configuration for the Telegram Adapter.
+*/
+type TelegramConfig struct {
+	Settings      telebot.Settings
+	AllowedIDs    []int64
+	BotToken      string
+	WebAppBaseURL string
+	HTTPPort      int
+}
+
+/*
 NewTelegramAdapter creates and initializes a TelegramAdapter with its dependencies.
 */
 func NewTelegramAdapter(
-	settings telebot.Settings,
-	allowedIDs []int64,
-	botToken string,
-	webAppBaseURL string,
-	httpPort int,
+	cfg TelegramConfig,
 	txUC ports.TransactionUseCase,
 	parserUC ports.TransactionParserUseCase,
 	importUC ports.ImportUseCase,
@@ -52,13 +59,13 @@ func NewTelegramAdapter(
 	configUC ports.ConfigurationUseCase,
 	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
-	bot, err := telebot.NewBot(settings)
+	bot, err := telebot.NewBot(cfg.Settings)
 	if err != nil {
 		return nil, err
 	}
 
 	allowedMap := make(map[int64]struct{})
-	for _, id := range allowedIDs {
+	for _, id := range cfg.AllowedIDs {
 		allowedMap[id] = struct{}{}
 	}
 
@@ -73,12 +80,12 @@ func NewTelegramAdapter(
 		configUseCase:       configUC,
 		formatter:           formatter,
 		sessionManager:      sessionManager,
-		ui:                  NewUI(webAppBaseURL),
-		botToken:            botToken,
-		webAppBaseURL:       webAppBaseURL,
+		ui:                  NewUI(cfg.WebAppBaseURL),
+		botToken:            cfg.BotToken,
+		webAppBaseURL:       cfg.WebAppBaseURL,
 	}
 
-	adapter.webAppServer = NewWebAppServer(httpPort, botToken, configUC, sessionManager, adapter)
+	adapter.webAppServer = NewWebAppServer(cfg.HTTPPort, cfg.BotToken, configUC, sessionManager, adapter)
 
 	return adapter, nil
 }
