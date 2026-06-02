@@ -58,9 +58,11 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 			text = strings.Join(parts[1:], " ")
 		} else if parts[0] == "/transaction" || strings.HasPrefix(parts[0], "/transaction@") {
 			// Bare command - start interactive flow
-			a.sessionManager.Set(userID, &UserSession{
-				State: StateAwaitingTransactionInput,
-			})
+			a.sessionManager.Set(
+				userID, &UserSession{
+					State: StateAwaitingTransactionInput,
+				},
+			)
 
 			// Use ForceReply to ensure the reply is delivered to the bot in groups
 			// and InputFieldPlaceholder to guide the user.
@@ -80,9 +82,11 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		switch session.State {
 		case StateAwaitingTransactionInput:
 			// Process as transaction text and proceed
-			a.sessionManager.Update(userID, func(s *UserSession) {
-				s.State = StateNone
-			})
+			a.sessionManager.Update(
+				userID, func(s *UserSession) {
+					s.State = StateNone
+				},
+			)
 			// fallthrough to cleaning logic
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
@@ -106,11 +110,13 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	sourceKeyword := a.transactionParserUC.GuessSource(text)
 
 	// Store in session
-	a.sessionManager.Set(userID, &UserSession{
-		Draft:                 tx,
-		State:                 StateNone,
-		OriginalSourceKeyword: sourceKeyword,
-	})
+	a.sessionManager.Set(
+		userID, &UserSession{
+			Draft:                 tx,
+			State:                 StateNone,
+			OriginalSourceKeyword: sourceKeyword,
+		},
+	)
 
 	return a.sendDraftMessage(c, tx)
 }
@@ -148,11 +154,13 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	if len(summary.Pending) > 0 {
 		userID := c.Sender().ID
 		firstPending := summary.Pending[0]
-		a.sessionManager.Set(userID, &UserSession{
-			Draft:                 firstPending,
-			PendingQueue:          summary.Pending[1:],
-			OriginalSourceKeyword: a.transactionParserUC.GuessSource(firstPending.Description),
-		})
+		a.sessionManager.Set(
+			userID, &UserSession{
+				Draft:                 firstPending,
+				PendingQueue:          summary.Pending[1:],
+				OriginalSourceKeyword: a.transactionParserUC.GuessSource(firstPending.Description),
+			},
+		)
 
 		response += fmt.Sprintf("\n\n<b>%d transactions need review.</b>", len(summary.Pending))
 		c.Send(response, telebot.ModeHTML)
@@ -194,10 +202,12 @@ func (a *TelegramAdapter) handleChildInput(c telebot.Context) error {
 	newPath := session.NewAccountPath + ":" + child
 	formattedPath := domain.FormatAccountPath(newPath)
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateCreatingAccountReview
-		s.NewAccountPath = formattedPath
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateCreatingAccountReview
+			s.NewAccountPath = formattedPath
+		},
+	)
 
 	msg, selector := a.ui.BuildAccountReview(formattedPath)
 	return c.Send(msg, selector, telebot.ModeHTML)
@@ -273,7 +283,15 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 	botUsername := a.teleBot.Me.Username
 
 	if isImportReview {
-		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate, botUsername)
+		msg, selector = a.ui.BuildImportReviewMessage(
+			tx,
+			len(session.PendingQueue),
+			appConfig.Mappings,
+			appConfig.Settings,
+			a.formatter,
+			isPrivate,
+			botUsername,
+		)
 	} else {
 		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate, botUsername)
 	}
@@ -288,10 +306,12 @@ func (a *TelegramAdapter) sendDraftMessage(c telebot.Context, tx domain.Transact
 	}
 
 	if err == nil && sentMsg != nil {
-		a.sessionManager.Update(userID, func(s *UserSession) {
-			s.LastMessageID = sentMsg.ID
-			s.LastChatID = sentMsg.Chat.ID
-		})
+		a.sessionManager.Update(
+			userID, func(s *UserSession) {
+				s.LastMessageID = sentMsg.ID
+				s.LastChatID = sentMsg.Chat.ID
+			},
+		)
 	}
 
 	return err
@@ -319,7 +339,15 @@ func (a *TelegramAdapter) refreshDraftMessage(userID int64) error {
 	isImportReview := len(session.PendingQueue) > 0 || tx.Metadata.Origin != domain.OriginTelegram
 
 	if isImportReview {
-		msg, selector = a.ui.BuildImportReviewMessage(tx, len(session.PendingQueue), appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate, botUsername)
+		msg, selector = a.ui.BuildImportReviewMessage(
+			tx,
+			len(session.PendingQueue),
+			appConfig.Mappings,
+			appConfig.Settings,
+			a.formatter,
+			isPrivate,
+			botUsername,
+		)
 	} else {
 		msg, selector = a.ui.BuildDraftMessage(tx, appConfig.Mappings, appConfig.Settings, a.formatter, isPrivate, botUsername)
 	}

@@ -69,7 +69,14 @@ func NewUI(webAppBaseURL string) *UI {
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool, botUsername string) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(
+	tx domain.Transaction,
+	mappingProvider ports.MappingProvider,
+	settings domain.Settings,
+	formatter ports.TransactionFormatter,
+	isPrivate bool,
+	botUsername string,
+) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	var editRow telebot.Row
@@ -115,7 +122,15 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 BuildImportReviewMessage is a specialized version of BuildDraftMessage for the import review flow.
 It includes "Accept All" and "Cancel Import" options.
 */
-func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter, isPrivate bool, botUsername string) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildImportReviewMessage(
+	tx domain.Transaction,
+	pendingCount int,
+	mappingProvider ports.MappingProvider,
+	settings domain.Settings,
+	formatter ports.TransactionFormatter,
+	isPrivate bool,
+	botUsername string,
+) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
 
 	var editRow telebot.Row

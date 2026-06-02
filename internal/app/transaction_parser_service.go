@@ -103,7 +103,12 @@ It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
 func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string, amount float64) string {
-	account := appConfig.Mappings.ResolveAccount(cleanDescription, amount, appConfig.Settings.DefaultIncomeAccount, appConfig.Settings.DefaultExpenseAccount)
+	account := appConfig.Mappings.ResolveAccount(
+		cleanDescription,
+		amount,
+		appConfig.Settings.DefaultIncomeAccount,
+		appConfig.Settings.DefaultExpenseAccount,
+	)
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(account, ":Unknown") {

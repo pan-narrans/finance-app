@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from 'react';
 import WebApp from '@twa-dev/sdk';
+import { useEffect, useMemo, useState } from 'react';
 
 type Mode = 'search' | 'create-parent' | 'create-child';
 
@@ -20,10 +20,12 @@ function App() {
   useEffect(() => {
     WebApp.ready();
     WebApp.expand();
-    
+
     fetch('/api/accounts')
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch accounts');
+        if (!res.ok) {
+          throw new Error('Failed to fetch accounts');
+        }
         return res.json();
       })
       .then((data: { accounts: string[], roots: string[] }) => {
@@ -57,13 +59,13 @@ function App() {
   useEffect(() => {
     // Main button behavior for account creation
     if (mode === 'create-child' && newSubAccount.trim()) {
-      WebApp.MainButton.setText(`CREATE & SELECT ${selectedParent}:${newSubAccount}`);
+      WebApp.MainButton.setText(`CREATE & SELECT ${ selectedParent }:${ newSubAccount }`);
       WebApp.MainButton.show();
     } else {
       WebApp.MainButton.hide();
     }
 
-    const handleSubmit = () => handleSelect(`${selectedParent}:${newSubAccount}`);
+    const handleSubmit = () => handleSelect(`${ selectedParent }:${ newSubAccount }`);
     WebApp.onEvent('mainButtonClicked', handleSubmit);
     return () => WebApp.offEvent('mainButtonClicked', handleSubmit);
   }, [mode, newSubAccount, selectedParent]);
@@ -76,7 +78,7 @@ function App() {
 
   const handleSelect = async (account: string) => {
     WebApp.HapticFeedback.impactOccurred('medium');
-    
+
     try {
       const response = await fetch('/api/select', {
         method: 'POST',
@@ -85,7 +87,7 @@ function App() {
           initData: WebApp.initData,
           account,
           type
-        }),
+        })
       });
 
       if (!response.ok) throw new Error('Selection failed');
@@ -96,23 +98,23 @@ function App() {
   };
 
   if (loading) return <div className="loading">Loading...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (error) return <div className="error">{ error }</div>;
 
   if (mode === 'create-parent') {
     return (
       <div className="container">
         <div className="wizard-header">Select Top-Level Account</div>
         <div className="grid">
-          {roots.map(root => (
-            <div key={root} className="grid-item" onClick={() => {
+          { roots.map(root => (
+            <div key={ root } className="grid-item" onClick={ () => {
               setSelectedParent(root);
               setMode('create-child');
-            }}>
-              {root}
+            } }>
+              { root }
             </div>
-          ))}
+          )) }
         </div>
-        {renderStyles()}
+        { renderStyles() }
       </div>
     );
   }
@@ -130,22 +132,22 @@ function App() {
 
     return (
       <div className="container">
-        <div className="wizard-header">New Sub-account for {selectedParent}</div>
+        <div className="wizard-header">New Sub-account for { selectedParent }</div>
         <div className="input-group">
           <input
             type="text"
             className="search-input"
             placeholder="e.g. Dining"
-            value={newSubAccount}
-            onChange={(e) => setNewSubAccount(e.target.value)}
-            onKeyDown={handleKeyDown}
+            value={ newSubAccount }
+            onChange={ (e) => setNewSubAccount(e.target.value) }
+            onKeyDown={ handleKeyDown }
             autoFocus
           />
           <div className="preview">
-            Full path: <code>{selectedParent}:{newSubAccount || '...'}</code>
+            Full path: <code>{ selectedParent }:{ newSubAccount || '...' }</code>
           </div>
         </div>
-        {renderStyles()}
+        { renderStyles() }
       </div>
     );
   }
@@ -156,46 +158,46 @@ function App() {
         <input
           type="text"
           className="search-input"
-          placeholder={`Search ${type} account...`}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder={ `Search ${ type } account...` }
+          value={ search }
+          onChange={ (e) => setSearch(e.target.value) }
           autoFocus
         />
       </header>
 
       <div className="list">
-        {filteredAccounts.length === 0 ? (
+        { filteredAccounts.length === 0 ? (
           <div className="empty-state">
             <div className="no-results">No accounts match your search.</div>
-            <button className="action-btn" onClick={() => setMode('create-parent')}>
+            <button className="action-btn" onClick={ () => setMode('create-parent') }>
               ✨ Create New Account
             </button>
           </div>
         ) : (
-          <>
-            {filteredAccounts.map((acc) => (
-              <div key={acc} className="list-item" onClick={() => handleSelect(acc)}>
-                <div className="account-name">{acc}</div>
-                <div className="chevron">›</div>
+            <>
+              { filteredAccounts.map((acc) => (
+                <div key={ acc } className="list-item" onClick={ () => handleSelect(acc) }>
+                  <div className="account-name">{ acc }</div>
+                  <div className="chevron">›</div>
+                </div>
+              )) }
+              <div className="list-footer">
+                <button className="text-btn" onClick={ () => setMode('create-parent') }>
+                  + Create another account
+                </button>
               </div>
-            ))}
-            <div className="list-footer">
-              <button className="text-btn" onClick={() => setMode('create-parent')}>
-                + Create another account
-              </button>
-            </div>
-          </>
-        )}
+            </>
+          ) }
       </div>
 
-      {renderStyles()}
+      { renderStyles() }
     </div>
   );
 }
 
 function renderStyles() {
   return (
-    <style>{`
+    <style>{ `
       :root {
         --primary-color: var(--tg-theme-button-color, #2481cc);
         --bg-color: var(--tg-theme-bg-color, #ffffff);
@@ -339,7 +341,7 @@ function renderStyles() {
         padding: 100px 20px;
         text-align: center;
       }
-    `}</style>
+    ` }</style>
   );
 }
 

@@ -111,10 +111,12 @@ func (m *Manager) reload() error {
 
 	mappingService := m.constructor(mappingsData, discoveredAccounts)
 
-	m.current.Store(&ports.AppConfig{
-		Settings: settings,
-		Mappings: mappingService,
-	})
+	m.current.Store(
+		&ports.AppConfig{
+			Settings: settings,
+			Mappings: mappingService,
+		},
+	)
 
 	return nil
 }
@@ -128,10 +130,12 @@ func (m *Manager) ReloadWithData(settings domain.Settings, mappings domain.Mappi
 	defer m.mu.Unlock()
 
 	mappingService := m.constructor(mappings, nil)
-	m.current.Store(&ports.AppConfig{
-		Settings: settings,
-		Mappings: mappingService,
-	})
+	m.current.Store(
+		&ports.AppConfig{
+			Settings: settings,
+			Mappings: mappingService,
+		},
+	)
 }
 
 /*
@@ -215,7 +219,9 @@ func (m *Manager) LearnMapping(transaction domain.Transaction, targetOverride bo
 		return nil
 	}
 
-	return m.UpdateMapping(func(data *domain.MappingData) {
-		data.Learn(transaction, targetOverride, sourceOverride, originalSource)
-	})
+	return m.UpdateMapping(
+		func(data *domain.MappingData) {
+			data.Learn(transaction, targetOverride, sourceOverride, originalSource)
+		},
+	)
 }

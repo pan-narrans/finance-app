@@ -41,7 +41,13 @@ type WebAppServer struct {
 /*
 NewWebAppServer creates a new instance of WebAppServer.
 */
-func NewWebAppServer(port int, token string, configUC ports.ConfigurationUseCase, sessionManager *SessionManager, refresher MessageRefresher) *WebAppServer {
+func NewWebAppServer(
+	port int,
+	token string,
+	configUC ports.ConfigurationUseCase,
+	sessionManager *SessionManager,
+	refresher MessageRefresher,
+) *WebAppServer {
 	return &WebAppServer{
 		port:           port,
 		botToken:       token,
@@ -69,10 +75,12 @@ func (s *WebAppServer) Start() error {
 	fsServer := http.FileServer(http.FS(staticFS))
 
 	// Middleware for logging
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
-		mux.ServeHTTP(w, r)
-	})
+	handler := http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
+			mux.ServeHTTP(w, r)
+		},
+	)
 
 	mux.Handle("/", fsServer)
 
@@ -146,15 +154,17 @@ func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Reques
 
 	formattedAccount := domain.FormatAccountPath(payload.Account)
 
-	s.sessionManager.Update(user.ID, func(sess *UserSession) {
-		if payload.Type == "source" {
-			sess.Draft.Postings[1].Account = formattedAccount
-			sess.SourceOverridden = true
-		} else {
-			sess.Draft.Postings[0].Account = formattedAccount
-			sess.TargetOverridden = true
-		}
-	})
+	s.sessionManager.Update(
+		user.ID, func(sess *UserSession) {
+			if payload.Type == "source" {
+				sess.Draft.Postings[1].Account = formattedAccount
+				sess.SourceOverridden = true
+			} else {
+				sess.Draft.Postings[0].Account = formattedAccount
+				sess.TargetOverridden = true
+			}
+		},
+	)
 
 	// 4. Update the bot message asynchronously
 	if err := s.refresher.RefreshDraftMessage(user.ID); err != nil {

@@ -139,18 +139,20 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelImport}, a.handleCancelImport)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAcceptAll}, a.handleAcceptAll)
 
-	a.teleBot.Handle(telebot.OnCallback, func(c telebot.Context) error {
-		data := c.Callback().Data
-		switch {
-		case strings.HasPrefix(data, "\f"+CallbackEditAcc):
-			return a.handleEditRequest(c)
-		case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
-			return a.handleAccountSelect(c)
-		case strings.HasPrefix(data, "\f"+CallbackSelectParent):
-			return a.handleSelectParent(c)
-		}
-		return nil
-	})
+	a.teleBot.Handle(
+		telebot.OnCallback, func(c telebot.Context) error {
+			data := c.Callback().Data
+			switch {
+			case strings.HasPrefix(data, "\f"+CallbackEditAcc):
+				return a.handleEditRequest(c)
+			case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
+				return a.handleAccountSelect(c)
+			case strings.HasPrefix(data, "\f"+CallbackSelectParent):
+				return a.handleSelectParent(c)
+			}
+			return nil
+		},
+	)
 
 	// Set Commands Menu for Autocomplete
 	commands := []telebot.Command{

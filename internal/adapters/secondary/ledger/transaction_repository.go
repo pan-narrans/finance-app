@@ -34,7 +34,11 @@ type TransactionFileRepository struct {
 }
 
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
-func NewTransactionFileRepository(filePath string, configUC ports.ConfigurationUseCase, formatter ports.TransactionFormatter) *TransactionFileRepository {
+func NewTransactionFileRepository(
+	filePath string,
+	configUC ports.ConfigurationUseCase,
+	formatter ports.TransactionFormatter,
+) *TransactionFileRepository {
 	return &TransactionFileRepository{
 		FilePath:      filePath,
 		configUseCase: configUC,
