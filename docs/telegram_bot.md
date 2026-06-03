@@ -24,7 +24,7 @@ The bot can be added to Telegram Groups for collaborative expense tracking. To m
 - **Command Trigger**: Starts with `/transaction`.
 - **Mention Trigger**: Mentions the bot (e.g., `@miroceanicecream_bot 10 pizza`).
 - **Reply Trigger**: Replies to one of the bot's own messages.
-- **Interactive Flow**: Once a transaction is initiated via `/transaction`, the bot enters a "listening" mode with the user, using **ForceReply** to capture the next message regardless of mentions.
+- **Interactive Flow**: Sending the bare `/transaction` command starts a multi-step wizard. The bot will use **ForceReply** to prompt for the amount, and then for the description, guiding users clearly through the process.
 
 ## Telegram Mini App (WebApp)
 
