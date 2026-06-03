@@ -85,7 +85,12 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 	}
 
 	cleanDescription := p.mappingProvider.CleanDescription(fullDescription)
-	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
+	targetAccount := p.mappingProvider.ResolveAccount(
+		cleanDescription,
+		amount,
+		p.settings.DefaultIncomeAccount,
+		p.settings.DefaultExpenseAccount,
+	)
 
 	metadata := domain.Metadata{
 		Origin: "Imaginbank",

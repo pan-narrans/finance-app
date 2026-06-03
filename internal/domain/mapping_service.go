@@ -2,7 +2,6 @@ package domain
 
 import (
 	"cmp"
-	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -58,9 +57,9 @@ NewMappingService creates and initializes a MappingService.
 It pre-processes mapping data by:
   - Sorting keywords by length (descending) to ensure longest-match priority.
   - Compiling case-insensitive prefix regular expressions.
-  - Extracting a unique, sorted list of known account names.
+  - Extracting a unique, sorted list of known account names from both mappings and discovered accounts.
 */
-func NewMappingService(data MappingData) *MappingService {
+func NewMappingService(data MappingData, discoveredAccounts []string) *MappingService {
 	sortedAccountKeywords := sortKeywords(data.Accounts)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
 
@@ -72,8 +71,7 @@ func NewMappingService(data MappingData) *MappingService {
 		}
 	}
 
-	uniqueAccounts := slices.Sorted(maps.Values(data.Accounts))
-	uniqueAccounts = slices.Compact(uniqueAccounts)
+	uniqueAccounts := mergeAndSortAccounts(data.Accounts, discoveredAccounts)
 
 	return &MappingService{
 		data:                      data,
@@ -85,6 +83,35 @@ func NewMappingService(data MappingData) *MappingService {
 		prefixRegexes:             prefixRegexes,
 		accounts:                  uniqueAccounts,
 	}
+}
+
+/*
+mergeAndSortAccounts combines mapped accounts and discovered accounts into a single,
+deduplicated, and alphabetically sorted slice.
+*/
+func mergeAndSortAccounts(mappedAccounts map[string]string, discoveredAccounts []string) []string {
+	uniqueMap := make(map[string]struct{})
+	for _, acc := range mappedAccounts {
+		uniqueMap[acc] = struct{}{}
+	}
+	for _, acc := range discoveredAccounts {
+		uniqueMap[acc] = struct{}{}
+	}
+
+	uniqueAccounts := make([]string, 0, len(uniqueMap))
+	for acc := range uniqueMap {
+		uniqueAccounts = append(uniqueAccounts, acc)
+	}
+	slices.Sort(uniqueAccounts)
+
+	return uniqueAccounts
+}
+
+/*
+GetAllAccounts returns a unique, sorted list of all known account names.
+*/
+func (s *MappingService) GetAllAccounts() []string {
+	return s.accounts
 }
 
 /*
@@ -206,23 +233,6 @@ func (s *MappingService) SearchAccounts(query string, limit int) []string {
 	}
 
 	return sortAndLimitResults(accountScores, limit)
-}
-
-/*
-LoadAccounts merges external account names into the service's internal list.
-It ensures the final list is unique and sorted alphabetically.
-*/
-func (s *MappingService) LoadAccounts(accounts []string) {
-	if len(accounts) == 0 {
-		return
-	}
-
-	// Merge with existing accounts
-	s.accounts = append(s.accounts, accounts...)
-
-	// Ensure uniqueness and sort
-	slices.Sort(s.accounts)
-	s.accounts = slices.Compact(s.accounts)
 }
 
 /*

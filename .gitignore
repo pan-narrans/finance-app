@@ -1,21 +1,31 @@
-# IDE
-.idea
+# OS & IDEs
+.idea/
+.vscode/
+.DS_Store
 
-# Gemini
-.gemini/.env
-
-/ledger-files
-/sample-data
-# Configuration
-/config/*.json
-!/config/templates/
-.env
-
-# Binaries
+# Build Artifacts (Go)
 bin/
 tmp/
 *.exe
 *.test
+*.out
+/finance-app
 
-# Mac
-.DS_Store
+# WebApp (Node/React)
+node_modules/
+dist/
+npm-debug.log*
+
+# Configuration & Secrets
+.env
+.env.local
+/config/*.json
+!/config/templates/
+
+# Local Data
+/ledger-files/
+/sample-data/
+
+# Gemini CLI
+.gemini/tmp/
+.gemini/.env

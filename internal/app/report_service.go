@@ -50,11 +50,13 @@ func (s *ReportService) GetMonthlyReport(period string) ([]ports.ReportSection, 
 		}
 
 		if strings.TrimSpace(report) != "" {
-			sections = append(sections, ports.ReportSection{
-				Title:     root,
-				DateRange: dateRange,
-				Content:   report,
-			})
+			sections = append(
+				sections, ports.ReportSection{
+					Title:     root,
+					DateRange: dateRange,
+					Content:   report,
+				},
+			)
 		}
 	}
 

@@ -229,14 +229,16 @@ func TestTransaction_HasUnknownAccount(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tx := domain.Transaction{Postings: tt.postings}
+		t.Run(
+			tt.name, func(t *testing.T) {
+				tx := domain.Transaction{Postings: tt.postings}
 
-			// Act
-			got := tx.HasUnknownAccount()
+				// Act
+				got := tx.HasUnknownAccount()
 
-			// Assert
-			assert.Equal(t, tt.expected, got)
-		})
+				// Assert
+				assert.Equal(t, tt.expected, got)
+			},
+		)
 	}
 }

@@ -12,8 +12,8 @@ import (
 
 func TestParserFactory_GetParser_ShouldReturnOpenBankParser_WhenFilenameMatches(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	factory := NewParserFactory(manager)
@@ -28,8 +28,8 @@ func TestParserFactory_GetParser_ShouldReturnOpenBankParser_WhenFilenameMatches(
 
 func TestParserFactory_GetParser_ShouldReturnImaginBankParser_WhenFilenameMatches(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	factory := NewParserFactory(manager)
@@ -44,8 +44,8 @@ func TestParserFactory_GetParser_ShouldReturnImaginBankParser_WhenFilenameMatche
 
 func TestParserFactory_GetParser_ShouldReturnError_WhenNoMatchFound(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	factory := NewParserFactory(manager)
@@ -61,8 +61,8 @@ func TestParserFactory_GetParser_ShouldReturnError_WhenNoMatchFound(t *testing.T
 
 func TestParserFactory_GetParser_ShouldBeCaseInsensitive(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	factory := NewParserFactory(manager)

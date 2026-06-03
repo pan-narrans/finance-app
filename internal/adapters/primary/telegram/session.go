@@ -12,11 +12,12 @@ SearchState represents the current step in a user's multi-message interaction.
 type SearchState string
 
 const (
-	StateNone                  SearchState = ""                // StateNone indicates the user is not in a multistep flow.
-	StateAwaitingQuery         SearchState = "awaiting_query"  // StateAwaitingQuery indicates the bot is waiting for an account search query.
-	StateCreatingAccountParent SearchState = "creating_parent" // StateCreatingAccountParent indicates the user is selecting the root account.
-	StateCreatingAccountChild  SearchState = "creating_child"  // StateCreatingAccountChild indicates the user is typing a subaccount name.
-	StateCreatingAccountReview SearchState = "creating_review" // StateCreatingAccountReview indicates the user is reviewing the constructed path.
+	StateNone                     SearchState = ""                  // StateNone indicates the user is not in a multistep flow.
+	StateAwaitingQuery            SearchState = "awaiting_query"    // StateAwaitingQuery indicates the bot is waiting for an account search query.
+	StateAwaitingTransactionInput SearchState = "awaiting_tx_input" // StateAwaitingTransactionInput indicates the bot is waiting for full transaction text.
+	StateCreatingAccountParent    SearchState = "creating_parent"   // StateCreatingAccountParent indicates the user is selecting the root account.
+	StateCreatingAccountChild     SearchState = "creating_child"    // StateCreatingAccountChild indicates the user is typing a subaccount name.
+	StateCreatingAccountReview    SearchState = "creating_review"   // StateCreatingAccountReview indicates the user is reviewing the constructed path.
 )
 
 /*
@@ -31,6 +32,8 @@ type UserSession struct {
 	SourceOverridden      bool
 	OriginalSourceKeyword string
 	PendingQueue          []domain.Transaction
+	LastMessageID         int
+	LastChatID            int64
 }
 
 /*
@@ -51,14 +54,17 @@ func NewSessionManager() *SessionManager {
 }
 
 /*
-Get retrieves a session for a specific user.
-It returns the session and true if found; otherwise, nil and false.
+Get retrieves a session copy for a specific user.
+It returns a shallow copy of the session and true if found; otherwise, an empty session and false.
 */
-func (m *SessionManager) Get(userID int64) (*UserSession, bool) {
+func (m *SessionManager) Get(userID int64) (UserSession, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	session, ok := m.sessions[userID]
-	return session, ok
+	sessionPtr, ok := m.sessions[userID]
+	if !ok || sessionPtr == nil {
+		return UserSession{}, false
+	}
+	return *sessionPtr, true
 }
 
 /*

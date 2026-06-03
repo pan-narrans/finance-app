@@ -49,11 +49,13 @@ func TestGetCleanedText(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &mockContext{text: tt.input}
-			result := adapter.getCleanedText(c)
-			assert.Equal(t, tt.expected, result)
-		})
+		t.Run(
+			tt.name, func(t *testing.T) {
+				c := &mockContext{text: tt.input}
+				result := adapter.getCleanedText(c)
+				assert.Equal(t, tt.expected, result)
+			},
+		)
 	}
 }
 

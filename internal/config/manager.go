@@ -74,12 +74,15 @@ func (m *Manager) Reload() error {
 }
 
 /*
-SetRepository sets the transaction repository for dynamic account discovery.
+SetRepository sets the transaction repository for dynamic account discovery and triggers a reload.
 */
 func (m *Manager) SetRepository(repo ports.TransactionRepository) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.repo = repo
+	if err := m.reload(); err != nil {
+		log.Printf("Warning: Failed to reload mappings after setting repository: %v", err)
+	}
 }
 
 /*
@@ -97,19 +100,23 @@ func (m *Manager) reload() error {
 		return err
 	}
 
-	mappingService := m.constructor(mappingsData)
+	var discoveredAccounts []string
 	if m.repo != nil {
-		if accounts, err := m.repo.GetAccounts(); err == nil {
-			mappingService.LoadAccounts(accounts)
-		} else {
+		var err error
+		discoveredAccounts, err = m.repo.GetAccounts()
+		if err != nil {
 			log.Printf("Warning: Dynamic account discovery failed: %v", err)
 		}
 	}
 
-	m.current.Store(&ports.AppConfig{
-		Settings: settings,
-		Mappings: mappingService,
-	})
+	mappingService := m.constructor(mappingsData, discoveredAccounts)
+
+	m.current.Store(
+		&ports.AppConfig{
+			Settings: settings,
+			Mappings: mappingService,
+		},
+	)
 
 	return nil
 }
@@ -122,11 +129,13 @@ func (m *Manager) ReloadWithData(settings domain.Settings, mappings domain.Mappi
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	mappingService := m.constructor(mappings)
-	m.current.Store(&ports.AppConfig{
-		Settings: settings,
-		Mappings: mappingService,
-	})
+	mappingService := m.constructor(mappings, nil)
+	m.current.Store(
+		&ports.AppConfig{
+			Settings: settings,
+			Mappings: mappingService,
+		},
+	)
 }
 
 /*
@@ -210,7 +219,9 @@ func (m *Manager) LearnMapping(transaction domain.Transaction, targetOverride bo
 		return nil
 	}
 
-	return m.UpdateMapping(func(data *domain.MappingData) {
-		data.Learn(transaction, targetOverride, sourceOverride, originalSource)
-	})
+	return m.UpdateMapping(
+		func(data *domain.MappingData) {
+			data.Learn(transaction, targetOverride, sourceOverride, originalSource)
+		},
+	)
 }

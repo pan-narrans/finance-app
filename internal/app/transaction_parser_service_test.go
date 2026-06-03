@@ -21,8 +21,8 @@ func TestTransactionParserService_ParseText_ShouldReturnTransaction_WhenValidInp
 	settings := domain.Settings{
 		DefaultCurrency: "EUR",
 	}
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	// Inject test data
@@ -31,7 +31,7 @@ func TestTransactionParserService_ParseText_ShouldReturnTransaction_WhenValidInp
 	svc := NewTransactionParserService(manager)
 
 	// Act
-	tx, err := svc.ParseText("cash 3.50 morning coffee", "Telegram")
+	tx, err := svc.ParseText("cash 3.50 morning coffee", domain.OriginTelegram)
 
 	// Assert
 	require.NoError(t, err)
@@ -42,7 +42,7 @@ func TestTransactionParserService_ParseText_ShouldReturnTransaction_WhenValidInp
 	assert.Equal(t, "EUR", tx.Postings[0].Currency)
 	assert.Equal(t, "Assets:Cash", tx.Postings[1].Account)
 	assert.Nil(t, tx.Postings[1].Amount)
-	assert.Equal(t, "Telegram", tx.Metadata.Origin)
+	assert.Equal(t, domain.OriginTelegram, tx.Metadata.Origin)
 }
 
 func TestTransactionParserService_ParseText_ShouldHandleMinimalInput_WhenSourceIsMissing(t *testing.T) {
@@ -51,8 +51,8 @@ func TestTransactionParserService_ParseText_ShouldHandleMinimalInput_WhenSourceI
 		DefaultAssetAccount: "Assets:Checking:Main",
 		DefaultCurrency:     "USD",
 	}
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	manager.ReloadWithData(settings, domain.MappingData{})
@@ -70,8 +70,8 @@ func TestTransactionParserService_ParseText_ShouldHandleMinimalInput_WhenSourceI
 
 func TestTransactionParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	svc := NewTransactionParserService(manager)
@@ -86,8 +86,8 @@ func TestTransactionParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(
 
 func TestTransactionParserService_ParseText_ShouldFallbackToIncomeSource_WhenSourceIsUnknown(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	svc := NewTransactionParserService(manager)
@@ -102,8 +102,8 @@ func TestTransactionParserService_ParseText_ShouldFallbackToIncomeSource_WhenSou
 
 func TestTransactionParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *testing.T) {
 	// Arrange
-	constructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
 	}
 	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
 	svc := NewTransactionParserService(manager)

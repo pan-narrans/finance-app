@@ -35,6 +35,7 @@ const (
 	MsgUseButtons             = "Please use the buttons provided to continue or click Cancel."
 	MsgSelectTopLevel         = "Select a top-level account:"
 	MsgWelcome                = "Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file."
+	MsgPromptTransaction      = "Please send transaction details in format:\n<code>[source] &lt;amount&gt; &lt;description/target&gt;</code>\n\nExample: <code>Cash 10 steam</code>"
 
 	LabelConfirm    = "Confirm ✅"
 	LabelDiscard    = "Discard ❌"
@@ -52,27 +53,52 @@ const (
 UI provides helpers for building Telegram-specific message layouts and keyboards.
 It is stateless and depends on configuration passed per request.
 */
-type UI struct{}
+type UI struct {
+	webAppBaseURL string
+}
 
 /*
 NewUI creates a new UI helper instance.
 */
-func NewUI() *UI {
-	return &UI{}
+func NewUI(webAppBaseURL string) *UI {
+	return &UI{
+		webAppBaseURL: webAppBaseURL,
+	}
 }
 
 /*
 BuildDraftMessage creates the text and keyboard for a transaction draft.
 */
-func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildDraftMessage(
+	tx domain.Transaction,
+	mappingProvider ports.MappingProvider,
+	settings domain.Settings,
+	formatter ports.TransactionFormatter,
+	isPrivate bool,
+	botUsername string,
+) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
+
+	var editRow telebot.Row
+	if isPrivate {
+		// Integrated WebApp buttons work in Private Chats
+		editRow = selector.Row(
+			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
+			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
+		)
+	} else {
+		// Direct Link buttons work in Groups (Requires /setwebapp in @BotFather)
+		sourceURL := fmt.Sprintf("https://t.me/%s?startapp=source", botUsername)
+		targetURL := fmt.Sprintf("https://t.me/%s?startapp=target", botUsername)
+		editRow = selector.Row(
+			selector.URL(LabelEditSource, sourceURL),
+			selector.URL(LabelEditTarget, targetURL),
+		)
+	}
 
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
-		selector.Row(
-			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
-		),
+		editRow,
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
 
@@ -96,15 +122,35 @@ func (u *UI) BuildDraftMessage(tx domain.Transaction, mappingProvider ports.Mapp
 BuildImportReviewMessage is a specialized version of BuildDraftMessage for the import review flow.
 It includes "Accept All" and "Cancel Import" options.
 */
-func (u *UI) BuildImportReviewMessage(tx domain.Transaction, pendingCount int, mappingProvider ports.MappingProvider, settings domain.Settings, formatter ports.TransactionFormatter) (string, *telebot.ReplyMarkup) {
+func (u *UI) BuildImportReviewMessage(
+	tx domain.Transaction,
+	pendingCount int,
+	mappingProvider ports.MappingProvider,
+	settings domain.Settings,
+	formatter ports.TransactionFormatter,
+	isPrivate bool,
+	botUsername string,
+) (string, *telebot.ReplyMarkup) {
 	selector := &telebot.ReplyMarkup{}
+
+	var editRow telebot.Row
+	if isPrivate {
+		editRow = selector.Row(
+			selector.WebApp(LabelEditSource, &telebot.WebApp{URL: fmt.Sprintf("%s?type=source", u.webAppBaseURL)}),
+			selector.WebApp(LabelEditTarget, &telebot.WebApp{URL: fmt.Sprintf("%s?type=target", u.webAppBaseURL)}),
+		)
+	} else {
+		sourceURL := fmt.Sprintf("https://t.me/%s?startapp=source", botUsername)
+		targetURL := fmt.Sprintf("https://t.me/%s?startapp=target", botUsername)
+		editRow = selector.Row(
+			selector.URL(LabelEditSource, sourceURL),
+			selector.URL(LabelEditTarget, targetURL),
+		)
+	}
 
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
-		selector.Row(
-			selector.Data(LabelEditSource, CallbackEditAcc, "1"),
-			selector.Data(LabelEditTarget, CallbackEditAcc, "0"),
-		),
+		editRow,
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 		selector.Row(
 			selector.Data(LabelAcceptAll, CallbackAcceptAll),

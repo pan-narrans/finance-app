@@ -11,7 +11,7 @@ import (
 
 func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	// Arrange
-	ui := NewUI()
+	ui := NewUI("http://localhost")
 	tx := domain.Transaction{
 		Date:        time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		Description: "Test",
@@ -20,10 +20,10 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	mappingProvider := domain.NewMappingService(domain.MappingData{})
+	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true, "bot")
 
 	// Assert
 	assert.Contains(t, msg, "Draft Transaction:")
@@ -35,7 +35,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 
 func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *testing.T) {
 	// Arrange
-	ui := NewUI()
+	ui := NewUI("http://localhost")
 	tx := domain.Transaction{
 		Description: "Starbucks",
 		Postings: []domain.Posting{
@@ -45,10 +45,10 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	data := domain.MappingData{
 		Accounts: map[string]string{"STARBUCKS": "Expenses:Food:Coffee"},
 	}
-	mappingProvider := domain.NewMappingService(data)
+	mappingProvider := domain.NewMappingService(data, nil)
 
 	// Act
-	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter())
+	msg, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), true, "bot")
 
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")
@@ -59,7 +59,7 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 
 func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 	// Arrange
-	ui := NewUI()
+	ui := NewUI("http://localhost")
 	results := []string{"Acc1"}
 
 	// Act & Assert (Target)
@@ -75,7 +75,7 @@ func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {
 
 func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	// Arrange
-	ui := NewUI()
+	ui := NewUI("http://localhost")
 	results := []string{"Acc1", "Acc2"}
 
 	// Act
@@ -86,4 +86,26 @@ func TestUI_BuildSearchResults_ShouldIncludeAllOptions(t *testing.T) {
 	assert.NotNil(t, selector)
 	// 2 results + 1 create + 1 cancel = 4 rows
 	assert.Len(t, selector.InlineKeyboard, 4)
+}
+
+func TestUI_BuildDraftMessage_ShouldUseURLButtons_InGroups(t *testing.T) {
+	// Arrange
+	ui := NewUI("http://localhost")
+	tx := domain.Transaction{
+		Description: "Test",
+		Postings: []domain.Posting{
+			{Account: "Expenses:Food", Amount: new(10.0), Currency: "EUR"},
+		},
+	}
+	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
+
+	// Act (isPrivate = false)
+	_, selector := ui.BuildDraftMessage(tx, mappingProvider, domain.DefaultSettings(), ledger.NewLedgerFormatter(), false, "mybot")
+
+	// Assert
+	// Row 1 (index 1) should be URL buttons in groups
+	row := selector.InlineKeyboard[1]
+	assert.NotEmpty(t, row[0].URL)
+	assert.Contains(t, row[0].URL, "https://t.me/mybot?startapp=source")
+	assert.Nil(t, row[0].WebApp)
 }
