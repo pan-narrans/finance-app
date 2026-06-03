@@ -50,44 +50,9 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	userID := c.Sender().ID
 	session, exists := a.sessionManager.Get(userID)
 
-	// 1. Handle Commands
-	if strings.HasPrefix(text, "/") {
-		parts := strings.Fields(text)
-		if len(parts) > 1 {
-			// Command with arguments (e.g. /transaction 10 steam)
-			text = strings.Join(parts[1:], " ")
-		} else if parts[0] == "/transaction" || strings.HasPrefix(parts[0], "/transaction@") {
-			// Bare command - start interactive flow
-			a.sessionManager.Set(
-				userID, &UserSession{
-					State: StateAwaitingTransactionInput,
-				},
-			)
-
-			// Use ForceReply to ensure the reply is delivered to the bot in groups
-			// and InputFieldPlaceholder to guide the user.
-			selector := &telebot.ReplyMarkup{
-				ForceReply:  true,
-				Selective:   true,
-				Placeholder: "e.g. Cash 10 steam",
-			}
-			return c.Send(MsgPromptTransaction, selector, telebot.ModeHTML)
-		} else {
-			return nil
-		}
-	}
-
-	// 2. Handle State-based inputs
+	// 1. Handle State-based inputs
 	if exists && session.State != StateNone {
 		switch session.State {
-		case StateAwaitingTransactionInput:
-			// Process as transaction text and proceed
-			a.sessionManager.Update(
-				userID, func(s *UserSession) {
-					s.State = StateNone
-				},
-			)
-			// fallthrough to cleaning logic
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
 		case StateCreatingAccountChild:
@@ -97,10 +62,10 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		}
 	}
 
-	// 3. Clean mentions and formatting
+	// 2. Clean mentions and formatting
 	text = a.getCleanedText(c)
 
-	// 4. Treat as a new transaction entry
+	// 3. Treat as a new transaction entry
 	tx, err := a.transactionParserUC.ParseText(text, domain.OriginTelegram)
 	if err != nil {
 		return c.Send(err.Error())

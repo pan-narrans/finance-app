@@ -21,10 +21,9 @@ The Telegram bot acts as the primary interface for manual transaction entry and 
 
 The bot can be added to Telegram Groups for collaborative expense tracking. To minimize noise, it uses specific trigger logic in groups:
 
-- **Command Trigger**: Starts with `/transaction`.
 - **Mention Trigger**: Mentions the bot (e.g., `@miroceanicecream_bot 10 pizza`).
 - **Reply Trigger**: Replies to one of the bot's own messages.
-- **Interactive Flow**: Once a transaction is initiated via `/transaction`, the bot enters a "listening" mode with the user, using **ForceReply** to capture the next message regardless of mentions.
+- **Privacy Mode Note**: If Privacy Mode is enabled (default), the bot will only see messages that explicitly mention it or reply to it. If disabled, it can process any message that looks like a valid transaction.
 
 ## Telegram Mini App (WebApp)
 

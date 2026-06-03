@@ -29,3 +29,5 @@ npm-debug.log*
 # Gemini CLI
 .gemini/tmp/
 .gemini/.env
+tunnel.log
+tunnel.pid

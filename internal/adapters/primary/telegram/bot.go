@@ -117,8 +117,6 @@ func (a *TelegramAdapter) Start() {
 		},
 	)
 
-	a.teleBot.Handle("/transaction", a.handleText)
-
 	a.teleBot.Handle(
 		"/report", a.handleReport,
 	)
@@ -157,7 +155,6 @@ func (a *TelegramAdapter) Start() {
 	// Set Commands Menu for Autocomplete
 	commands := []telebot.Command{
 		{Text: "start", Description: "Show welcome message"},
-		{Text: "transaction", Description: "Record new transaction: /transaction <amount> <description>"},
 		{Text: "report", Description: "View monthly summary (optional: 'last')"},
 	}
 	if err := a.teleBot.SetCommands(commands); err != nil {
