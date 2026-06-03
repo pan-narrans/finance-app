@@ -29,6 +29,10 @@ run: build
 	@echo "Starting application..."
 	@./$(TMP_DIR)/$(BINARY_NAME)
 
+# Local development with Cloudflare Tunnel and Air
+dev:
+	@./dev.sh
+
 # Clean up build artifacts
 clean:
 	@echo "Cleaning up..."
