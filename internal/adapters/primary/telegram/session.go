@@ -12,12 +12,13 @@ SearchState represents the current step in a user's multi-message interaction.
 type SearchState string
 
 const (
-	StateNone                     SearchState = ""                  // StateNone indicates the user is not in a multistep flow.
-	StateAwaitingQuery            SearchState = "awaiting_query"    // StateAwaitingQuery indicates the bot is waiting for an account search query.
-	StateAwaitingTransactionInput SearchState = "awaiting_tx_input" // StateAwaitingTransactionInput indicates the bot is waiting for full transaction text.
-	StateCreatingAccountParent    SearchState = "creating_parent"   // StateCreatingAccountParent indicates the user is selecting the root account.
-	StateCreatingAccountChild     SearchState = "creating_child"    // StateCreatingAccountChild indicates the user is typing a subaccount name.
-	StateCreatingAccountReview    SearchState = "creating_review"   // StateCreatingAccountReview indicates the user is reviewing the constructed path.
+	StateNone                  SearchState = ""                  // StateNone indicates the user is not in a multistep flow.
+	StateAwaitingQuery         SearchState = "awaiting_query"    // StateAwaitingQuery indicates the bot is waiting for an account search query.
+	StateAwaitingAmount        SearchState = "awaiting_amount"   // StateAwaitingAmount indicates the bot is waiting for a transaction amount.
+	StateAwaitingDescription   SearchState = "awaiting_desc"     // StateAwaitingDescription indicates the bot is waiting for a transaction description.
+	StateCreatingAccountParent SearchState = "creating_parent"   // StateCreatingAccountParent indicates the user is selecting the root account.
+	StateCreatingAccountChild  SearchState = "creating_child"    // StateCreatingAccountChild indicates the user is typing a subaccount name.
+	StateCreatingAccountReview SearchState = "creating_review"   // StateCreatingAccountReview indicates the user is reviewing the constructed path.
 )
 
 /*
@@ -28,6 +29,7 @@ type UserSession struct {
 	State                 SearchState
 	EditingPosting        int
 	NewAccountPath        string
+	TemporaryAmount       string // Stores the amount entered in the wizard before parsing
 	TargetOverridden      bool
 	SourceOverridden      bool
 	OriginalSourceKeyword string

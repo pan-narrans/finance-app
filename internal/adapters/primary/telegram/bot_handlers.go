@@ -57,21 +57,19 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 			// Command with arguments (e.g. /transaction 10 steam)
 			text = strings.Join(parts[1:], " ")
 		} else if parts[0] == "/transaction" || strings.HasPrefix(parts[0], "/transaction@") {
-			// Bare command - start interactive flow
+			// Bare command - start interactive wizard (Step 1: Amount)
 			a.sessionManager.Set(
 				userID, &UserSession{
-					State: StateAwaitingTransactionInput,
+					State: StateAwaitingAmount,
 				},
 			)
 
-			// Use ForceReply to ensure the reply is delivered to the bot in groups
-			// and InputFieldPlaceholder to guide the user.
 			selector := &telebot.ReplyMarkup{
 				ForceReply:  true,
 				Selective:   true,
-				Placeholder: "e.g. Cash 10 steam",
+				Placeholder: "e.g. 10.50",
 			}
-			return c.Send(MsgPromptTransaction, selector, telebot.ModeHTML)
+			return c.Send(MsgPromptAmount, selector, telebot.ModeHTML)
 		} else {
 			return nil
 		}
@@ -80,14 +78,49 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	// 2. Handle State-based inputs
 	if exists && session.State != StateNone {
 		switch session.State {
-		case StateAwaitingTransactionInput:
-			// Process as transaction text and proceed
+		case StateAwaitingAmount:
+			// Step 1: Save amount, prompt for description
+			amountText := a.getCleanedText(c)
+			if strings.HasPrefix(amountText, "@") {
+				fields := strings.Fields(amountText)
+				if len(fields) > 1 {
+					amountText = strings.Join(fields[1:], " ")
+				}
+			}
+
+			a.sessionManager.Update(
+				userID, func(s *UserSession) {
+					s.TemporaryAmount = amountText
+					s.State = StateAwaitingDescription
+				},
+			)
+
+			selector := &telebot.ReplyMarkup{
+				ForceReply:  true,
+				Selective:   true,
+				Placeholder: "e.g. dinner",
+			}
+			return c.Send(MsgPromptDescription, selector, telebot.ModeHTML)
+
+		case StateAwaitingDescription:
+			// Step 2: Combine amount and description, then proceed to parsing
+			descText := a.getCleanedText(c)
+			if strings.HasPrefix(descText, "@") {
+				fields := strings.Fields(descText)
+				if len(fields) > 1 {
+					descText = strings.Join(fields[1:], " ")
+				}
+			}
+
+			text = session.TemporaryAmount + " " + descText
+
 			a.sessionManager.Update(
 				userID, func(s *UserSession) {
 					s.State = StateNone
+					s.TemporaryAmount = ""
 				},
 			)
-			// fallthrough to cleaning logic
+			// Text is now fully constructed, fallthrough to parsing logic
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
 		case StateCreatingAccountChild:
