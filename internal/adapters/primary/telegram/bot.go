@@ -17,6 +17,7 @@ Decomposition:
   - callbacks.go: Logic for processing interactive button clicks.
   - session.go: Thread-safe user session management.
   - ui.go: Layout and keyboard construction.
+  - webapp_handlers.go: Logic for the Telegram Mini App API.
 */
 type TelegramAdapter struct {
 	teleBot             *telebot.Bot
@@ -24,45 +25,68 @@ type TelegramAdapter struct {
 	transactionUseCase  ports.TransactionUseCase
 	transactionParserUC ports.TransactionParserUseCase
 	importUseCase       ports.ImportUseCase
+	reportUseCase       ports.ReportUseCase
 	configUseCase       ports.ConfigurationUseCase
 	formatter           ports.TransactionFormatter
 	sessionManager      *SessionManager
 	ui                  *UI
+	botToken            string
+	webAppBaseURL       string
+	webAppServer        *WebAppServer
+}
+
+/*
+TelegramConfig holds all infrastructure-specific configuration for the Telegram Adapter.
+*/
+type TelegramConfig struct {
+	Settings      telebot.Settings
+	AllowedIDs    []int64
+	BotToken      string
+	WebAppBaseURL string
+	HTTPPort      int
 }
 
 /*
 NewTelegramAdapter creates and initializes a TelegramAdapter with its dependencies.
 */
 func NewTelegramAdapter(
-	settings telebot.Settings,
-	allowedIDs []int64,
+	cfg TelegramConfig,
 	txUC ports.TransactionUseCase,
 	parserUC ports.TransactionParserUseCase,
 	importUC ports.ImportUseCase,
+	reportUC ports.ReportUseCase,
 	configUC ports.ConfigurationUseCase,
 	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
-	bot, err := telebot.NewBot(settings)
+	bot, err := telebot.NewBot(cfg.Settings)
 	if err != nil {
 		return nil, err
 	}
 
 	allowedMap := make(map[int64]struct{})
-	for _, id := range allowedIDs {
+	for _, id := range cfg.AllowedIDs {
 		allowedMap[id] = struct{}{}
 	}
 
-	return &TelegramAdapter{
+	sessionManager := NewSessionManager()
+	adapter := &TelegramAdapter{
 		teleBot:             bot,
 		allowedIDs:          allowedMap,
 		transactionUseCase:  txUC,
 		transactionParserUC: parserUC,
 		importUseCase:       importUC,
+		reportUseCase:       reportUC,
 		configUseCase:       configUC,
 		formatter:           formatter,
-		sessionManager:      NewSessionManager(),
-		ui:                  NewUI(),
-	}, nil
+		sessionManager:      sessionManager,
+		ui:                  NewUI(cfg.WebAppBaseURL),
+		botToken:            cfg.BotToken,
+		webAppBaseURL:       cfg.WebAppBaseURL,
+	}
+
+	adapter.webAppServer = NewWebAppServer(cfg.HTTPPort, cfg.BotToken, configUC, sessionManager, adapter)
+
+	return adapter, nil
 }
 
 /*
@@ -73,8 +97,13 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Use(
 		func(next telebot.HandlerFunc) telebot.HandlerFunc {
 			return func(c telebot.Context) error {
-				if _, ok := a.allowedIDs[c.Sender().ID]; !ok {
-					log.Printf("Unauthorized access attempt from User ID: %d", c.Sender().ID)
+				chatID := c.Chat().ID
+				senderID := c.Sender().ID
+				_, chatAllowed := a.allowedIDs[chatID]
+				_, senderAllowed := a.allowedIDs[senderID]
+
+				if !chatAllowed && !senderAllowed {
+					log.Printf("Unauthorized access attempt from Chat ID: %d, Sender ID: %d", chatID, senderID)
 					return nil
 				}
 				return next(c)
@@ -86,6 +115,10 @@ func (a *TelegramAdapter) Start() {
 		"/start", func(c telebot.Context) error {
 			return c.Send(MsgWelcome)
 		},
+	)
+
+	a.teleBot.Handle(
+		"/report", a.handleReport,
 	)
 
 	// Message Handlers
@@ -104,19 +137,46 @@ func (a *TelegramAdapter) Start() {
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelImport}, a.handleCancelImport)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAcceptAll}, a.handleAcceptAll)
 
-	a.teleBot.Handle(telebot.OnCallback, func(c telebot.Context) error {
-		data := c.Callback().Data
-		switch {
-		case strings.HasPrefix(data, "\f"+CallbackEditAcc):
-			return a.handleEditRequest(c)
-		case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
-			return a.handleAccountSelect(c)
-		case strings.HasPrefix(data, "\f"+CallbackSelectParent):
-			return a.handleSelectParent(c)
-		}
-		return nil
-	})
+	a.teleBot.Handle(
+		telebot.OnCallback, func(c telebot.Context) error {
+			data := c.Callback().Data
+			switch {
+			case strings.HasPrefix(data, "\f"+CallbackEditAcc):
+				return a.handleEditRequest(c)
+			case strings.HasPrefix(data, "\f"+CallbackSelectAcc):
+				return a.handleAccountSelect(c)
+			case strings.HasPrefix(data, "\f"+CallbackSelectParent):
+				return a.handleSelectParent(c)
+			}
+			return nil
+		},
+	)
+
+	// Set Commands Menu for Autocomplete
+	commands := []telebot.Command{
+		{Text: "start", Description: "Show welcome message"},
+		{Text: "report", Description: "View monthly summary (optional: 'last')"},
+	}
+	if err := a.teleBot.SetCommands(commands); err != nil {
+		log.Printf("Warning: failed to set bot commands: %v", err)
+	}
 
 	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
+
+	// Start HTTP Server for WebApp
+	go func() {
+		if err := a.webAppServer.Start(); err != nil {
+			log.Printf("WebApp server error: %v", err)
+		}
+	}()
+
 	a.teleBot.Start()
+}
+
+/*
+RefreshDraftMessage updates the existing draft message for a user.
+Satisfies the MessageRefresher interface for the WebAppServer.
+*/
+func (a *TelegramAdapter) RefreshDraftMessage(userID int64) error {
+	return a.refreshDraftMessage(userID)
 }

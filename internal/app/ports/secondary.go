@@ -16,6 +16,7 @@ type TransactionRepository interface {
 	FindByCode(code string) (*domain.Transaction, error)
 	Update(transaction domain.Transaction) error
 	Delete(code string) error
+	GetAccounts() ([]string, error)
 }
 
 /*
@@ -44,17 +45,25 @@ type MappingProvider interface {
 	ResolvePayer(fullDescription string) string
 	ResolveSource(keyword string) (string, bool)
 	SearchAccounts(query string, limit int) []string
+	GetAllAccounts() []string
 	GetMappingData() domain.MappingData
 }
 
 /*
 MappingServiceConstructor is a function type that creates a MappingProvider.
 */
-type MappingServiceConstructor func(data domain.MappingData) MappingProvider
+type MappingServiceConstructor func(data domain.MappingData, discoveredAccounts []string) MappingProvider
 
 /*
 TransactionFormatter defines the contract for converting a transaction into a tool-specific string.
 */
 type TransactionFormatter interface {
 	FormatTransaction(tx domain.Transaction, alignment int) string
+}
+
+/*
+ReportProvider defines the contract for generating financial reports.
+*/
+type ReportProvider interface {
+	GetBalanceReport(period string, filter string) (string, error)
 }

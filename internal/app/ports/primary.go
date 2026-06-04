@@ -58,3 +58,17 @@ type TransactionParserUseCase interface {
 	ParseText(text, origin string) (domain.Transaction, error)
 	GuessSource(text string) string
 }
+
+// ReportSection represents a distinct part of a financial report.
+type ReportSection struct {
+	Title     string
+	DateRange string
+	Content   string
+}
+
+/*
+ReportUseCase defines the logic for generating monthly financial reports.
+*/
+type ReportUseCase interface {
+	GetMonthlyReport(period string) ([]ReportSection, error)
+}

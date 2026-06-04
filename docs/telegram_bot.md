@@ -11,18 +11,30 @@ The Telegram bot acts as the primary interface for manual transaction entry and 
 | **New Item Discovery** | `8.00 UnknownShop`                      | Bot flags as `Expenses:Unknown`. Provides "Edit Target" button.                                  |
 | **Account Search**     | Click "Edit Target" -> `food`           | Bot returns ranked suggestions: `Expenses:Food`, `Expenses:Dining`.                              |
 | **Direct Path Input**  | Click "Edit Target" -> `Assets:Savings` | Bot bypasses search and updates the draft with the exact path (if it contains colons).           |
-| **Account Creation**   | Click "Create New Account"              | Multi-step flow: Select Root -> Type Sub-account -> Review/Extend -> Done.                       |
+| **Account Creation**   | Click "Create New Account"              | Multi-step wizard in the Mini App: Select Root -> Type Sub-account -> Done. |
 | **Confirmation**       | Click "Confirm ✅"                       | Transaction is appended to the Ledger file. Any manual overrides are saved to `mappings.json`.   |
 | **Discard**            | Click "Discard ❌"                       | Session deleted. No changes to Ledger or Mappings.                                               |
+| **Monthly Report**     | `/report`                               | Bot returns segmented blocks with date ranges (e.g. `Expenses 01/05/2026 - 20/05/2026`) for the current month. |
+| **Previous Month**    | `/report last`                          | Bot returns segmented blocks for the full previous month (e.g. `01/04/2026 - 30/04/2026`).               |
 
-## Guided Account Creation
+## Group Chat Support
 
-When an account is not found, the user can create it through a structured flow:
-1.  **Root Selection**: Select from top-level accounts (e.g., `Expenses`, `Income`, `Assets`).
-2.  **Nesting**: Type the name of the sub-account (e.g., `Dining`).
-3.  **Recursive Extension**: Choose to "Add Sub-account" to go deeper (e.g., `Expenses:Dining:Dinner`) or "Finish" to apply.
+The bot can be added to Telegram Groups for collaborative expense tracking. To minimize noise, it uses specific trigger logic in groups:
 
-The resulting path is automatically Title Cased (e.g., `expenses:food` -> `Expenses:Food`).
+- **Mention Trigger**: Mentions the bot (e.g., `@miroceanicecream_bot 10 pizza`).
+- **Reply Trigger**: Replies to one of the bot's own messages.
+- **Privacy Mode Note**: If Privacy Mode is enabled (default), the bot will only see messages that explicitly mention it or reply to it. If disabled, it can process any message that looks like a valid transaction.
+
+## Telegram Mini App (WebApp)
+
+For complex account selection and creation, the bot integrates a **Telegram Mini App**. 
+
+- **Access**: Triggered via "Edit Source" or "Edit Target" buttons.
+- **Search**: Features a full-screen search bar with a virtual keyboard, providing real-time filtering of all known Ledger accounts.
+- **Creation Wizard**: A built-in wizard allows for quick creation of new account paths.
+    - **Nesting**: Press **Enter** in the input field to automatically add a colon (`:`) and continue nesting.
+    - **Validation**: Resulting paths are automatically **Title Cased** (e.g., `expenses:food` -> `Expenses:Food`).
+- **Auto-Sync**: Once a selection is made, the Mini App closes and the bot message in the chat updates asynchronously to reflect the change.
 
 ## Learning Mechanism (Mapping Persistence)
 

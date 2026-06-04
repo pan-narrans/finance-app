@@ -123,7 +123,12 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata.PayedBy = payedBy
 	}
 
-	targetAccount := p.mappingProvider.ResolveAccount(cleanDescription, amount, p.settings.DefaultIncomeAccount, p.settings.DefaultExpenseAccount)
+	targetAccount := p.mappingProvider.ResolveAccount(
+		cleanDescription,
+		amount,
+		p.settings.DefaultIncomeAccount,
+		p.settings.DefaultExpenseAccount,
+	)
 
 	tx := domain.Transaction{
 		Date:        date,

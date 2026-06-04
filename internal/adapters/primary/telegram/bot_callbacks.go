@@ -37,7 +37,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 	}
 
 	if len(session.PendingQueue) > 0 {
-		return a.advanceToNextPending(c, userID, session)
+		return a.advanceToNextPending(c, userID, &session)
 	}
 
 	a.sessionManager.Delete(userID)
@@ -55,7 +55,7 @@ func (a *TelegramAdapter) handleDiscard(c telebot.Context) error {
 	session, ok := a.sessionManager.Get(userID)
 
 	if ok && len(session.PendingQueue) > 0 {
-		return a.advanceToNextPending(c, userID, session)
+		return a.advanceToNextPending(c, userID, &session)
 	}
 
 	a.sessionManager.Delete(userID)
@@ -67,13 +67,15 @@ advanceToNextPending updates the session with the next transaction from the queu
 */
 func (a *TelegramAdapter) advanceToNextPending(c telebot.Context, userID int64, session *UserSession) error {
 	next := session.PendingQueue[0]
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.Draft = next
-		s.PendingQueue = s.PendingQueue[1:]
-		s.TargetOverridden = false
-		s.SourceOverridden = false
-		s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(next.Description)
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.Draft = next
+			s.PendingQueue = s.PendingQueue[1:]
+			s.TargetOverridden = false
+			s.SourceOverridden = false
+			s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(next.Description)
+		},
+	)
 
 	if c.Callback().Unique == CallbackConfirm {
 		c.Respond(&telebot.CallbackResponse{Text: MsgTransactionSaved})
@@ -97,10 +99,12 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	payload := a.getCallbackPayload(c, CallbackEditAcc)
 	postingIdx, _ := strconv.Atoi(payload)
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateAwaitingQuery
-		s.EditingPosting = postingIdx
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateAwaitingQuery
+			s.EditingPosting = postingIdx
+		},
+	)
 
 	results := a.configUseCase.Get().Mappings.SearchAccounts(session.Draft.Description, 5)
 
@@ -115,7 +119,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	userID := c.Sender().ID
 	newAccount := a.getCallbackPayload(c, CallbackSelectAcc)
 	if newAccount == "" {
-		newAccount = c.Text()
+		newAccount = a.getCleanedText(c)
 	}
 
 	session, ok := a.sessionManager.Get(userID)
@@ -129,17 +133,19 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	// Format and detect if it's a manual override
 	formattedAccount := domain.FormatAccountPath(newAccount)
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		if len(s.Draft.Postings) > s.EditingPosting {
-			s.Draft.Postings[s.EditingPosting].Account = formattedAccount
-		}
-		s.State = StateNone
-		if s.EditingPosting == 0 {
-			s.TargetOverridden = true
-		} else if s.EditingPosting == 1 {
-			s.SourceOverridden = true
-		}
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			if len(s.Draft.Postings) > s.EditingPosting {
+				s.Draft.Postings[s.EditingPosting].Account = formattedAccount
+			}
+			s.State = StateNone
+			if s.EditingPosting == 0 {
+				s.TargetOverridden = true
+			} else if s.EditingPosting == 1 {
+				s.SourceOverridden = true
+			}
+		},
+	)
 
 	if c.Callback() != nil {
 		c.Respond(&telebot.CallbackResponse{Text: MsgAccountUpdated})
@@ -157,9 +163,11 @@ func (a *TelegramAdapter) handleCancelEdit(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired)
 	}
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateNone
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateNone
+		},
+	)
 
 	return a.sendDraftMessage(c, session.Draft)
 }
@@ -174,10 +182,12 @@ func (a *TelegramAdapter) handleCreateAcc(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateCreatingAccountParent
-		s.NewAccountPath = ""
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateCreatingAccountParent
+			s.NewAccountPath = ""
+		},
+	)
 
 	msg, selector := a.ui.BuildAccountParentSelector(a.configUseCase.Get().Settings.RootAccounts)
 	return c.Edit(msg, selector, telebot.ModeHTML)
@@ -194,10 +204,12 @@ func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateCreatingAccountChild
-		s.NewAccountPath = parent
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateCreatingAccountChild
+			s.NewAccountPath = parent
+		},
+	)
 
 	msg, selector := a.ui.BuildAccountChildPrompt(parent)
 	return c.Edit(msg, selector, telebot.ModeHTML)
@@ -213,9 +225,11 @@ func (a *TelegramAdapter) handleAddSubAcc(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired)
 	}
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		s.State = StateCreatingAccountChild
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateCreatingAccountChild
+		},
+	)
 
 	msg, selector := a.ui.BuildAccountChildPrompt(session.NewAccountPath)
 	return c.Edit(msg, selector, telebot.ModeHTML)
@@ -233,17 +247,19 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 
 	formattedPath := domain.FormatAccountPath(session.NewAccountPath)
 
-	a.sessionManager.Update(userID, func(s *UserSession) {
-		if len(s.Draft.Postings) > s.EditingPosting {
-			s.Draft.Postings[s.EditingPosting].Account = formattedPath
-		}
-		s.State = StateNone
-		if s.EditingPosting == 0 {
-			s.TargetOverridden = true
-		} else if s.EditingPosting == 1 {
-			s.SourceOverridden = true
-		}
-	})
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			if len(s.Draft.Postings) > s.EditingPosting {
+				s.Draft.Postings[s.EditingPosting].Account = formattedPath
+			}
+			s.State = StateNone
+			if s.EditingPosting == 0 {
+				s.TargetOverridden = true
+			} else if s.EditingPosting == 1 {
+				s.SourceOverridden = true
+			}
+		},
+	)
 
 	c.Respond(&telebot.CallbackResponse{Text: MsgAccountCreatedSelected})
 	return a.sendDraftMessage(c, session.Draft)

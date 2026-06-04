@@ -3,7 +3,9 @@ package ledger
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -32,7 +34,11 @@ type TransactionFileRepository struct {
 }
 
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
-func NewTransactionFileRepository(filePath string, configUC ports.ConfigurationUseCase, formatter ports.TransactionFormatter) *TransactionFileRepository {
+func NewTransactionFileRepository(
+	filePath string,
+	configUC ports.ConfigurationUseCase,
+	formatter ports.TransactionFormatter,
+) *TransactionFileRepository {
 	return &TransactionFileRepository{
 		FilePath:      filePath,
 		configUseCase: configUC,
@@ -139,6 +145,65 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	updatedData := regex.ReplaceAllString(string(data), "")
 
 	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
+}
+
+// GetAccounts retrieves the list of accounts from the ledger file using the ledger CLI.
+func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error) {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
+	// Check if file exists first to avoid unnecessary CLI errors
+	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	cmd := exec.Command("ledger", "-f", fileRepository.FilePath, "accounts")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("ledger accounts failed: %w (output: %q)", err, string(output))
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var accounts []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			accounts = append(accounts, trimmed)
+		}
+	}
+
+	return accounts, nil
+}
+
+// GetBalanceReport executes the ledger balance command for the given period and filter.
+func (fileRepository *TransactionFileRepository) GetBalanceReport(period string, filter string) (string, error) {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
+	// Check if file exists
+	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
+		return "", nil
+	}
+
+	args := []string{"-f", fileRepository.FilePath, "bal"}
+	if period != "" {
+		args = append(args, "--period", period)
+	}
+	if filter != "" {
+		args = append(args, filter)
+	}
+
+	cmd := exec.Command("ledger", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Ledger returns error 1 if no matches found for filter
+		if len(output) == 0 {
+			return "", nil
+		}
+		return "", fmt.Errorf("ledger balance failed: %w (output: %q)", err, string(output))
+	}
+
+	return string(output), nil
 }
 
 /*

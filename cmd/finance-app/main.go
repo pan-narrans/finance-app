@@ -27,8 +27,8 @@ func main() {
 	mappingsPath := filepath.Join(env.ConfigRoot, "mappings.json")
 
 	// Domain constructor for Config Manager
-	mappingServiceConstructor := func(data domain.MappingData) ports.MappingProvider {
-		return domain.NewMappingService(data)
+	mappingServiceConstructor := func(data domain.MappingData, discoveredAccounts []string) ports.MappingProvider {
+		return domain.NewMappingService(data, discoveredAccounts)
 	}
 
 	configManager, err := config.NewManager(configPath, mappingsPath, mappingServiceConstructor)
@@ -42,23 +42,33 @@ func main() {
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
 	ledgerFormatter := ledger.NewLedgerFormatter()
 	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	configManager.SetRepository(repo)
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer
 	transactionService := app.NewTransactionService(repo)
 	importService := app.NewImportService(transactionService, parserFactory)
 	transactionParserService := app.NewTransactionParserService(configManager)
+	reportService := app.NewReportService(repo, configManager)
 
 	// Primary Adapter
-	bot, err := telegram.NewTelegramAdapter(
-		telebot.Settings{
+	tgConfig := telegram.TelegramConfig{
+		Settings: telebot.Settings{
 			Token:  env.TelegramToken,
 			Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 		},
-		env.TelegramUserIDs,
+		AllowedIDs:    env.TelegramUserIDs,
+		BotToken:      env.TelegramToken,
+		WebAppBaseURL: env.WebAppBaseURL,
+		HTTPPort:      env.HTTPPort,
+	}
+
+	bot, err := telegram.NewTelegramAdapter(
+		tgConfig,
 		transactionService,
 		transactionParserService,
 		importService,
+		reportService,
 		configManager,
 		ledgerFormatter,
 	)

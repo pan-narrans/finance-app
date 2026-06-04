@@ -23,12 +23,14 @@ func TestSessionManager_CRUD_ShouldWorkAsExpected(t *testing.T) {
 
 	// Assert
 	assert.True(t, ok)
-	assert.Equal(t, session, got)
+	assert.Equal(t, *session, got)
 
 	// Act: Update
-	manager.Update(userID, func(s *UserSession) {
-		s.State = StateAwaitingQuery
-	})
+	manager.Update(
+		userID, func(s *UserSession) {
+			s.State = StateAwaitingQuery
+		},
+	)
 	updated, _ := manager.Get(userID)
 
 	// Assert
@@ -48,9 +50,11 @@ func TestSessionManager_Update_ShouldDoNothing_WhenSessionDoesNotExist(t *testin
 	called := false
 
 	// Act
-	manager.Update(999, func(s *UserSession) {
-		called = true
-	})
+	manager.Update(
+		999, func(s *UserSession) {
+			called = true
+		},
+	)
 
 	// Assert
 	assert.False(t, called)

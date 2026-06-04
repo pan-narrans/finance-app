@@ -7,6 +7,7 @@ The Finance App follows **Hexagonal Architecture** (also known as Ports and Adap
 graph LR
     subgraph Primary Adapters
         TBot[Telegram Bot]
+        TWA[Telegram Mini App]
     end
 
     subgraph Secondary Adapters
@@ -32,6 +33,7 @@ graph LR
     TBot --> IUC
     TBot --> TUC
     TBot --> CUC
+    TWA  --> CUC
 
     %% Application to Domain
     TPUC --> DMS
@@ -65,7 +67,7 @@ The "Orchestrator". Defines the use cases (actions) the system can perform.
 ### 3. Adapters Layer (`internal/adapters`)
 The "Translation" layer.
 - **Primary Adapters (Driving)**: Convert external triggers (Telegram messages, CLI commands) into calls to the Application layer.
-    - `telegram`: Manages bot sessions, UI keyboards, and decomposes logic into handlers, callbacks, and UI construction.
+    - `telegram`: Manages bot sessions, UI keyboards, and a built-in **HTTP API** to serve and sync with the **Telegram Mini App**. It decomposes logic into handlers, callbacks, UI construction, and WebApp handlers.
 - **Secondary Adapters (Driven)**: Implement ports defined by the application layer to interact with infrastructure.
     - `ledger`: Handles raw file I/O for the `.ledger` database.
     - `excel`: Implements specific bank format parsing (OpenBank, ImaginBank).

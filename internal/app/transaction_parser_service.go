@@ -17,7 +17,11 @@ import (
 // Ensure TransactionParserService implements ports.TransactionParserUseCase at compile time.
 var _ ports.TransactionParserUseCase = (*TransactionParserService)(nil)
 
-var entryRegex = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
+var (
+	entryRegex  = regexp.MustCompile(`^(?:([a-zA-Z]+)\s+)?(\d+([.,]\d+)?)\s+(.+)$`)
+	alphaRegex  = regexp.MustCompile(`^[a-zA-Z]+$`)
+	amountRegex = regexp.MustCompile(`^\d`)
+)
 
 /*
 TransactionParserService handles the conversion of raw text input into domain transactions.
@@ -99,7 +103,12 @@ It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
 func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string, amount float64) string {
-	account := appConfig.Mappings.ResolveAccount(cleanDescription, amount, appConfig.Settings.DefaultIncomeAccount, appConfig.Settings.DefaultExpenseAccount)
+	account := appConfig.Mappings.ResolveAccount(
+		cleanDescription,
+		amount,
+		appConfig.Settings.DefaultIncomeAccount,
+		appConfig.Settings.DefaultExpenseAccount,
+	)
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(account, ":Unknown") {
@@ -144,8 +153,8 @@ func (s *TransactionParserService) GuessSource(text string) string {
 	}
 
 	// Heuristic: first word alphabetic, second word starts with digit (amount)
-	isAlpha := regexp.MustCompile(`^[a-zA-Z]+$`).MatchString(words[0])
-	isAmount := regexp.MustCompile(`^\d`).MatchString(words[1])
+	isAlpha := alphaRegex.MatchString(words[0])
+	isAmount := amountRegex.MatchString(words[1])
 
 	if isAlpha && isAmount {
 		return strings.ToLower(words[0])
