@@ -103,7 +103,7 @@ func setupTestEnv(t *testing.T) *testEnv {
 		Settings:      settings,
 		AllowedIDs:    []int64{userID},
 		BotToken:      "fake-token",
-		WebAppBaseURL: "http://localhost",
+		WebAppBaseURL: "https://test.webapp",
 		HTTPPort:      0,
 	}
 
