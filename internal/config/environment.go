@@ -1,8 +1,6 @@
 package config
 
 import (
-	"log"
-
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 )
@@ -14,15 +12,15 @@ type Environment struct {
 	ConfigRoot      string  `env:"CONFIG_ROOT" envDefault:"./config"`
 	TelegramToken   string  `env:"TELEGRAM_TOKEN"`
 	TelegramUserIDs []int64 `env:"TELEGRAM_USER_IDS" envSeparator:","`
-	WebAppBaseURL   string  `env:"WEBAPP_BASE_URL" envDefault:"http://localhost:8080"`
+	WebAppBaseURL   string  `env:"WEBAPP_BASE_URL"`
 	HTTPPort        int     `env:"HTTP_PORT" envDefault:"8080"`
 }
 
 // LoadEnvironment loads configuration from .env file.
 func LoadEnvironment() (*Environment, error) {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("No .env file found: %v", err)
-	}
+	// Attempt to load .env file, but don't fail if it doesn't exist.
+	// Production environments often use system env vars instead.
+	_ = godotenv.Load()
 
 	config := &Environment{}
 	if err := env.Parse(config); err != nil {
