@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -58,6 +59,13 @@ func NewTelegramAdapter(
 	configUC ports.ConfigurationUseCase,
 	formatter ports.TransactionFormatter,
 ) (*TelegramAdapter, error) {
+	if cfg.WebAppBaseURL == "" {
+		return nil, fmt.Errorf("WEBAPP_BASE_URL is required")
+	}
+	if !strings.HasPrefix(cfg.WebAppBaseURL, "https://") {
+		return nil, fmt.Errorf("WEBAPP_BASE_URL must start with https:// (got: %s)", cfg.WebAppBaseURL)
+	}
+
 	bot, err := telebot.NewBot(cfg.Settings)
 	if err != nil {
 		return nil, err
