@@ -5,7 +5,26 @@ description: Branch, Git, and Merge Request (MR) Automation standards.
 
 # Git Flow
 
-Enforce branch naming, MR creation, and merging standards to maintain a clean and traceable repository history.
+Enforce branch naming, MR creation, and worktree-based development to maintain a clean and traceable repository history.
+
+## Worktree-First Workflow
+All development tasks MUST be performed in a dedicated **Git Worktree**. The `main/` directory is reserved for syncing, status checks, and orchestration.
+
+### 1. Creation
+When starting a task:
+1. Create a new branch: `git branch feature/[ID-]<name>` (or `bugfix/`, etc).
+2. Create a worktree sibling to `main/`: `git worktree add ../feature-[name] feature/[ID-]<name>`
+3. Move to the new worktree directory to perform all work.
+
+### 2. Synchronization
+- Pull updates in `main/`: `git pull origin main`.
+- Rebase your feature branch as needed from within its worktree.
+
+### 3. Cleanup
+Once the MR is merged:
+1. Remove the worktree: `git worktree remove ../feature-[name]`
+2. Delete the local branch: `git branch -d feature/[ID-]<name>`
+3. Run `git worktree prune` to clean up references.
 
 ## Branch Naming
 Follow the structure `prefix/[ID-]<description>`. Use lowercase and hyphens.

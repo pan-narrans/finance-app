@@ -29,9 +29,9 @@ func (f *ParserFactory) GetParser(filePath string) (ports.BankParser, error) {
 	appConfig := f.configUseCase.Get()
 
 	switch {
-	case strings.Contains(fileName, "openbank"):
+	case strings.Contains(fileName, "openbank") || strings.Contains(fileName, "extractdocument"):
 		return NewOpenBankParser(appConfig.Mappings, appConfig.Settings), nil
-	case strings.Contains(fileName, "imaginbank"):
+	case strings.Contains(fileName, "imagin"):
 		return NewImaginBankParser(appConfig.Mappings, appConfig.Settings), nil
 	default:
 		return nil, fmt.Errorf("no parser found for file: %s", fileName)
