@@ -122,7 +122,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 		newAccount = a.getCleanedText(c)
 	}
 
-	session, ok := a.sessionManager.Get(userID)
+	_, ok := a.sessionManager.Get(userID)
 	if !ok {
 		if c.Callback() != nil {
 			return c.Respond(&telebot.CallbackResponse{Text: MsgSessionExpired})
@@ -133,6 +133,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	// Format and detect if it's a manual override
 	formattedAccount := domain.FormatAccountPath(newAccount)
 
+	var updatedDraft domain.Transaction
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {
 			if len(s.Draft.Postings) > s.EditingPosting {
@@ -144,13 +145,14 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 			} else if s.EditingPosting == 1 {
 				s.SourceOverridden = true
 			}
+			updatedDraft = s.Draft
 		},
 	)
 
 	if c.Callback() != nil {
 		c.Respond(&telebot.CallbackResponse{Text: MsgAccountUpdated})
 	}
-	return a.sendDraftMessage(c, session.Draft)
+	return a.sendDraftMessage(c, updatedDraft)
 }
 
 /*
@@ -247,6 +249,7 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 
 	formattedPath := domain.FormatAccountPath(session.NewAccountPath)
 
+	var updatedDraft domain.Transaction
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {
 			if len(s.Draft.Postings) > s.EditingPosting {
@@ -258,11 +261,12 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 			} else if s.EditingPosting == 1 {
 				s.SourceOverridden = true
 			}
+			updatedDraft = s.Draft
 		},
 	)
 
 	c.Respond(&telebot.CallbackResponse{Text: MsgAccountCreatedSelected})
-	return a.sendDraftMessage(c, session.Draft)
+	return a.sendDraftMessage(c, updatedDraft)
 }
 
 /*

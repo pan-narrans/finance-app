@@ -31,6 +31,7 @@ Provide rigorous, objective code reviews to ensure project integrity and adheren
 - Are there new tests for new features?
 - Do tests cover edge cases (empty inputs, invalid formats)?
 - Are mocks used correctly in the App layer?
+- **AC Verification**: Do the passing tests and code changes strictly satisfy the **Acceptance Criteria (AC)** defined in the GitHub Issue?
 
 ### 4. Code Quality
 - Is the logic "DRY" (Don't Repeat Yourself)?

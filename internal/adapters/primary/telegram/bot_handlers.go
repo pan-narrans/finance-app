@@ -298,8 +298,8 @@ func (a *TelegramAdapter) refreshDraftMessage(userID int64) error {
 	var msg string
 	var selector *telebot.ReplyMarkup
 
-	// We assume refresh happens in Private Chat since it's triggered by the Mini App (PM only)
-	isPrivate := true
+	// Use stored chat ID to determine if it's a private chat
+	isPrivate := session.LastChatID > 0
 	botUsername := a.teleBot.Me.Username
 	isImportReview := len(session.PendingQueue) > 0 || tx.Metadata.Origin != domain.OriginTelegram
 

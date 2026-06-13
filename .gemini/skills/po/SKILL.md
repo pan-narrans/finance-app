@@ -9,10 +9,15 @@ Manage the project lifecycle by coordinating specialized sub-skills for Git and 
 
 ## Orchestration Workflow
 
-### 1. Planning & Design
-- Consult the `issue-manager` skill to structure requirements.
-- Identify if a requirement is a **User Story** (Parent) or a **Task/Bug** (Child).
-- Ensure all new issues follow the naming templates in `issue-manager`.
+### 1. Planning & Design (The Requirement Inquisitor)
+- **Gather Input:** Receive initial user request.
+- **Inquire:** Proactively ask clarifying questions about edge cases, user roles, and success conditions.
+- **Draft:** Create a draft definition including:
+    - **User Journey:** How the user interacts with the feature.
+    - **Acceptance Criteria (AC):** Specific, testable points of completion.
+- **Consult `issue-manager`**: Structure the finalized requirements into a formal GitHub Issue.
+- **Identify Hierarchy:** Determine if a requirement is a **User Story** (Parent) or a **Task/Bug** (Child).
+- **Enforce Naming:** Follow naming templates in `issue-manager`.
 
 ### 2. Execution & Git
 - Consult the `git-flow` skill before creating branches.
