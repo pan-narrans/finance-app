@@ -10,7 +10,9 @@ type Settings struct {
 	ImaginBankAccount     string
 	OpenBankAccount       string
 	RootAccounts          []string
+	TelegramUserIDs       []int64
 }
+
 
 /*
 DefaultSettings returns the standard fallback configuration for the application.

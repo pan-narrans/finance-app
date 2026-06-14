@@ -85,15 +85,14 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 
 	// Base config
 	configJSON := `{
-		"settings": {
-			"default_currency": "EUR",
-			"imagin_bank_account": "Assets:Checking:ImaginBank",
-			"default_income_account": "Income:Unknown",
-			"default_expense_account": "Expenses:Unknown",
-			"default_asset_account": "Assets:Cash",
-			"root_accounts": ["Assets", "Expenses"]
-		}
+		"default_currency": "EUR",
+		"imagin_bank_account": "Assets:Checking:ImaginBank",
+		"default_income_account": "Income:Unknown",
+		"default_expense_account": "Expenses:Unknown",
+		"default_asset_account": "Assets:Cash",
+		"root_accounts": ["Assets", "Expenses"]
 	}`
+
 	_ = os.WriteFile(configPath, []byte(configJSON), 0644)
 	_ = os.WriteFile(mappingsPath, []byte(`{"mappings": []}`), 0644)
 
