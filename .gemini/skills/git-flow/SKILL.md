@@ -55,7 +55,8 @@ Follow the structure `prefix/[ID-]<description>`. Use lowercase and hyphens.
   - Release branches target `main`.
 - **Naming:**
   - **Release MR:** Name it `Release/<release-name>`.
-  - **Feature/Bug MR:** Use the exact **GitHub Issue Title**.
+  - **Feature/Bug MR:** Use the exact **GitHub Issue Title**. NEVER include the issue number (e.g., #123) in the MR title; only link it in the description using `Closes #ID`.
+
 - **Merge Method:**
   - **Release MR to main:** Use **Standard Merge** (preserve history).
   - **Feature/Bug MR to release:** Always pre-select **Squash Merge**.
