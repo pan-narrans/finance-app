@@ -88,12 +88,14 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 	}
 
 	cleanDescription := p.mappingProvider.CleanDescription(fullDescription)
-	targetAccount := p.mappingProvider.ResolveAccount(
-		cleanDescription,
-		amount,
-		p.settings.DefaultIncomeAccount,
-		p.settings.DefaultExpenseAccount,
-	)
+	account, found := p.mappingProvider.ResolveAccount(cleanDescription)
+	if !found {
+		if amount > 0 {
+			account = p.settings.DefaultIncomeAccount
+		} else {
+			account = p.settings.DefaultExpenseAccount
+		}
+	}
 
 	metadata := domain.Metadata{
 		Origin: "Imaginbank",
@@ -103,15 +105,35 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		metadata.ID = p.HashID(balanceStr)
 	}
 
+	absAmount := amount
+	if absAmount < 0 {
+		absAmount = -absAmount
+	}
+
+	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
+	var postings []domain.Posting
+	bankAccount := p.settings.ImaginBankAccount
+
+	if amount >= 0 {
+		// Influx: Assets (Target) increase, Income (Source) remains credit balance
+		postings = []domain.Posting{
+			{Account: bankAccount, Amount: &absAmount, Currency: p.settings.DefaultCurrency},
+			{Account: account},
+		}
+	} else {
+		// Outflux: Expense (Target) increases, Assets (Source) decrease
+		postings = []domain.Posting{
+			{Account: account, Amount: &absAmount, Currency: p.settings.DefaultCurrency},
+			{Account: bankAccount},
+		}
+	}
+
 	tx := domain.Transaction{
 		Date:        date,
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
 		Metadata:    metadata,
-		Postings: []domain.Posting{
-			{Account: p.settings.ImaginBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
-			{Account: targetAccount},
-		},
+		Postings:    postings,
 	}
 	tx.Code = tx.GenerateCode()
 

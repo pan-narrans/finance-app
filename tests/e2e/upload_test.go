@@ -44,7 +44,8 @@ func TestE2E_BankDocumentUpload_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 
 	// Assert
 	assert.Contains(t, string(content), "RESTAURANT")
-	assert.Contains(t, string(content), "-45.00 EUR")
+	assert.Contains(t, string(content), "45.00 EUR")
+
 }
 
 func TestE2E_BankDocumentUpload_ShouldHandleDuplicates(t *testing.T) {

@@ -62,7 +62,6 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	description := matches[4]
 
 	// Strict Source Validation: Only use sourceKeyword if it's a known mapping.
-	// Otherwise, treat it as noise and prepend it to description.
 	if sourceKeyword != "" {
 		if _, found := appConfig.Mappings.ResolveSource(sourceKeyword); !found {
 			description = sourceKeyword + " " + description
@@ -76,8 +75,26 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	}
 
 	cleanDescription := appConfig.Mappings.CleanDescription(description)
-	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription, amount)
+	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription)
 	sourceAccount := s.resolveSourceAccount(appConfig, sourceKeyword)
+
+	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
+	var postings []domain.Posting
+	isIncome := appConfig.Mappings.IsIncomeAccount(targetAccount)
+
+	if isIncome {
+		// Income: Assets (Target) increase, Income (Source) remains credit balance
+		postings = []domain.Posting{
+			{Account: sourceAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+			{Account: targetAccount, Amount: nil},
+		}
+	} else {
+		// Expense/Transfer: Expense (Target) increases, Assets (Source) decrease
+		postings = []domain.Posting{
+			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+			{Account: sourceAccount, Amount: nil},
+		}
+	}
 
 	// Add Metadata
 	metadata := domain.Metadata{
@@ -91,16 +108,12 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
 		Metadata:    metadata,
-		Postings: []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: sourceAccount, Amount: nil},
-		},
+		Postings:    postings,
 	}
 	tx.Code = tx.GenerateCode()
 
 	return tx, nil
 }
-
 
 /*
 parseAmount handles numeric conversion from raw input strings.
@@ -116,13 +129,11 @@ resolveTargetAccount determines the expense/income account for the transaction.
 It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
-func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string, amount float64) string {
-	account := appConfig.Mappings.ResolveAccount(
-		cleanDescription,
-		amount,
-		appConfig.Settings.DefaultIncomeAccount,
-		appConfig.Settings.DefaultExpenseAccount,
-	)
+func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string) string {
+	account, found := appConfig.Mappings.ResolveAccount(cleanDescription)
+	if !found {
+		account = appConfig.Settings.DefaultExpenseAccount
+	}
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(account, ":Unknown") {

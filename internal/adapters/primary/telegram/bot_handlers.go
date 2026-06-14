@@ -360,4 +360,3 @@ func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
 	}
 	return text
 }
-

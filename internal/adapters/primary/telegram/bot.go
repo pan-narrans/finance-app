@@ -128,7 +128,7 @@ func (a *TelegramAdapter) RegisterHandlers() {
 
 				// Get latest authorized IDs from config
 				allowedIDs := a.configUseCase.Get().Settings.TelegramUserIDs
-				
+
 				// Helper to check if ID is allowed
 				isAllowed := func(id int64) bool {
 					// Check dynamic config first
@@ -150,7 +150,6 @@ func (a *TelegramAdapter) RegisterHandlers() {
 			}
 		},
 	)
-
 
 	a.teleBot.Handle(
 		"/start", func(c telebot.Context) error {
