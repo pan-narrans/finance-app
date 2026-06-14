@@ -41,13 +41,15 @@ MappingProvider defines the contract for description cleaning and account resolu
 */
 type MappingProvider interface {
 	CleanDescription(description string) string
-	ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string
+	ResolveAccount(description string) (string, bool)
+	IsIncomeAccount(account string) bool
 	ResolvePayer(fullDescription string) string
 	ResolveSource(keyword string) (string, bool)
 	SearchAccounts(query string, limit int) []string
 	GetAllAccounts() []string
 	GetMappingData() domain.MappingData
 }
+
 
 /*
 MappingServiceConstructor is a function type that creates a MappingProvider.

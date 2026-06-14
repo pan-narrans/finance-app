@@ -17,20 +17,34 @@ func TestMappingService_ResolveAccount_ShouldPreferLongestMatch(t *testing.T) {
 	svc := NewMappingService(data, nil)
 
 	// Act
-	account := svc.ResolveAccount("AMAZON MARKETPLACE LUX", -10.0, "Income:Unknown", "Expenses:Unknown")
+	account, found := svc.ResolveAccount("AMAZON MARKETPLACE LUX")
 
 	// Assert
+	assert.True(t, found)
 	assert.Equal(t, "Expenses:Shopping", account, "Should match longest keyword first")
 }
 
-func TestMappingService_ResolveAccount_ShouldReturnFallback_WhenNoMatchFound(t *testing.T) {
+func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *testing.T) {
 	// Arrange
 	svc := NewMappingService(MappingData{}, nil)
 
-	// Act & Assert
-	assert.Equal(t, "Expenses:Unknown", svc.ResolveAccount("Some unknown expense", -10.0, "Income:Unknown", "Expenses:Unknown"))
-	assert.Equal(t, "Income:Unknown", svc.ResolveAccount("Some unknown income", 10.0, "Income:Unknown", "Expenses:Unknown"))
+	// Act
+	account, found := svc.ResolveAccount("Some unknown")
+
+	// Assert
+	assert.False(t, found)
+	assert.Empty(t, account)
 }
+
+func TestMappingService_IsIncomeAccount(t *testing.T) {
+	svc := NewMappingService(MappingData{}, nil)
+
+	assert.True(t, svc.IsIncomeAccount("Income:Salary"))
+	assert.True(t, svc.IsIncomeAccount("Equity:Income:Bonus"))
+	assert.False(t, svc.IsIncomeAccount("Expenses:Food"))
+	assert.False(t, svc.IsIncomeAccount("Assets:Cash"))
+}
+
 
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	// Arrange

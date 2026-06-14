@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -17,36 +16,6 @@ import (
 // Ensure TransactionFileRepository implements ports.TransactionRepository at compile time.
 var _ ports.TransactionRepository = (*TransactionFileRepository)(nil)
 
-type entryType int
-
-const (
-	typeTransaction entryType = iota
-	typePrice
-)
-
-type ledgerEntry struct {
-	Date    time.Time
-	RawText string
-	Type    entryType
-}
-
-type ledgerFile struct {
-	Prologue string
-	Entries  []ledgerEntry
-	Epilogue string
-}
-
-/*
-TransactionFileRepository implements ports.TransactionRepository using a plain-text file.
-
-It uses regex-based parsing to interact with transactions in the Ledger CLI format.
-
-Methods:
-  - Create: Appends a new transaction to the end of the ledger file.
-  - FindByCode: Searches the file for a transaction with the given unique code.
-  - Update: Replaces an existing transaction block in the file with a new formatted version.
-  - Delete: Removes a transaction block from the file by its unique code.
-*/
 type TransactionFileRepository struct {
 	FilePath      string
 	configUseCase ports.ConfigurationUseCase
@@ -54,7 +23,6 @@ type TransactionFileRepository struct {
 	mu            sync.Mutex
 }
 
-// NewTransactionFileRepository creates a new instance of TransactionFileRepository.
 func NewTransactionFileRepository(
 	filePath string,
 	configUC ports.ConfigurationUseCase,
@@ -67,32 +35,33 @@ func NewTransactionFileRepository(
 	}
 }
 
-// Create writes a transaction to the end of the ledger file.
 func (fileRepository *TransactionFileRepository) Create(transaction domain.Transaction) error {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	lf, err := fileRepository.readLedgerFile()
+	ledger, err := fileRepository.readLedger()
 	if err != nil {
 		return err
 	}
 
-	// Check for duplicates
 	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
-	for _, entry := range lf.Entries {
-		if entry.Type == typeTransaction && strings.Contains(entry.RawText, codeMarker) {
+	for _, entry := range ledger.Entries {
+		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
 			return domain.NewDomainError("Transaction", "Code", "transaction already exists")
 		}
 	}
 
 	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
 	newRaw := fileRepository.formatter.FormatTransaction(transaction, alignment)
-	lf.Entries = append(lf.Entries, ledgerEntry{Date: transaction.Date, RawText: newRaw, Type: typeTransaction})
+	ledger.Entries = append(ledger.Entries, domain.LedgerEntry{
+		Date:    transaction.Date,
+		RawText: newRaw,
+		Type:    domain.EntryTypeTransaction,
+	})
 
-	return fileRepository.writeLedgerFile(lf)
+	return fileRepository.writeLedger(ledger)
 }
 
-// FindByCode searches the file using a regex to find a transaction with the given code.
 func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domain.Transaction, error) {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
@@ -106,7 +75,6 @@ func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domai
 	}
 
 	regex := fileRepository.transactionRegex(code)
-
 	if regex.Match(data) {
 		return &domain.Transaction{Code: code}, nil
 	}
@@ -114,10 +82,6 @@ func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domai
 	return nil, nil
 }
 
-/*
-Update replaces an existing transaction block with a new formatted version.
-It returns a domain.DomainError if the transaction code is not found in the file.
-*/
 func (fileRepository *TransactionFileRepository) Update(transaction domain.Transaction) error {
 	if transaction.Code == "" {
 		return domain.NewDomainError("Transaction", "Code", "transaction must have a code to be updated")
@@ -126,7 +90,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	lf, err := fileRepository.readLedgerFile()
+	ledger, err := fileRepository.readLedger()
 	if err != nil {
 		return err
 	}
@@ -135,10 +99,30 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
 	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
 
-	for i, entry := range lf.Entries {
-		if entry.Type == typeTransaction && strings.Contains(entry.RawText, codeMarker) {
-			lf.Entries[i].Date = transaction.Date
-			lf.Entries[i].RawText = fileRepository.formatter.FormatTransaction(transaction, alignment)
+	for i := range ledger.Entries {
+		entry := &ledger.Entries[i]
+		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
+			// PRESERVE COMMENTS: We replace only the transaction part, keeping any attached comments.
+			// A transaction part ends after the last indented line.
+			oldRaw := entry.RawText
+			lines := strings.Split(oldRaw, "\n")
+			lastTxLine := 0
+			for j, line := range lines {
+				if j == 0 || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+					lastTxLine = j
+				} else {
+					break
+				}
+			}
+			
+			newTx := fileRepository.formatter.FormatTransaction(transaction, alignment)
+			comments := ""
+			if lastTxLine < len(lines)-1 {
+				comments = "\n" + strings.Join(lines[lastTxLine+1:], "\n")
+			}
+			
+			entry.Date = transaction.Date
+			entry.RawText = strings.TrimRight(newTx, "\n") + comments
 			found = true
 			break
 		}
@@ -148,7 +132,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
 	}
 
-	return fileRepository.writeLedgerFile(lf)
+	return fileRepository.writeLedger(ledger)
 }
 
 func (fileRepository *TransactionFileRepository) Delete(code string) error {
@@ -159,7 +143,7 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	lf, err := fileRepository.readLedgerFile()
+	ledger, err := fileRepository.readLedger()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
@@ -167,12 +151,33 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 		return err
 	}
 
-	newEntries := make([]ledgerEntry, 0, len(lf.Entries))
+	newEntries := make([]domain.LedgerEntry, 0, len(ledger.Entries))
 	codeMarker := fmt.Sprintf("(%s)", code)
 	found := false
 
-	for _, entry := range lf.Entries {
-		if entry.Type == typeTransaction && strings.Contains(entry.RawText, codeMarker) {
+	for _, entry := range ledger.Entries {
+		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
+			// PRESERVE COMMENTS: If a deleted transaction has trailing comments, 
+			// we should ideally re-attach them to the entry above or keep them as a raw entry.
+			// For simplicity, if it has comments, we turn it into a comment-only entry.
+			lines := strings.Split(entry.RawText, "\n")
+			lastTxLine := 0
+			for j, line := range lines {
+				if j == 0 || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+					lastTxLine = j
+				} else {
+					break
+				}
+			}
+			
+			if lastTxLine < len(lines)-1 {
+				comments := strings.Join(lines[lastTxLine+1:], "\n")
+				newEntries = append(newEntries, domain.LedgerEntry{
+					Type:    domain.EntryTypeComment,
+					RawText: comments,
+				})
+			}
+			
 			found = true
 			continue
 		}
@@ -183,28 +188,14 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 	}
 
-	lf.Entries = newEntries
-	return fileRepository.writeLedgerFile(lf)
+	ledger.Entries = newEntries
+	return fileRepository.writeLedger(ledger)
 }
 
-/*
-atomicWrite writes data to a temporary file and renames it to the target file path.
-This ensures the write is atomic and prevents file corruption on crash/failure.
-*/
-func (fileRepository *TransactionFileRepository) atomicWrite(data []byte) error {
-	tmpPath := fileRepository.FilePath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, fileRepository.FilePath)
-}
-
-// GetAccounts retrieves the list of accounts from the ledger file using the ledger CLI.
 func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error) {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	// Check if file exists first to avoid unnecessary CLI errors
 	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -227,12 +218,10 @@ func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error)
 	return accounts, nil
 }
 
-// GetBalanceReport executes the ledger balance command for the given period and filter.
 func (fileRepository *TransactionFileRepository) GetBalanceReport(period string, filter string) (string, error) {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	// Check if file exists
 	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
 		return "", nil
 	}
@@ -248,7 +237,6 @@ func (fileRepository *TransactionFileRepository) GetBalanceReport(period string,
 	cmd := exec.Command("ledger", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Ledger returns error 1 if no matches found for filter
 		if len(output) == 0 {
 			return "", nil
 		}
@@ -258,64 +246,44 @@ func (fileRepository *TransactionFileRepository) GetBalanceReport(period string,
 	return string(output), nil
 }
 
-/*
-transactionRegex compiles a regular expression to match a transaction block
-by its unique code. It looks for the DATE followed by the (CODE) marker.
-*/
-func (fileRepository *TransactionFileRepository) transactionRegex(code string) *regexp.Regexp {
-	// (?m) enables multi-line mode.
-	// We match from the date line to the next blank line or end of file.
-	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
-	return regexp.MustCompile(pattern)
-}
-
-func (fileRepository *TransactionFileRepository) readLedgerFile() (ledgerFile, error) {
+func (fileRepository *TransactionFileRepository) readLedger() (domain.Ledger, error) {
 	data, err := os.ReadFile(fileRepository.FilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return ledgerFile{}, nil
+			return domain.Ledger{}, nil
 		}
-		return ledgerFile{}, err
+		return domain.Ledger{}, err
 	}
 
 	content := string(data)
 	
-	// 1. Strip ALL month headers from the file to prevent duplication
-	lines := strings.Split(content, "\n")
-	var cleanedLines []string
-	headerLineRegex := regexp.MustCompile(`^;- [A-Z ]+ -$`)
-	
-	for i := 0; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if headerLineRegex.MatchString(line) {
-			if i > 0 && strings.HasPrefix(strings.TrimSpace(lines[i-1]), ";---") &&
-				i < len(lines)-1 && strings.HasPrefix(strings.TrimSpace(lines[i+1]), ";---") {
-				if len(cleanedLines) > 0 && strings.HasPrefix(strings.TrimSpace(cleanedLines[len(cleanedLines)-1]), ";---") {
-					cleanedLines = cleanedLines[:len(cleanedLines)-1]
-				}
-				i++ // Skip next dash line
-				continue
-			}
-		}
-		cleanedLines = append(cleanedLines, lines[i])
-	}
-	content = strings.Join(cleanedLines, "\n")
-
-	// 2. Find entry boundaries (Transactions OR Prices)
-	// (P\s+)? captures the price prefix if present
+	// 1. Regex to find ALL entry starts (Transactions OR Prices)
 	entryStartRegex := regexp.MustCompile(`(?m)^(P\s+)?(\d{4}[\/-]\d{2}[\/-]\d{2})`)
 	matches := entryStartRegex.FindAllStringSubmatchIndex(content, -1)
 
 	if len(matches) == 0 {
-		return ledgerFile{Prologue: content}, nil
+		return domain.Ledger{
+			Entries: []domain.LedgerEntry{{Type: domain.EntryTypeDirective, RawText: content}},
+		}, nil
 	}
 
-	lf := ledgerFile{
-		Prologue: strings.TrimRight(content[:matches[0][0]], "\n \t") + "\n\n",
+	var ledger domain.Ledger
+	
+	// 2. Capture Prologue (everything before first date)
+	prologue := content[:matches[0][0]]
+	if prologue != "" {
+		ledger.Entries = append(ledger.Entries, domain.LedgerEntry{
+			Type:    domain.EntryTypeDirective,
+			RawText: strings.TrimRight(prologue, "\n \t"),
+		})
 	}
 
+	// Stylized Month Header Regex for stripping
+	sepRegex := regexp.MustCompile(`(?m);-+\r?\n;- [A-Z ]+ -\r?\n;-+\r?\n*`)
+
+	// 3. Capture Blocks
 	for i, match := range matches {
-		isPrice := match[2] != -1 && match[3] != -1 // P\s+ group matched
+		isPrice := match[2] != -1 && match[3] != -1
 		dateStr := content[match[4]:match[5]]
 		dateStr = strings.ReplaceAll(dateStr, "-", "/")
 		date, _ := time.Parse("2006/01/02", dateStr)
@@ -327,94 +295,43 @@ func (fileRepository *TransactionFileRepository) readLedgerFile() (ledgerFile, e
 		}
 
 		raw := content[start:end]
-		entry := ledgerEntry{Date: date}
+		// Strip separators from the block to prevent duplication
+		raw = sepRegex.ReplaceAllString(raw, "")
+		raw = strings.TrimRight(raw, "\n \t")
 
+		entry := domain.LedgerEntry{
+			Date:    date,
+			RawText: raw,
+		}
 		if isPrice {
-			entry.Type = typePrice
-			// Price updates are single lines. 
-			// We take the first line and treat the rest as trailing noise/epilogue potential
-			pLines := strings.Split(raw, "\n")
-			entry.RawText = strings.TrimSpace(pLines[0])
-			if i == len(matches)-1 {
-				lf.Epilogue = strings.Join(pLines[1:], "\n")
-			}
+			entry.Type = domain.EntryTypePrice
 		} else {
-			entry.Type = typeTransaction
-			// Transaction handling logic (last indented line)
-			txLines := strings.Split(raw, "\n")
-			lastTxLine := 0
-			for j := len(txLines) - 1; j >= 0; j-- {
-				line := txLines[j]
-				if strings.TrimSpace(line) == "" {
-					continue
-				}
-				if j == 0 || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
-					lastTxLine = j
-					break
-				}
-			}
-			entry.RawText = strings.TrimSpace(strings.Join(txLines[:lastTxLine+1], "\n"))
-			if i == len(matches)-1 {
-				lf.Epilogue = strings.Join(txLines[lastTxLine+1:], "\n")
-			}
+			entry.Type = domain.EntryTypeTransaction
 		}
 
 		if entry.RawText != "" {
-			lf.Entries = append(lf.Entries, entry)
+			ledger.Entries = append(ledger.Entries, entry)
 		}
 	}
 
-	return lf, nil
+	return ledger, nil
 }
 
-func (fileRepository *TransactionFileRepository) writeLedgerFile(lf ledgerFile) error {
-	var sb strings.Builder
-	
-	if strings.TrimSpace(lf.Prologue) != "" {
-		sb.WriteString(strings.TrimRight(lf.Prologue, "\n"))
-		sb.WriteString("\n\n")
+func (fileRepository *TransactionFileRepository) writeLedger(ledger domain.Ledger) error {
+	ledger.Sort()
+	content := ledger.Format()
+	return fileRepository.atomicWrite([]byte(content))
+}
+
+func (fileRepository *TransactionFileRepository) atomicWrite(data []byte) error {
+	tmpPath := fileRepository.FilePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return err
 	}
+	return os.Rename(tmpPath, fileRepository.FilePath)
+}
 
-	if len(lf.Entries) > 0 {
-		// Stable sort by date. 
-		// If same date, preserve relative order (StableSortFunc).
-		slices.SortStableFunc(lf.Entries, func(a, b ledgerEntry) int {
-			if a.Date.Before(b.Date) { return -1 }
-			if a.Date.After(b.Date) { return 1 }
-			return 0
-		})
-
-		var lastMonth time.Month
-		var lastYear int
-
-		for _, entry := range lf.Entries {
-			month := entry.Date.Month()
-			year := entry.Date.Year()
-
-			if month != lastMonth || year != lastYear {
-				monthName := strings.ToUpper(month.String())
-				sb.WriteString(";--------\n")
-				sb.WriteString(fmt.Sprintf(";- %s -\n", monthName))
-				sb.WriteString(";--------\n\n")
-
-				lastMonth = month
-				lastYear = year
-			}
-
-			sb.WriteString(entry.RawText)
-			sb.WriteString("\n\n")
-		}
-	}
-
-	if strings.TrimSpace(lf.Epilogue) != "" {
-		sb.WriteString(strings.TrimLeft(lf.Epilogue, "\n"))
-	}
-
-	result := sb.String()
-	result = strings.TrimRight(result, "\n")
-	if result != "" {
-		result += "\n"
-	}
-
-	return fileRepository.atomicWrite([]byte(result))
+func (fileRepository *TransactionFileRepository) transactionRegex(code string) *regexp.Regexp {
+	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
+	return regexp.MustCompile(pattern)
 }

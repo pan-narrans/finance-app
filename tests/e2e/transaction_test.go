@@ -275,6 +275,7 @@ func TestE2E_Transaction_ShouldHandleRapidFireCommands(t *testing.T) {
 	}
 
 	// Assert: It should eventually settle on ONE of them without crashing
+	time.Sleep(1 * time.Second) // Allow all concurrent handlers to complete
 	assert.Eventually(t, func() bool {
 		s, ok := env.adapter.SessionManager().Get(env.userID)
 		return ok && strings.HasPrefix(s.Draft.Description, "Lunch-")
@@ -285,9 +286,10 @@ func TestE2E_Transaction_ShouldHandleRapidFireCommands(t *testing.T) {
 	// Ledger should have exactly one transaction if confirm was only sent once
 	assert.Eventually(t, func() bool {
 		content, _ := os.ReadFile(env.ledgerPath)
-		return len(content) > 0
+		return len(content) > 0 && strings.Contains(string(content), "Lunch-")
 	}, 5*time.Second, 100*time.Millisecond)
 }
+
 
 func TestE2E_Transaction_ShouldRejectStaleMessage(t *testing.T) {
 	// Arrange
@@ -374,10 +376,11 @@ func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
 			s.Draft.Code = "" // Clear stale code to force re-generation
 			// Force Metadata ID to match what bank import will generate for "1000,00EUR" balance
 			s.Draft.Metadata.ID = "a8661157"
-			// Force negative amount to match bank import (expense)
-			negAmount := -10.0
-			s.Draft.Postings[0].Amount = &negAmount
+			// Force positive amount to match new standardized bank import (Target: Assets increase)
+			amount := 10.0
+			s.Draft.Postings[0].Amount = &amount
 		})
+
 
 		return true
 	}, 5*time.Second, 100*time.Millisecond)
