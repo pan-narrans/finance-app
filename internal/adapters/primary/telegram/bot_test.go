@@ -46,7 +46,28 @@ func TestGetCleanedText(t *testing.T) {
 			input:    "@MyBot Hello @MyBot",
 			expected: "Hello",
 		},
+		{
+			name:     "Mention with trailing comma",
+			input:    "@MyBot, 10 coffee",
+			expected: "10 coffee",
+		},
+		{
+			name:     "Mention with trailing colon",
+			input:    "@MyBot: 10 coffee",
+			expected: "10 coffee",
+		},
+		{
+			name:     "Mention with trailing semicolon",
+			input:    "@MyBot; 10 coffee",
+			expected: "10 coffee",
+		},
+		{
+			name:     "Mention with conversational noise",
+			input:    "Hey @MyBot, 10 coffee",
+			expected: "Hey 10 coffee",
+		},
 	}
+
 
 	for _, tt := range tests {
 		t.Run(

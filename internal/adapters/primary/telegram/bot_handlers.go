@@ -353,10 +353,11 @@ func (a *TelegramAdapter) getCleanedText(c telebot.Context) string {
 	text := c.Text()
 	if username := a.teleBot.Me.Username; username != "" {
 		mention := "@" + username
-		// Case-insensitive removal of all occurrences
-		re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(mention))
+		// Case-insensitive removal of the mention followed by optional common punctuation
+		re := regexp.MustCompile("(?i)" + regexp.QuoteMeta(mention) + "[,:;]?")
 		text = re.ReplaceAllString(text, "")
 		text = strings.Join(strings.Fields(text), " ")
 	}
 	return text
 }
+
