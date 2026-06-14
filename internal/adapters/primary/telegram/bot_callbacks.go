@@ -152,6 +152,7 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	if c.Callback() != nil {
 		c.Respond(&telebot.CallbackResponse{Text: MsgAccountUpdated})
 	}
+
 	return a.sendDraftMessage(c, updatedDraft)
 }
 
@@ -181,7 +182,6 @@ func (a *TelegramAdapter) handleCreateAcc(c telebot.Context) error {
 	userID := c.Sender().ID
 	_, ok := a.sessionManager.Get(userID)
 
-
 	if !ok {
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
@@ -207,7 +207,6 @@ func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 	if _, ok := a.sessionManager.Get(userID); !ok {
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
-
 
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {

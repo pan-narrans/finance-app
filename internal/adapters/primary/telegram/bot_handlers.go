@@ -56,7 +56,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
 		case StateCreatingAccountChild:
-			// If it's a valid transaction, let it interrupt. 
+			// If it's a valid transaction, let it interrupt.
 			// Otherwise, treat as child account input.
 			if _, err := a.transactionParserUC.ParseText(text, domain.OriginTelegram); err != nil {
 				return a.handleChildInput(c)
@@ -77,9 +77,6 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		return c.Send(err.Error())
 	}
 
-
-
-
 	// Capture source keyword for potential mapping update
 	sourceKeyword := a.transactionParserUC.GuessSource(text)
 
@@ -91,7 +88,6 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 			OriginalSourceKeyword: sourceKeyword,
 		},
 	)
-
 
 	return a.sendDraftMessage(c, tx)
 }
@@ -157,8 +153,6 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 
 	return c.Send(response)
 }
-
-
 
 /*
 handleSearchQuery processes text input when the user is searching for an account.
