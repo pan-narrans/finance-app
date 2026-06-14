@@ -10,7 +10,12 @@ Manage the project lifecycle by coordinating specialized sub-skills for Git and 
 ## Orchestration Workflow
 
 ### 1. Planning & Design (The Requirement Inquisitor)
-- **Gather Input:** Receive initial user request.
+- **New Task Protocol**: If the user asks to work on a NEW issue:
+    1. Ask if the previous issue is finished and pushed.
+    2. Update the target `release/` branch.
+    3. Create the new issue branch FROM the updated `release/` branch.
+- **Gather Input**: Receive initial user request.
+
 - **Inquire:** Proactively ask clarifying questions about edge cases, user roles, and success conditions.
 - **Draft:** Create a draft definition including:
     - **User Journey:** How the user interacts with the feature.

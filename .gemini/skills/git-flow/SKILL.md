@@ -62,6 +62,12 @@ Follow the structure `prefix/[ID-]<description>`. Use lowercase and hyphens.
 - **Linking:**
   - Link the MR to the relevant GitHub Issue using the native "Linked Issues" functionality (do not rely solely on description mentions).
 
+## Workflow Orchestration
+- **New Issue Protocol**: If the user asks to start work on a new issue:
+  1. Ask if the previous issue is finished and pushed.
+  2. Update the target `release/` branch (pull from origin).
+  3. Create the new issue-specific branch FROM the updated `release/` branch.
+
 ## Workflow Integration
 - Use `git status`, `git log`, and `git diff` to verify state before any operation.
 - Always propose a draft commit message and MR title/body for review.
