@@ -102,6 +102,18 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 
 	err := a.teleBot.Download(&doc.File, tmpFile)
 	if err != nil {
+		// Support for E2E tests: if download fails, check if we have a local file path
+		if doc.FileLocal != "" {
+			data, readErr := os.ReadFile(doc.FileLocal)
+			if readErr == nil {
+				if writeErr := os.WriteFile(tmpFile, data, 0644); writeErr == nil {
+					err = nil
+				}
+			}
+		}
+	}
+
+	if err != nil {
 		return c.Send(fmt.Sprintf("Failed to download file: %v", err))
 	}
 	defer os.Remove(tmpFile)

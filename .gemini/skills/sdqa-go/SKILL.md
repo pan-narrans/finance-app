@@ -10,7 +10,7 @@ Ensure code is robust, testable, and adheres to high architectural standards (He
 ## Core Mandates
 
 1.  **Shift-Left / TDD**: You are the first line of implementation. Read the **Acceptance Criteria (AC)** from the GitHub Issue and write failing tests (Unit/Integration) that assert these conditions BEFORE the Dev agent starts coding.
-2.  **Determinism Above All**: Tests must be 100% reproducible. No `time.Sleep()`, no unmocked `time.Now()`, and no real filesystem/network calls.
+2.  **Determinism Above All**: Tests must be 100% reproducible. No `time.Sleep()`, no unmocked `time.Now()`, and no real filesystem/network calls. EXCEPTION: E2E tests (see `sdqa-e2e` skill) are exempt from this mandate as they operate against live APIs.
 3.  **Testing Pyramid**: Prioritize fast, isolated unit tests. Use Interfaces (Ports) to mock external dependencies.
 4.  **Smart Mocking**: Use Go Interfaces to isolate business logic. Never mock simple structs (Entities/DTOs); instantiate them as real fixtures.
 5.  **Coverage Criterion**: Aim for "Edge Case" coverage (nil pointers, empty slices, error propagation) over simple percentage targets.
