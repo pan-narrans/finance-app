@@ -44,7 +44,9 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	expectedContent := ";--------\n;- APRIL -\n;--------\n\n" + formatter.FormatTransaction(transaction, 52) + "\n\n"
+	expectedContent := ";--------\n;- APRIL -\n;--------\n\n" + formatter.FormatTransaction(transaction, 52)
+
+
 
 	// Act
 	err = fileRepository.Create(transaction)
@@ -55,6 +57,7 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	assert.NoError(t, err)
 	assert.Equal(t, expectedContent, string(content))
 }
+
 
 
 func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *testing.T) {
@@ -373,4 +376,68 @@ func TestFileRepository_Create_ShouldBeStableForSameDayTransactions(t *testing.T
 	secondIdx := strings.Index(text, "Second")
 	assert.True(t, firstIdx < secondIdx, "Insertion order should be preserved for same day")
 }
+
+func TestFileRepository_ShouldPreservePrologueAndEpilogue(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_prologue_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	prologue := "commodity EUR\naccount Assets:Cash\n\n"
+	existingTx := "2026/01/01 Initial\n    Assets:Cash  100 EUR\n    Equity:Opening\n"
+	epilogue := "\n; End of file"
+	os.WriteFile(tmpFile.Name(), []byte(prologue+existingTx+epilogue), 0644)
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	tx := domain.Transaction{Date: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Description: "Coffee"}
+
+	// Act
+	err = repo.Create(tx)
+
+	// Assert
+	assert.NoError(t, err)
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	assert.True(t, strings.HasPrefix(text, "commodity EUR"), "Prologue should be at the start")
+	assert.True(t, strings.HasSuffix(strings.TrimSpace(text), "; End of file"), "Epilogue should be at the end")
+	assert.Contains(t, text, "Coffee", "New transaction should be present")
+	assert.Contains(t, text, "Initial", "Existing transaction should be present")
+}
+
+
+func TestFileRepository_ShouldNotDuplicateMonthHeaders(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_dedup_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	tx1 := domain.Transaction{Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Description: "First", Code: "TX1"}
+	tx2 := domain.Transaction{Date: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Description: "Second", Code: "TX2"}
+
+	// Act 1: Create first transaction (adds header)
+	_ = repo.Create(tx1)
+
+	// Act 2: Create second transaction in same month
+	_ = repo.Create(tx2)
+
+	// Act 3: Update first transaction (triggers full rewrite)
+	_ = repo.Update(tx1)
+
+	// Assert
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	// Count occurrences of the header
+	count := strings.Count(text, "JANUARY")
+	assert.Equal(t, 1, count, "Should only have one JANUARY header after multiple writes")
+}
+
 
