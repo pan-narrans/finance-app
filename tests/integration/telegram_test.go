@@ -87,7 +87,9 @@ func setupTestEnv(t *testing.T) *testEnv {
 	})
 	require.NoError(t, err)
 
-	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	require.NoError(t, err)
+
 	txService := app.NewTransactionService(repo)
 	parserService := app.NewTransactionParserService(configManager)
 
