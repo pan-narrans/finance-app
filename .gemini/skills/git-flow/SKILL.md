@@ -26,6 +26,12 @@ Once the MR is merged:
 2. Delete the local branch: `git branch -d feature/[ID-]<name>`
 3. Run `git worktree prune` to clean up references.
 
+## Local Configuration & Secrets
+To maintain a clean root and persistent secrets across worktree changes:
+- Store all local environment variables and secrets in the hidden `.local/` directory at the repository root.
+- This directory is added to `.git/info/exclude` to ensure it is never tracked or pushed.
+- Example usage: `export $(grep -v '^#' ../.local/env | xargs) && make test-e2e`
+
 ## Branch Naming
 Follow the structure `prefix/[ID-]<description>`. Use lowercase and hyphens.
 

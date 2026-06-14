@@ -70,7 +70,10 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 	fullDescription := strings.TrimSpace(row[0])
 	dateStr := strings.TrimSpace(row[1])
 	amountStr := strings.TrimSpace(row[2])
-	balanceStr := strings.TrimSpace(row[3])
+	balanceStr := ""
+	if len(row) > 3 {
+		balanceStr = strings.TrimSpace(row[3])
+	}
 
 	date, err := time.Parse("02/01/2006", dateStr)
 	if err != nil {

@@ -56,9 +56,11 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
 		case StateCreatingAccountChild:
-			return a.handleChildInput(c)
-		case StateCreatingAccountParent, StateCreatingAccountReview:
-			return c.Send(MsgUseButtons, telebot.ModeHTML)
+			// If it's a valid transaction, let it interrupt.
+			// Otherwise, treat as child account input.
+			if _, err := a.transactionParserUC.ParseText(text, domain.OriginTelegram); err != nil {
+				return a.handleChildInput(c)
+			}
 		}
 	}
 
@@ -68,13 +70,17 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	// 3. Treat as a new transaction entry
 	tx, err := a.transactionParserUC.ParseText(text, domain.OriginTelegram)
 	if err != nil {
+		// If it's not a valid transaction but we are in a state that expects buttons, inform user.
+		if exists && (session.State == StateCreatingAccountParent || session.State == StateCreatingAccountReview) {
+			return c.Send(MsgUseButtons, telebot.ModeHTML)
+		}
 		return c.Send(err.Error())
 	}
 
 	// Capture source keyword for potential mapping update
 	sourceKeyword := a.transactionParserUC.GuessSource(text)
 
-	// Store in session
+	// Store in session - This effectively resets any existing state (None)
 	a.sessionManager.Set(
 		userID, &UserSession{
 			Draft:                 tx,
@@ -102,11 +108,24 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 
 	err := a.teleBot.Download(&doc.File, tmpFile)
 	if err != nil {
+		// Support for E2E tests: if download fails, check if we have a local file path
+		if doc.FileLocal != "" {
+			data, readErr := os.ReadFile(doc.FileLocal)
+			if readErr == nil {
+				if writeErr := os.WriteFile(tmpFile, data, 0644); writeErr == nil {
+					err = nil
+				}
+			}
+		}
+	}
+
+	if err != nil {
 		return c.Send(fmt.Sprintf("Failed to download file: %v", err))
 	}
 	defer os.Remove(tmpFile)
 
 	summary, err := a.importUseCase.Import(tmpFile)
+
 	if err != nil {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}

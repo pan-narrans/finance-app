@@ -55,41 +55,49 @@ func (importService *ImportService) Import(filePath string) (*ports.ImportSummar
 	}
 
 	for index, transaction := range transactions {
+		if transaction.Code == "" {
+			transaction.Code = transaction.GenerateCode()
+		}
+
+		existing, err := importService.transactionUseCase.GetByCode(transaction.Code)
+		if err != nil {
+			summary.Failed++
+			summary.Errors[index] = fmt.Errorf("lookup failed: %w", err)
+			continue
+		}
+
+		if existing != nil {
+			// If already in ledger, we skip if the new parse is still Unknown
+			// (to avoid overwriting user corrections with "Unknown" again).
+			if transaction.HasUnknownAccount() {
+				summary.Updated++
+				continue
+			}
+
+			// If it's fully known now (maybe user added mapping), we update it.
+			if err = importService.transactionUseCase.Update(transaction); err != nil {
+				summary.Failed++
+				summary.Errors[index] = fmt.Errorf("update failed: %w", err)
+			} else {
+				summary.Updated++
+			}
+			continue
+		}
+
+		// New transaction: check for unknown accounts
 		if transaction.HasUnknownAccount() {
 			summary.Pending = append(summary.Pending, transaction)
 			continue
 		}
 
-		if err = importService.processTransaction(transaction, summary); err != nil {
+		// Fully known and new: Add it
+		if err = importService.transactionUseCase.Add(transaction); err != nil {
 			summary.Failed++
-			summary.Errors[index] = err
+			summary.Errors[index] = fmt.Errorf("add failed: %w", err)
+		} else {
+			summary.Added++
 		}
 	}
 
 	return summary, nil
-}
-
-func (importService *ImportService) processTransaction(transaction domain.Transaction, summary *ports.ImportSummary) error {
-	if transaction.Code == "" {
-		transaction.Code = transaction.GenerateCode()
-	}
-	existing, err := importService.transactionUseCase.GetByCode(transaction.Code)
-
-	if err != nil {
-		return fmt.Errorf("lookup failed: %w", err)
-	}
-
-	if existing != nil {
-		if err := importService.transactionUseCase.Update(transaction); err != nil {
-			return fmt.Errorf("update failed: %w", err)
-		}
-		summary.Updated++
-	} else {
-		if err := importService.transactionUseCase.Add(transaction); err != nil {
-			return fmt.Errorf("add failed: %w", err)
-		}
-		summary.Added++
-	}
-
-	return nil
 }
