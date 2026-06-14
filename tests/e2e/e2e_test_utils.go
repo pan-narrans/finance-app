@@ -43,7 +43,7 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 
 	// We might need a real User ID and Chat ID for some assertions if we want to check real Telegram state
 	// but for now we'll use them to simulate the "from" user.
-	userID := int64(12345) // Default or from env
+	userID := int64(12345) // Test ID
 	chatID := int64(12345)
 
 	tmpDir := t.TempDir()

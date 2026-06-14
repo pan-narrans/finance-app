@@ -3,6 +3,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -116,4 +117,186 @@ func TestE2E_BankDocumentUpload_ShouldHandleDuplicates_WhenUnknownAccount(t *tes
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(summary.Pending), "Second import should NOT have pending transactions as it already exists in repo")
 	assert.Equal(t, 1, summary.Updated, "Second import should increment 'Updated'")
+}
+
+func TestE2E_BankDocumentUpload_ShouldHandleCancellation(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	bankFileName := "imagin.csv"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	csvContent := "Concepto;Fecha;Importe;Saldo\n" +
+		"RESTAURANT;15/04/2026;-45,00EUR;1000,00EUR\n" +
+		"SUPERMARKET;16/04/2026;-20,00EUR;980,00EUR\n"
+	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
+
+	// Act
+	env.sendDocument(bankFilePath, []byte(csvContent))
+
+	// Wait for session
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created")
+
+	// Cancel remaining
+	env.sendCallback(telegram.CallbackCancelImport)
+
+	// Assert
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return !ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be deleted after cancellation")
+
+	content, _ := os.ReadFile(env.ledgerPath)
+	assert.Empty(t, strings.TrimSpace(string(content)), "Ledger should be empty after cancellation")
+}
+
+func TestE2E_BankDocumentUpload_ShouldHandleMalformedFile(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// File named 'imagin' but not a CSV
+	bankFileName := "imagin_scam.exe"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	content := []byte("not a csv")
+	_ = os.WriteFile(bankFilePath, content, 0644)
+
+	// Act
+	env.sendDocument(bankFilePath, content)
+
+	// Assert
+	// We expect NO session to be created because parser should fail
+	time.Sleep(500 * time.Millisecond) // Give it a bit of time
+	_, ok := env.adapter.SessionManager().Get(env.userID)
+	assert.False(t, ok, "Session should NOT be created for malformed file")
+}
+
+func TestE2E_BankDocumentUpload_ShouldHandleUnsupportedFile(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	bankFileName := "random_file.txt"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	content := []byte("random content")
+	_ = os.WriteFile(bankFilePath, content, 0644)
+
+	// Act
+	env.sendDocument(bankFilePath, content)
+
+	// Assert
+	time.Sleep(500 * time.Millisecond)
+	_, ok := env.adapter.SessionManager().Get(env.userID)
+	assert.False(t, ok, "Session should NOT be created for unsupported file")
+}
+
+func TestE2E_BankDocumentUpload_ShouldHandleAcceptAll(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	bankFileName := "imagin.csv"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	csvContent := "Concepto;Fecha;Importe;Saldo\n" +
+		"RESTAURANT;15/04/2026;-45,00EUR;1000,00EUR\n" +
+		"SUPERMARKET;16/04/2026;-20,00EUR;980,00EUR\n"
+	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
+
+	// Act
+	env.sendDocument(bankFilePath, []byte(csvContent))
+
+	// Wait for session
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created")
+
+	// Accept all
+	env.sendCallback(telegram.CallbackAcceptAll)
+
+	// Assert
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return !ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be deleted after Accept All")
+
+	// Wait for ledger update
+	var content []byte
+	assert.Eventually(t, func() bool {
+		var err error
+		content, err = os.ReadFile(env.ledgerPath)
+		return err == nil && strings.Contains(string(content), "RESTAURANT") && strings.Contains(string(content), "SUPERMARKET")
+	}, 5*time.Second, 100*time.Millisecond, "Ledger file should contain both transactions")
+}
+
+func TestE2E_BankDocumentUpload_ShouldHandleExpiredSession(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// Send document to create session
+	bankFileName := "imagin.csv"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	csvContent := "Concepto;Fecha;Importe;Saldo\n" +
+		"RESTAURANT;15/04/2026;-45,00EUR;1000,00EUR\n"
+	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
+	env.sendDocument(bankFilePath, []byte(csvContent))
+
+	// Wait for session
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created")
+
+	// Manually delete session to simulate expiry
+	env.adapter.SessionManager().Delete(env.userID)
+
+	// Act - Try to confirm
+	env.sendCallback(telegram.CallbackConfirm)
+
+	// Assert
+	time.Sleep(500 * time.Millisecond) // Wait for potential async handler
+	content, _ := os.ReadFile(env.ledgerPath)
+	assert.Empty(t, strings.TrimSpace(string(content)), "Ledger should be empty after expired session action")
+}
+
+func TestE2E_BankDocumentUpload_ShouldHandleDiscard(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	bankFileName := "imagin.csv"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	csvContent := "Concepto;Fecha;Importe;Saldo\n" +
+		"RESTAURANT;15/04/2026;-45,00EUR;1000,00EUR\n" +
+		"SUPERMARKET;16/04/2026;-20,00EUR;980,00EUR\n"
+	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
+
+	// Act
+	env.sendDocument(bankFilePath, []byte(csvContent))
+
+	// Wait for session
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created")
+
+	// Discard first
+	env.sendCallback(telegram.CallbackDiscard)
+
+	// Wait for next in queue
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "SUPERMARKET"
+	}, 5*time.Second, 100*time.Millisecond, "Should advance to next transaction after discard")
+
+	// Confirm second
+	env.sendCallback(telegram.CallbackConfirm)
+
+	// Assert
+	assert.Eventually(t, func() bool {
+		content, err := os.ReadFile(env.ledgerPath)
+		if err != nil {
+			return false
+		}
+		ledgerText := string(content)
+		return !strings.Contains(ledgerText, "RESTAURANT") && strings.Contains(ledgerText, "SUPERMARKET")
+	}, 5*time.Second, 100*time.Millisecond, "Ledger should contain only the second transaction")
 }
