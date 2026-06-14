@@ -5,8 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -33,6 +35,12 @@ type TransactionFileRepository struct {
 	mu            sync.Mutex
 }
 
+type ledgerEntry struct {
+	Date    time.Time
+	RawText string
+}
+
+
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
 func NewTransactionFileRepository(
 	filePath string,
@@ -51,33 +59,26 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	// Check for duplicates inside the lock to ensure atomicity
-	data, err := os.ReadFile(fileRepository.FilePath)
-	if err == nil {
-		regex := fileRepository.transactionRegex(transaction.Code)
-		if regex.Match(data) {
-			return domain.NewDomainError("Transaction", "Code", "transaction already exists")
-		}
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-
-	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
-	content := fileRepository.formatter.FormatTransaction(transaction, alignment)
-	content += "\n"
-
-	file, err := os.OpenFile(fileRepository.FilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	entries, err := fileRepository.readAllEntries()
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	if _, err := file.WriteString(content); err != nil {
-		return err
+	// Check for duplicates
+	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
+	for _, entry := range entries {
+		if strings.Contains(entry.RawText, codeMarker) {
+			return domain.NewDomainError("Transaction", "Code", "transaction already exists")
+		}
 	}
 
-	return nil
+	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
+	newRaw := fileRepository.formatter.FormatTransaction(transaction, alignment)
+	entries = append(entries, ledgerEntry{Date: transaction.Date, RawText: newRaw})
+
+	return fileRepository.writeAllEntries(entries)
 }
+
 
 // FindByCode searches the file using a regex to find a transaction with the given code.
 func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domain.Transaction, error) {
@@ -113,23 +114,31 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	data, err := os.ReadFile(fileRepository.FilePath)
+	entries, err := fileRepository.readAllEntries()
 	if err != nil {
 		return err
 	}
 
-	regex := fileRepository.transactionRegex(transaction.Code)
+	found := false
+	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
+	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
 
-	if !regex.Match(data) {
+	for i, entry := range entries {
+		if strings.Contains(entry.RawText, codeMarker) {
+			entries[i].Date = transaction.Date
+			entries[i].RawText = fileRepository.formatter.FormatTransaction(transaction, alignment)
+			found = true
+			break
+		}
+	}
+
+	if !found {
 		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", transaction.Code))
 	}
 
-	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
-	newContent := fileRepository.formatter.FormatTransaction(transaction, alignment) + "\n"
-	updatedData := regex.ReplaceAllString(string(data), newContent)
-
-	return fileRepository.atomicWrite([]byte(updatedData))
+	return fileRepository.writeAllEntries(entries)
 }
+
 
 func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	if code == "" {
@@ -139,7 +148,7 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
-	data, err := os.ReadFile(fileRepository.FilePath)
+	entries, err := fileRepository.readAllEntries()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
@@ -147,16 +156,25 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 		return err
 	}
 
-	regex := fileRepository.transactionRegex(code)
+	newEntries := make([]ledgerEntry, 0, len(entries))
+	codeMarker := fmt.Sprintf("(%s)", code)
+	found := false
 
-	if !regex.Match(data) {
+	for _, entry := range entries {
+		if strings.Contains(entry.RawText, codeMarker) {
+			found = true
+			continue
+		}
+		newEntries = append(newEntries, entry)
+	}
+
+	if !found {
 		return domain.NewDomainError("Transaction", "Code", fmt.Sprintf("transaction with code %q not found", code))
 	}
 
-	updatedData := regex.ReplaceAllString(string(data), "")
-
-	return fileRepository.atomicWrite([]byte(updatedData))
+	return fileRepository.writeAllEntries(newEntries)
 }
+
 
 /*
 atomicWrite writes data to a temporary file and renames it to the target file path.
@@ -239,3 +257,81 @@ func (fileRepository *TransactionFileRepository) transactionRegex(code string) *
 	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
 	return regexp.MustCompile(pattern)
 }
+
+func (fileRepository *TransactionFileRepository) readAllEntries() ([]ledgerEntry, error) {
+	data, err := os.ReadFile(fileRepository.FilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	content := string(data)
+	// Regex to find transaction starts: YYYY/MM/DD or YYYY-MM-DD
+	// Note: We assume the date is at the start of the line.
+	dateRegex := regexp.MustCompile(`(?m)^(\d{4}[\/-]\d{2}[\/-]\d{2})`)
+	matches := dateRegex.FindAllStringSubmatchIndex(content, -1)
+
+	var entries []ledgerEntry
+	for i, match := range matches {
+		dateStr := content[match[2]:match[3]]
+		// Normalize date format for parsing
+		dateStr = strings.ReplaceAll(dateStr, "-", "/")
+		date, _ := time.Parse("2006/01/02", dateStr)
+
+		start := match[0]
+		end := len(content)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+
+		raw := strings.TrimSpace(content[start:end])
+		if raw != "" {
+			entries = append(entries, ledgerEntry{Date: date, RawText: raw})
+		}
+	}
+
+	return entries, nil
+}
+
+func (fileRepository *TransactionFileRepository) writeAllEntries(entries []ledgerEntry) error {
+	// Stable sort to keep chronological order while preserving insertion order for same-day
+	slices.SortStableFunc(entries, func(a, b ledgerEntry) int {
+		if a.Date.Before(b.Date) {
+			return -1
+		}
+		if a.Date.After(b.Date) {
+			return 1
+		}
+		return 0
+	})
+
+	var sb strings.Builder
+	var lastMonth time.Month
+	var lastYear int
+
+	for _, entry := range entries {
+		// Detect month/year change
+		month := entry.Date.Month()
+		year := entry.Date.Year()
+
+		if month != lastMonth || year != lastYear {
+			// Write separator
+			monthName := strings.ToUpper(month.String())
+			sb.WriteString(";--------\n")
+			sb.WriteString(fmt.Sprintf(";- %s -\n", monthName))
+			sb.WriteString(";--------\n\n")
+
+			lastMonth = month
+			lastYear = year
+		}
+
+		sb.WriteString(entry.RawText)
+		sb.WriteString("\n\n")
+	}
+
+	return fileRepository.atomicWrite([]byte(sb.String()))
+}
+
+

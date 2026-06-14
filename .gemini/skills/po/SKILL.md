@@ -10,7 +10,9 @@ Manage the project lifecycle by coordinating specialized sub-skills for Git and 
 ## Orchestration Workflow
 
 ### 1. Planning & Design (The Requirement Inquisitor)
+- **TDD First**: Every implementation plan MUST list "Creating Failing Tests" as Step 1 (or immediately following environment setup).
 - **New Task Protocol**: If the user asks to work on a NEW issue:
+
     1. Ask if the previous issue is finished and pushed.
     2. Update the target `release/` branch.
     3. Create the new issue branch FROM the updated `release/` branch.

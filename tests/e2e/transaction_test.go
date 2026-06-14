@@ -176,9 +176,10 @@ func TestE2E_Transaction_ShouldHandlePersistenceFailure(t *testing.T) {
 	// Arrange
 	env := setupE2EEnv(t)
 	
-	// Make ledger file read-only to simulate failure
-	_ = os.WriteFile(env.ledgerPath, []byte(""), 0444)
-	defer os.Chmod(env.ledgerPath, 0644) // Restore for cleanup
+	// Make directory read-only to simulate atomic write failure (cannot create .tmp file or rename)
+	dir := filepath.Dir(env.ledgerPath)
+	_ = os.Chmod(dir, 0555)
+	defer os.Chmod(dir, 0755)
 
 	// Act
 	env.sendText("10 Coffee")
@@ -190,11 +191,12 @@ func TestE2E_Transaction_ShouldHandlePersistenceFailure(t *testing.T) {
 	env.sendCallback(telegram.CallbackConfirm)
 
 	// Assert
-	// We expect the ledger to remain empty (or unchanged)
+	// We expect the ledger to remain empty (or non-existent)
 	time.Sleep(500 * time.Millisecond)
 	content, _ := os.ReadFile(env.ledgerPath)
 	assert.Empty(t, strings.TrimSpace(string(content)), "Ledger should be empty due to write failure")
 }
+
 
 func TestE2E_Transaction_ShouldInterruptAccountCreation_WhenNewTransactionComes(t *testing.T) {
 	// Arrange

@@ -3,8 +3,10 @@ package ledger
 import (
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -42,7 +44,7 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
-	expectedContent := formatter.FormatTransaction(transaction, 52) + "\n"
+	expectedContent := ";--------\n;- APRIL -\n;--------\n\n" + formatter.FormatTransaction(transaction, 52) + "\n\n"
 
 	// Act
 	err = fileRepository.Create(transaction)
@@ -53,6 +55,7 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	assert.NoError(t, err)
 	assert.Equal(t, expectedContent, string(content))
 }
+
 
 func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *testing.T) {
 	// Arrange
@@ -274,3 +277,100 @@ func TestFileRepository_GetBalanceReport_ShouldReturnReport_WhenFileHasTransacti
 	assert.Contains(t, report, "Expenses:Food")
 	assert.Contains(t, report, "10.00 EUR")
 }
+
+
+func TestFileRepository_Create_ShouldSortTransactionsChronologically(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_sort_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	txJan := domain.Transaction{Date: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC), Description: "Jan", Code: "JAN"}
+	txFeb := domain.Transaction{Date: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), Description: "Feb", Code: "FEB"}
+	txMar := domain.Transaction{Date: time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC), Description: "Mar", Code: "MAR"}
+
+	// Act: Add out of order
+	_ = repo.Create(txFeb)
+	_ = repo.Create(txMar)
+	_ = repo.Create(txJan)
+
+	// Assert
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	// Check order of appearance
+	janIdx := strings.Index(text, "Jan")
+	febIdx := strings.Index(text, "Feb")
+	marIdx := strings.Index(text, "Mar")
+
+	assert.True(t, janIdx < febIdx, "January should be before February")
+	assert.True(t, febIdx < marIdx, "February should be before March")
+}
+
+func TestFileRepository_Create_ShouldInsertMonthSeparators(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_sep_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	txJan := domain.Transaction{Date: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC), Description: "Jan"}
+	txFeb := domain.Transaction{Date: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), Description: "Feb"}
+
+	// Act
+	_ = repo.Create(txJan)
+	_ = repo.Create(txFeb)
+
+	// Assert
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	assert.Contains(t, text, ";--------\n;- JANUARY -\n;--------")
+	assert.Contains(t, text, ";--------\n;- FEBRUARY -\n;--------")
+
+	// Ensure Jan header is before Jan tx
+	janHeaderIdx := strings.Index(text, "JANUARY")
+	janTxIdx := strings.Index(text, "Jan")
+	assert.True(t, janHeaderIdx < janTxIdx)
+
+	// Ensure Feb header is between Jan and Feb txs
+	febHeaderIdx := strings.Index(text, "FEBRUARY")
+	febTxIdx := strings.Index(text, "Feb")
+	assert.True(t, janTxIdx < febHeaderIdx)
+	assert.True(t, febHeaderIdx < febTxIdx)
+}
+
+func TestFileRepository_Create_ShouldBeStableForSameDayTransactions(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_stable_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	date := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	tx1 := domain.Transaction{Date: date, Description: "First"}
+	tx2 := domain.Transaction{Date: date, Description: "Second"}
+
+	// Act
+	_ = repo.Create(tx1)
+	_ = repo.Create(tx2)
+
+	// Assert
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	firstIdx := strings.Index(text, "First")
+	secondIdx := strings.Index(text, "Second")
+	assert.True(t, firstIdx < secondIdx, "Insertion order should be preserved for same day")
+}
+
