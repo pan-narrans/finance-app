@@ -42,3 +42,9 @@ Code/commits/PRs: write normal.
   - **D**ependency Inversion: Depend on abstractions, not concretions.
 - **KISS (Keep It Simple, Stupid)**: Favor simple, deterministic solutions over complex abstractions.
 - **Code Smells**: Actively look for and resolve smells (long methods, god objects, logic leaks). Use refactoring to maintain health.
+
+## Git Workflow
+- **Branching**: Every issue MUST be developed in its own dedicated branch.
+- **Naming**: Use `feature/<issue-number>-<brief-description>` or `fix/<issue-number>-<brief-description>`.
+- **Pull Requests**: Create a PR for every branch once verified.
+
