@@ -62,10 +62,8 @@ func (p *ImaginBankParser) Parse(filePath string) ([]domain.Transaction, error) 
 	return transactions, nil
 }
 
-
-
-
 func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, error) {
+
 	if len(row) < 3 {
 		return nil, domain.NewDomainError("Parser", "Row", "row too short")
 	}

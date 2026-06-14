@@ -205,10 +205,9 @@ func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 	parent := a.getCallbackPayload(c, CallbackSelectParent)
 
 	if _, ok := a.sessionManager.Get(userID); !ok {
-
-
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
+
 
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {

@@ -129,6 +129,7 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	defer os.Remove(tmpFile)
 
 	summary, err := a.importUseCase.Import(tmpFile)
+
 	if err != nil {
 		return c.Send(fmt.Sprintf("Import failed: %v", err))
 	}
