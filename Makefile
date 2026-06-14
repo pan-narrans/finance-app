@@ -20,7 +20,7 @@ build: build-webapp
 	@echo "Build complete: $(TMP_DIR)/$(BINARY_NAME)"
 
 # Run tests
-test:
+test: build-webapp
 	@echo "Running unit and integration tests..."
 	@go test -v ./...
 

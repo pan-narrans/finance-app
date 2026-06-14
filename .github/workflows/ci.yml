@@ -26,6 +26,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Build WebApp Frontend
+        run: make build-webapp
+
       - name: Run Unit and Integration Tests
         run: make test
 
