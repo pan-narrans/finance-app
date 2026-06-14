@@ -440,4 +440,74 @@ func TestFileRepository_ShouldNotDuplicateMonthHeaders(t *testing.T) {
 	assert.Equal(t, 1, count, "Should only have one JANUARY header after multiple writes")
 }
 
+func TestFileRepository_ShouldSortPriceUpdatesChronologically(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_price_sort_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	// Start with a price update from the 5th
+	initial := "P 2026/01/05 ROB 1.10 EUR\n\n"
+	os.WriteFile(tmpFile.Name(), []byte(initial), 0644)
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	// Add a transaction on the 1st
+	tx1 := domain.Transaction{Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Description: "First"}
+	
+	// Add a transaction on the 10th
+	tx10 := domain.Transaction{Date: time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC), Description: "Tenth"}
+
+	// Act
+	_ = repo.Create(tx10)
+	_ = repo.Create(tx1)
+
+	// Assert
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	idx1 := strings.Index(text, "First")
+	idx5 := strings.Index(text, "P 2026/01/05 ROB")
+	idx10 := strings.Index(text, "Tenth")
+
+	assert.True(t, idx1 != -1 && idx5 != -1 && idx10 != -1, "All entries must be present")
+	assert.True(t, idx1 < idx5, "Transaction on 1st should be before Price on 5th")
+	assert.True(t, idx5 < idx10, "Price on 5th should be before Transaction on 10th")
+}
+
+func TestFileRepository_ShouldDifferentiatePricesFromTransactions(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_diff_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	// Create a file with a transaction and an adjacent price update
+	initial := `2026/01/01 Target (DELME)
+    Expenses:Foo    10 EUR
+    Assets:Cash
+
+P 2026/01/02 GOLD 100 EUR
+`
+	os.WriteFile(tmpFile.Name(), []byte(initial), 0644)
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	// Act
+	// Delete the transaction. The price update MUST remain.
+	err = repo.Delete("DELME")
+
+	// Assert
+	assert.NoError(t, err)
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	assert.NotContains(t, text, "Target")
+	assert.Contains(t, text, "P 2026/01/02 GOLD 100 EUR", "Price update must survive transaction deletion")
+}
+
+
 

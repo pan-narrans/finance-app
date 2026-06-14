@@ -17,6 +17,25 @@ import (
 // Ensure TransactionFileRepository implements ports.TransactionRepository at compile time.
 var _ ports.TransactionRepository = (*TransactionFileRepository)(nil)
 
+type entryType int
+
+const (
+	typeTransaction entryType = iota
+	typePrice
+)
+
+type ledgerEntry struct {
+	Date    time.Time
+	RawText string
+	Type    entryType
+}
+
+type ledgerFile struct {
+	Prologue string
+	Entries  []ledgerEntry
+	Epilogue string
+}
+
 /*
 TransactionFileRepository implements ports.TransactionRepository using a plain-text file.
 
@@ -33,17 +52,6 @@ type TransactionFileRepository struct {
 	configUseCase ports.ConfigurationUseCase
 	formatter     ports.TransactionFormatter
 	mu            sync.Mutex
-}
-
-type ledgerEntry struct {
-	Date    time.Time
-	RawText string
-}
-
-type ledgerFile struct {
-	Prologue string
-	Entries  []ledgerEntry
-	Epilogue string
 }
 
 // NewTransactionFileRepository creates a new instance of TransactionFileRepository.
@@ -72,14 +80,14 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 	// Check for duplicates
 	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
 	for _, entry := range lf.Entries {
-		if strings.Contains(entry.RawText, codeMarker) {
+		if entry.Type == typeTransaction && strings.Contains(entry.RawText, codeMarker) {
 			return domain.NewDomainError("Transaction", "Code", "transaction already exists")
 		}
 	}
 
 	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
 	newRaw := fileRepository.formatter.FormatTransaction(transaction, alignment)
-	lf.Entries = append(lf.Entries, ledgerEntry{Date: transaction.Date, RawText: newRaw})
+	lf.Entries = append(lf.Entries, ledgerEntry{Date: transaction.Date, RawText: newRaw, Type: typeTransaction})
 
 	return fileRepository.writeLedgerFile(lf)
 }
@@ -128,7 +136,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
 
 	for i, entry := range lf.Entries {
-		if strings.Contains(entry.RawText, codeMarker) {
+		if entry.Type == typeTransaction && strings.Contains(entry.RawText, codeMarker) {
 			lf.Entries[i].Date = transaction.Date
 			lf.Entries[i].RawText = fileRepository.formatter.FormatTransaction(transaction, alignment)
 			found = true
@@ -164,7 +172,7 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	found := false
 
 	for _, entry := range lf.Entries {
-		if strings.Contains(entry.RawText, codeMarker) {
+		if entry.Type == typeTransaction && strings.Contains(entry.RawText, codeMarker) {
 			found = true
 			continue
 		}
@@ -293,9 +301,10 @@ func (fileRepository *TransactionFileRepository) readLedgerFile() (ledgerFile, e
 	}
 	content = strings.Join(cleanedLines, "\n")
 
-	// 2. Find transaction boundaries in the cleaned content
-	dateRegex := regexp.MustCompile(`(?m)^(\d{4}[\/-]\d{2}[\/-]\d{2})`)
-	matches := dateRegex.FindAllStringSubmatchIndex(content, -1)
+	// 2. Find entry boundaries (Transactions OR Prices)
+	// (P\s+)? captures the price prefix if present
+	entryStartRegex := regexp.MustCompile(`(?m)^(P\s+)?(\d{4}[\/-]\d{2}[\/-]\d{2})`)
+	matches := entryStartRegex.FindAllStringSubmatchIndex(content, -1)
 
 	if len(matches) == 0 {
 		return ledgerFile{Prologue: content}, nil
@@ -306,7 +315,8 @@ func (fileRepository *TransactionFileRepository) readLedgerFile() (ledgerFile, e
 	}
 
 	for i, match := range matches {
-		dateStr := content[match[2]:match[3]]
+		isPrice := match[2] != -1 && match[3] != -1 // P\s+ group matched
+		dateStr := content[match[4]:match[5]]
 		dateStr = strings.ReplaceAll(dateStr, "-", "/")
 		date, _ := time.Parse("2006/01/02", dateStr)
 
@@ -317,29 +327,40 @@ func (fileRepository *TransactionFileRepository) readLedgerFile() (ledgerFile, e
 		}
 
 		raw := content[start:end]
-		
-		// Split into transaction and trailing content (potential epilogue)
-		txLines := strings.Split(raw, "\n")
-		lastTxLine := 0
-		for j := len(txLines) - 1; j >= 0; j-- {
-			line := txLines[j]
-			if strings.TrimSpace(line) == "" {
-				continue
+		entry := ledgerEntry{Date: date}
+
+		if isPrice {
+			entry.Type = typePrice
+			// Price updates are single lines. 
+			// We take the first line and treat the rest as trailing noise/epilogue potential
+			pLines := strings.Split(raw, "\n")
+			entry.RawText = strings.TrimSpace(pLines[0])
+			if i == len(matches)-1 {
+				lf.Epilogue = strings.Join(pLines[1:], "\n")
 			}
-			if j == 0 || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
-				lastTxLine = j
-				break
+		} else {
+			entry.Type = typeTransaction
+			// Transaction handling logic (last indented line)
+			txLines := strings.Split(raw, "\n")
+			lastTxLine := 0
+			for j := len(txLines) - 1; j >= 0; j-- {
+				line := txLines[j]
+				if strings.TrimSpace(line) == "" {
+					continue
+				}
+				if j == 0 || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+					lastTxLine = j
+					break
+				}
+			}
+			entry.RawText = strings.TrimSpace(strings.Join(txLines[:lastTxLine+1], "\n"))
+			if i == len(matches)-1 {
+				lf.Epilogue = strings.Join(txLines[lastTxLine+1:], "\n")
 			}
 		}
 
-		txPart := strings.TrimSpace(strings.Join(txLines[:lastTxLine+1], "\n"))
-		
-		if i == len(matches)-1 {
-			lf.Epilogue = strings.Join(txLines[lastTxLine+1:], "\n")
-		}
-
-		if txPart != "" {
-			lf.Entries = append(lf.Entries, ledgerEntry{Date: date, RawText: txPart})
+		if entry.RawText != "" {
+			lf.Entries = append(lf.Entries, entry)
 		}
 	}
 
@@ -355,6 +376,8 @@ func (fileRepository *TransactionFileRepository) writeLedgerFile(lf ledgerFile) 
 	}
 
 	if len(lf.Entries) > 0 {
+		// Stable sort by date. 
+		// If same date, preserve relative order (StableSortFunc).
 		slices.SortStableFunc(lf.Entries, func(a, b ledgerEntry) int {
 			if a.Date.Before(b.Date) { return -1 }
 			if a.Date.After(b.Date) { return 1 }
@@ -388,7 +411,6 @@ func (fileRepository *TransactionFileRepository) writeLedgerFile(lf ledgerFile) 
 	}
 
 	result := sb.String()
-	// Ensure single trailing newline
 	result = strings.TrimRight(result, "\n")
 	if result != "" {
 		result += "\n"
