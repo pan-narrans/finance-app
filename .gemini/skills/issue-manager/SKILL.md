@@ -44,4 +44,6 @@ Format: `<Feature> should <expected behavior> but <actual result>`
 - Use Labels (e.g., `enhancement`, `bug`, `ux`) to categorize issues.
 - Assign Issues to the relevant Milestone (Project Phase).
 - Use `mcp_github_sub_issue_write` to maintain the Parent/Child relationship.
+- **Linking to PRs**: Every PR MUST link to its corresponding issue using the `Closes #<issue-number>` syntax in the body.
 - Keep descriptions concise and focused on the technical requirements.
+
