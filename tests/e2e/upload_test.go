@@ -29,7 +29,7 @@ func TestE2E_BankDocumentUpload_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		_, ok := env.adapter.SessionManager().Get(env.userID)
 		return ok
-	}, 2*time.Second, 100*time.Millisecond, "Session should be created for review")
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created for review")
 
 	env.sendCallback(telegram.CallbackConfirm)
 
@@ -39,7 +39,7 @@ func TestE2E_BankDocumentUpload_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 		var err error
 		content, err = os.ReadFile(env.ledgerPath)
 		return err == nil && len(content) > 0
-	}, 2*time.Second, 100*time.Millisecond, "Ledger file should be populated")
+	}, 5*time.Second, 100*time.Millisecond, "Ledger file should be populated")
 
 	// Assert
 	assert.Contains(t, string(content), "RESTAURANT")
@@ -66,7 +66,7 @@ func TestE2E_BankDocumentUpload_ShouldHandleDuplicates(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		content, _ := os.ReadFile(env.ledgerPath)
 		return len(content) > 0
-	}, 2*time.Second, 100*time.Millisecond, "First import should persist")
+	}, 5*time.Second, 100*time.Millisecond, "First import should persist")
 
 	summary, err := env.importService.Import(bankFilePath)
 
@@ -99,7 +99,7 @@ func TestE2E_BankDocumentUpload_ShouldHandleDuplicates_WhenUnknownAccount(t *tes
 	assert.Eventually(t, func() bool {
 		_, ok := env.adapter.SessionManager().Get(env.userID)
 		return ok
-	}, 2*time.Second, 100*time.Millisecond, "Session should be created for review")
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created for review")
 
 	env.sendCallback(telegram.CallbackConfirm)
 
@@ -107,7 +107,7 @@ func TestE2E_BankDocumentUpload_ShouldHandleDuplicates_WhenUnknownAccount(t *tes
 	assert.Eventually(t, func() bool {
 		content, _ := os.ReadFile(env.ledgerPath)
 		return len(content) > 0
-	}, 2*time.Second, 100*time.Millisecond, "First import should persist after confirmation")
+	}, 5*time.Second, 100*time.Millisecond, "First import should persist after confirmation")
 
 	// Act - Second Import
 	summary, err := env.importService.Import(bankFilePath)

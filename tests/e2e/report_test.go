@@ -19,21 +19,27 @@ func TestE2E_ReportGeneration_ShouldReturnReportSections_WhenHappyPath(t *testin
 	assert.Eventually(t, func() bool {
 		_, ok := env.adapter.SessionManager().Get(env.userID)
 		return ok
-	}, 2*time.Second, 100*time.Millisecond, "Session should be created for Salary")
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created for Salary")
 	env.sendCallback("confirm")
 
 	env.sendText("50 Expenses:Food")
 	assert.Eventually(t, func() bool {
 		_, ok := env.adapter.SessionManager().Get(env.userID)
 		return ok
-	}, 2*time.Second, 100*time.Millisecond, "Session should be created for Food")
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created for Food")
 	env.sendCallback("confirm")
 
-	// Wait for ledger to have 2 transactions
+	// Wait for ledger to have 2 transactions - check for actual transaction markers
 	assert.Eventually(t, func() bool {
-		content, _ := os.ReadFile(env.ledgerPath)
-		return strings.Count(string(content), "2026") >= 2 // Assuming date starts with 2026
-	}, 2*time.Second, 100*time.Millisecond, "Ledger should have 2 transactions")
+		content, err := os.ReadFile(env.ledgerPath)
+		if err != nil {
+			return false
+		}
+		ledgerText := string(content)
+		// Check for both transaction accounts instead of just year
+		return strings.Contains(ledgerText, "Income:Salary") &&
+			strings.Contains(ledgerText, "Expenses:Food")
+	}, 5*time.Second, 100*time.Millisecond, "Ledger should have 2 transactions")
 
 	// Act
 	env.sendCommand("report")

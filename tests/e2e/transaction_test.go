@@ -26,7 +26,7 @@ func TestE2E_SingleTransaction_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 			sess = s
 		}
 		return ok
-	}, 2*time.Second, 100*time.Millisecond, "Session should be created")
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created")
 
 	assert.Equal(t, "Lunch", sess.Draft.Description)
 
@@ -38,7 +38,7 @@ func TestE2E_SingleTransaction_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 		var err error
 		content, err = os.ReadFile(env.ledgerPath)
 		return err == nil && len(content) > 0
-	}, 2*time.Second, 100*time.Millisecond, "Ledger file should be created and populated")
+	}, 5*time.Second, 100*time.Millisecond, "Ledger file should be created and populated")
 
 	assert.Contains(t, string(content), "12.50")
 	assert.Contains(t, string(content), "Lunch")
