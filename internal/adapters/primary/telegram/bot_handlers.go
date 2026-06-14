@@ -126,11 +126,13 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 		return c.Send(fmt.Sprintf("Failed to download file: %v", err))
 	}
 
+	log.Printf("[DEBUG] handleDocument: Created session for user %d at %s", userID, tmpFile)
 	// Update session with the file path and new state
 	a.sessionManager.Set(userID, &UserSession{
 		State:          StateAwaitingImportConfirm,
 		ImportFilePath: tmpFile,
 	})
+
 
 	msg, selector := a.ui.BuildBankExportPrompt()
 	sent, err := a.teleBot.Send(c.Chat(), msg, selector, telebot.ModeHTML)

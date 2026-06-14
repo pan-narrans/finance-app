@@ -360,11 +360,19 @@ func (a *TelegramAdapter) handleBankSelect(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired)
 	}
 
+	// Always cleanup the file after this handler finishes
+	defer os.Remove(session.ImportFilePath)
+
 	summary, err := a.importUseCase.Import(session.ImportFilePath, bankType)
 	if err != nil {
+		a.sessionManager.Delete(userID)
 		return c.Edit(fmt.Sprintf("Import failed: %v", err))
 	}
-	defer os.Remove(session.ImportFilePath)
+
+	if summary.Total == 0 {
+		a.sessionManager.Delete(userID)
+		return c.Edit("No transactions found in file. ⚠️")
+	}
 
 	response := fmt.Sprintf(
 		"Import Complete!\nTotal: %d\nAdded: %d\nUpdated: %d\nFailed: %d",
@@ -391,6 +399,7 @@ func (a *TelegramAdapter) handleBankSelect(c telebot.Context) error {
 	a.sessionManager.Delete(userID)
 	return c.Edit(response, telebot.ModeHTML)
 }
+
 
 /*
 getCallbackPayload extracts and cleans the data payload from a callback context.

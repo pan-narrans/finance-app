@@ -156,6 +156,20 @@ func (t *Transaction) HasUnknownAccount() bool {
 }
 
 /*
+IsIncome returns true if any of the transaction's postings involve an income account.
+This is used to handle role-swapping logic in mappings and UI.
+*/
+func (t *Transaction) IsIncome() bool {
+	for _, posting := range t.Postings {
+		upper := strings.ToUpper(posting.Account)
+		if strings.HasPrefix(upper, "INCOME") || strings.Contains(upper, ":INCOME") {
+			return true
+		}
+	}
+	return false
+}
+
+/*
 FormatAccountPath ensures all segments of an account path are Title Cased.
 (e.g., "expenses:food:dining" -> "Expenses:Food:Dining")
 */

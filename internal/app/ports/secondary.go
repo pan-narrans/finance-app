@@ -65,6 +65,14 @@ type TransactionFormatter interface {
 }
 
 /*
+ConfigProvider defines a narrow interface for adapters to access necessary application settings.
+This helps break circular dependencies with the full ConfigurationUseCase.
+*/
+type ConfigProvider interface {
+	GetLedgerAlignment() int
+}
+
+/*
 ReportProvider defines the contract for generating financial reports.
 */
 type ReportProvider interface {

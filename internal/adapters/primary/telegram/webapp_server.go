@@ -163,11 +163,16 @@ func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Reques
 
 	s.sessionManager.Update(
 		user.ID, func(sess *UserSession) {
+			targetIndex, sourceIndex := 0, 1
+			if sess.Draft.IsIncome() {
+				targetIndex, sourceIndex = 1, 0
+			}
+
 			if payload.Type == "source" {
-				sess.Draft.Postings[1].Account = formattedAccount
+				sess.Draft.Postings[sourceIndex].Account = formattedAccount
 				sess.SourceOverridden = true
 			} else {
-				sess.Draft.Postings[0].Account = formattedAccount
+				sess.Draft.Postings[targetIndex].Account = formattedAccount
 				sess.TargetOverridden = true
 			}
 		},

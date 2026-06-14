@@ -1,10 +1,12 @@
 package telegram
 
 import (
+	"log"
 	"sync"
 
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
 
 /*
 SearchState represents the current step in a user's multi-message interaction.
@@ -87,8 +89,10 @@ Delete removes a session for a specific user.
 func (m *SessionManager) Delete(userID int64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	log.Printf("[DEBUG] SessionManager: Deleting session for user %d", userID)
 	delete(m.sessions, userID)
 }
+
 
 /*
 Update provides a way to modify a session in a thread-safe manner using a callback.

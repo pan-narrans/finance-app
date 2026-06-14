@@ -2,9 +2,17 @@ package domain
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
+)
+
+var (
+	// entryStartRegex finds ALL entry starts (Transactions OR Prices)
+	entryStartRegex = regexp.MustCompile(`(?m)^(P\s+)?(\d{4}[\/-]\d{2}[\/-]\d{2})`)
+	// sepRegex finds stylized month headers for stripping
+	sepRegex = regexp.MustCompile(`(?m);-+\r?\n;- [A-Z ]+ -\r?\n;-+\r?\n*`)
 )
 
 type EntryType int
@@ -71,6 +79,68 @@ func (l *Ledger) Sort() {
 
 	// 3. Reassemble
 	l.Entries = append(prologue, sortable...)
+}
+
+/*
+ParseLedger converts the raw text content of a ledger file into a Ledger struct.
+It splits the content into discrete blocks (Transactions, Prices, Directives).
+*/
+func ParseLedger(content string) Ledger {
+	matches := entryStartRegex.FindAllStringSubmatchIndex(content, -1)
+
+	if len(matches) == 0 {
+		return Ledger{
+			Entries: []LedgerEntry{{Type: EntryTypeDirective, RawText: content}},
+		}
+	}
+
+	var ledger Ledger
+
+	// 1. Capture Prologue (everything before first date)
+	prologue := content[:matches[0][0]]
+	if prologue != "" {
+		ledger.Entries = append(
+			ledger.Entries, LedgerEntry{
+				Type:    EntryTypeDirective,
+				RawText: strings.TrimRight(prologue, "\n \t"),
+			},
+		)
+	}
+
+	// 2. Capture Blocks
+	for i, match := range matches {
+		isPrice := match[2] != -1 && match[3] != -1
+		dateStr := content[match[4]:match[5]]
+		dateStr = strings.ReplaceAll(dateStr, "-", "/")
+		date, _ := time.Parse("2006/01/02", dateStr)
+
+		start := match[0]
+		end := len(content)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+
+		raw := content[start:end]
+		// Strip separators from the block to prevent duplication
+		raw = sepRegex.ReplaceAllString(raw, "")
+		raw = strings.TrimRight(raw, "\n \t")
+
+		entry := LedgerEntry{
+			Date:    date,
+			RawText: raw,
+		}
+		if isPrice {
+			entry.Type = EntryTypePrice
+		} else {
+			entry.Type = EntryTypeTransaction
+		}
+
+		if entry.RawText != "" {
+			ledger.Entries = append(ledger.Entries, entry)
+		}
+	}
+
+	return ledger
 }
 
 func (l *Ledger) Format() string {

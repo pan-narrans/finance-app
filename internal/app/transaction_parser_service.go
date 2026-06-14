@@ -117,10 +117,39 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 
 /*
 parseAmount handles numeric conversion from raw input strings.
-It supports both dot and comma as decimal separators.
+It supports international formats (e.g., 1,234.56 or 1.234,56) by
+identifying thousands separators versus decimal points.
 */
 func (s *TransactionParserService) parseAmount(amountStr string) (float64, error) {
-	normalized := strings.Replace(amountStr, ",", ".", 1)
+	normalized := strings.TrimSpace(amountStr)
+
+	lastComma := strings.LastIndex(normalized, ",")
+	lastDot := strings.LastIndex(normalized, ".")
+
+	if lastComma != -1 && lastDot != -1 {
+		// Both present: the last one is the decimal separator
+		if lastComma > lastDot {
+			normalized = strings.ReplaceAll(normalized, ".", "")
+			normalized = strings.Replace(normalized, ",", ".", 1)
+		} else {
+			normalized = strings.ReplaceAll(normalized, ",", "")
+		}
+	} else if lastComma != -1 {
+		// Only commas: more than one means they are thousands separators
+		if strings.Count(normalized, ",") > 1 {
+			normalized = strings.ReplaceAll(normalized, ",", "")
+		} else {
+			// Single comma: assume decimal unless it looks like a thousands separator (e.g., "1,000")
+			// but we prefer decimal for simplicity in common mobile inputs.
+			normalized = strings.Replace(normalized, ",", ".", 1)
+		}
+	} else if lastDot != -1 {
+		// Only dots: more than one means they are thousands separators
+		if strings.Count(normalized, ".") > 1 {
+			normalized = strings.ReplaceAll(normalized, ".", "")
+		}
+	}
+
 	return strconv.ParseFloat(normalized, 64)
 }
 

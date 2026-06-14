@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -17,22 +16,27 @@ import (
 var _ ports.TransactionRepository = (*TransactionFileRepository)(nil)
 
 type TransactionFileRepository struct {
-	FilePath      string
-	configUseCase ports.ConfigurationUseCase
-	formatter     ports.TransactionFormatter
-	mu            sync.Mutex
+	FilePath       string
+	configProvider ports.ConfigProvider
+	formatter      ports.TransactionFormatter
+	mu             sync.Mutex
 }
 
 func NewTransactionFileRepository(
 	filePath string,
-	configUC ports.ConfigurationUseCase,
+	configProvider ports.ConfigProvider,
 	formatter ports.TransactionFormatter,
-) *TransactionFileRepository {
-	return &TransactionFileRepository{
-		FilePath:      filePath,
-		configUseCase: configUC,
-		formatter:     formatter,
+) (*TransactionFileRepository, error) {
+	// Verify external dependency
+	if _, err := exec.LookPath("ledger"); err != nil {
+		return nil, fmt.Errorf("ledger CLI not found in PATH: %w", err)
 	}
+
+	return &TransactionFileRepository{
+		FilePath:       filePath,
+		configProvider: configProvider,
+		formatter:      formatter,
+	}, nil
 }
 
 func (fileRepository *TransactionFileRepository) Create(transaction domain.Transaction) error {
@@ -51,7 +55,7 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 		}
 	}
 
-	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
+	alignment := fileRepository.configProvider.GetLedgerAlignment()
 	newRaw := fileRepository.formatter.FormatTransaction(transaction, alignment)
 	ledger.Entries = append(
 		ledger.Entries, domain.LedgerEntry{
@@ -98,7 +102,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	}
 
 	found := false
-	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
+	alignment := fileRepository.configProvider.GetLedgerAlignment()
 	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
 
 	for i := range ledger.Entries {
@@ -259,68 +263,7 @@ func (fileRepository *TransactionFileRepository) readLedger() (domain.Ledger, er
 		return domain.Ledger{}, err
 	}
 
-	content := string(data)
-
-	// 1. Regex to find ALL entry starts (Transactions OR Prices)
-	entryStartRegex := regexp.MustCompile(`(?m)^(P\s+)?(\d{4}[\/-]\d{2}[\/-]\d{2})`)
-	matches := entryStartRegex.FindAllStringSubmatchIndex(content, -1)
-
-	if len(matches) == 0 {
-		return domain.Ledger{
-			Entries: []domain.LedgerEntry{{Type: domain.EntryTypeDirective, RawText: content}},
-		}, nil
-	}
-
-	var ledger domain.Ledger
-
-	// 2. Capture Prologue (everything before first date)
-	prologue := content[:matches[0][0]]
-	if prologue != "" {
-		ledger.Entries = append(
-			ledger.Entries, domain.LedgerEntry{
-				Type:    domain.EntryTypeDirective,
-				RawText: strings.TrimRight(prologue, "\n \t"),
-			},
-		)
-	}
-
-	// Stylized Month Header Regex for stripping
-	sepRegex := regexp.MustCompile(`(?m);-+\r?\n;- [A-Z ]+ -\r?\n;-+\r?\n*`)
-
-	// 3. Capture Blocks
-	for i, match := range matches {
-		isPrice := match[2] != -1 && match[3] != -1
-		dateStr := content[match[4]:match[5]]
-		dateStr = strings.ReplaceAll(dateStr, "-", "/")
-		date, _ := time.Parse("2006/01/02", dateStr)
-
-		start := match[0]
-		end := len(content)
-		if i+1 < len(matches) {
-			end = matches[i+1][0]
-		}
-
-		raw := content[start:end]
-		// Strip separators from the block to prevent duplication
-		raw = sepRegex.ReplaceAllString(raw, "")
-		raw = strings.TrimRight(raw, "\n \t")
-
-		entry := domain.LedgerEntry{
-			Date:    date,
-			RawText: raw,
-		}
-		if isPrice {
-			entry.Type = domain.EntryTypePrice
-		} else {
-			entry.Type = domain.EntryTypeTransaction
-		}
-
-		if entry.RawText != "" {
-			ledger.Entries = append(ledger.Entries, entry)
-		}
-	}
-
-	return ledger, nil
+	return domain.ParseLedger(string(data)), nil
 }
 
 func (fileRepository *TransactionFileRepository) writeLedger(ledger domain.Ledger) error {

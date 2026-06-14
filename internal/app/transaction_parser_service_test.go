@@ -207,3 +207,37 @@ func TestTransactionParserService_HashID_ShouldReturnEmpty_WhenInputIsEmpty(t *t
 	// Act & Assert
 	assert.Empty(t, svc.hashID(""))
 }
+
+func TestTransactionParserService_ParseAmount(t *testing.T) {
+	svc := NewTransactionParserService(nil)
+
+	tests := []struct {
+		input    string
+		expected float64
+		wantErr  bool
+	}{
+		{"12.50", 12.50, false},
+		{"12,50", 12.50, false},
+		{"1,234.56", 1234.56, false},
+		{"1.234,56", 1234.56, false},
+		{"1234", 1234.0, false},
+		{"1.000,00", 1000.0, false},
+		{"1,000.00", 1000.0, false},
+		{"1.000.000,50", 1000000.50, false},
+		{"1,000,000.50", 1000000.50, false},
+		{"  12.50  ", 12.50, false},
+		{"invalid", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			val, err := svc.parseAmount(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expected, val)
+			}
+		})
+	}
+}

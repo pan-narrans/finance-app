@@ -24,6 +24,10 @@ func (m *mockConfigUC) Get() *ports.AppConfig {
 	}
 }
 
+func (m *mockConfigUC) GetLedgerAlignment() int {
+	return m.alignment
+}
+
 func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidInputProvided(t *testing.T) {
 	// Arrange
 	tmpFile, err := os.CreateTemp("", "test_create_*.ledger")
@@ -33,16 +37,19 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 	date := time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC)
 	transaction := domain.Transaction{
 		Date:        date,
 		Description: "Lunch",
 		Postings: []domain.Posting{
-			{Account: "Expenses:Food", Amount: new(15.50), Currency: "EUR"},
+			{Account: "Expenses:Food", Amount: new(float64), Currency: "EUR"},
 			{Account: "Assets:Checking", Amount: nil},
 		},
 	}
+	*transaction.Postings[0].Amount = 15.50
+
 	expectedContent := ";--------\n;- APRIL -\n;--------\n\n" + formatter.FormatTransaction(transaction, 52)
 	expectedContent = strings.TrimSpace(expectedContent)
 
@@ -58,21 +65,24 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 
 func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *testing.T) {
 	// Arrange
-	tmpFile, _ := os.CreateTemp("", "test_find_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_find_*.ledger")
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	transaction := domain.Transaction{
 		Date:        time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC),
 		Code:        "FINDME",
 		Description: "Target",
-		Postings:    []domain.Posting{{Account: "A", Amount: new(10.0), Currency: "USD"}, {Account: "B", Amount: nil}},
+		Postings:    []domain.Posting{{Account: "A", Amount: new(float64), Currency: "USD"}, {Account: "B", Amount: nil}},
 	}
+	*transaction.Postings[0].Amount = 10.0
 	formatter := NewLedgerFormatter()
 	content := formatter.FormatTransaction(transaction, 52) + "\n"
 	os.WriteFile(tmpFile.Name(), []byte(content), 0644)
 
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
 	found, err := fileRepository.FindByCode("FINDME")
@@ -85,11 +95,13 @@ func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *tes
 
 func TestFileRepository_FindByCode_ShouldReturnNil_WhenCodeDoesNotExist(t *testing.T) {
 	// Arrange
-	tmpFile, _ := os.CreateTemp("", "test_find_none_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_find_none_*.ledger")
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
 	found, err := fileRepository.FindByCode("NON_EXISTENT")
@@ -101,15 +113,17 @@ func TestFileRepository_FindByCode_ShouldReturnNil_WhenCodeDoesNotExist(t *testi
 
 func TestFileRepository_Update_ShouldReplaceExistingTransaction_WhenCodeMatches(t *testing.T) {
 	// Arrange
-	tmpFile, _ := os.CreateTemp("", "test_update_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_update_*.ledger")
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	transactionOld := domain.Transaction{
 		Date:        time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC),
 		Code:        "UPDATE_ME",
 		Description: "Old",
-		Postings:    []domain.Posting{{Account: "A", Amount: new(10.0), Currency: "USD"}, {Account: "B", Amount: nil}},
+		Postings:    []domain.Posting{{Account: "A", Amount: new(float64), Currency: "USD"}, {Account: "B", Amount: nil}},
 	}
+	*transactionOld.Postings[0].Amount = 10.0
 	formatter := NewLedgerFormatter()
 	content := formatter.FormatTransaction(transactionOld, 52) + "\n"
 	os.WriteFile(tmpFile.Name(), []byte(content), 0644)
@@ -118,13 +132,15 @@ func TestFileRepository_Update_ShouldReplaceExistingTransaction_WhenCodeMatches(
 		Date:        time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC),
 		Code:        "UPDATE_ME",
 		Description: "New and Improved",
-		Postings:    []domain.Posting{{Account: "A", Amount: new(20.0), Currency: "USD"}, {Account: "B", Amount: nil}},
+		Postings:    []domain.Posting{{Account: "A", Amount: new(float64), Currency: "USD"}, {Account: "B", Amount: nil}},
 	}
+	*transactionNew.Postings[0].Amount = 20.0
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
-	err := fileRepository.Update(transactionNew)
+	err = fileRepository.Update(transactionNew)
 
 	// Assert
 	assert.NoError(t, err)
@@ -135,20 +151,21 @@ func TestFileRepository_Update_ShouldReplaceExistingTransaction_WhenCodeMatches(
 
 func TestFileRepository_Update_ShouldReturnDomainError_WhenCodeIsNotFound(t *testing.T) {
 	// Arrange
-	tmpFile, _ := os.CreateTemp("", "test_update_fail_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_update_fail_*.ledger")
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	transaction := domain.Transaction{Code: "GHOST_CODE"}
 
 	// Act
-	err := fileRepository.Update(transaction)
+	err = fileRepository.Update(transaction)
 
 	// Assert
 	assert.Error(t, err)
-	// Assert
 	var domainError *domain.DomainError
 	ok := errors.As(err, &domainError)
 	require.True(t, ok, "Error should be of type *domain.DomainError")
@@ -160,36 +177,43 @@ func TestFileRepository_Update_ShouldReturnError_WhenFileDoesNotExist(t *testing
 	// Arrange
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository("non_existent_folder/ledger.ledger", configUC, formatter)
-	transaction := domain.Transaction{Code: "FAIL"}
-
-	// Act
-	err := fileRepository.Update(transaction)
-
-	// Assert
-	assert.Error(t, err)
+	fileRepository, err := NewTransactionFileRepository("non_existent_folder/ledger.ledger", configUC, formatter)
+	if err == nil {
+		transaction := domain.Transaction{Code: "FAIL"}
+		// Act
+		err = fileRepository.Update(transaction)
+		// Assert
+		assert.Error(t, err)
+	} else {
+		// NewTransactionFileRepository might fail if ledger not in path, but here we expect it to fail due to file path if it checks it?
+		// Actually it checks 'ledger' CLI existence.
+		assert.NoError(t, err) // Should not fail here on ledger check
+	}
 }
 
 func TestFileRepository_Delete_ShouldRemoveTransaction_WhenCodeMatches(t *testing.T) {
 	// Arrange
-	tmpFile, _ := os.CreateTemp("", "test_delete_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_delete_*.ledger")
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 
 	transaction := domain.Transaction{
 		Date:        time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC),
 		Code:        "DELETE_ME",
 		Description: "Gone soon",
-		Postings:    []domain.Posting{{Account: "A", Amount: new(10.0), Currency: "USD"}, {Account: "B", Amount: nil}},
+		Postings:    []domain.Posting{{Account: "A", Amount: new(float64), Currency: "USD"}, {Account: "B", Amount: nil}},
 	}
+	*transaction.Postings[0].Amount = 10.0
 	formatter := NewLedgerFormatter()
 	content := formatter.FormatTransaction(transaction, 52) + "\n"
 	os.WriteFile(tmpFile.Name(), []byte(content), 0644)
 
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
-	err := fileRepository.Delete("DELETE_ME")
+	err = fileRepository.Delete("DELETE_ME")
 
 	// Assert
 	assert.NoError(t, err)
@@ -199,16 +223,17 @@ func TestFileRepository_Delete_ShouldRemoveTransaction_WhenCodeMatches(t *testin
 
 func TestFileRepository_Delete_ShouldReturnDomainError_WhenCodeIsNotFound(t *testing.T) {
 	// Arrange
-	tmpFile, _ := os.CreateTemp("", "test_delete_fail_*.ledger")
+	tmpFile, err := os.CreateTemp("", "test_delete_fail_*.ledger")
+	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
-	err := fileRepository.Delete("GHOST_CODE")
+	err = fileRepository.Delete("GHOST_CODE")
 
-	// Assert
 	// Assert
 	var domainError *domain.DomainError
 	ok := errors.As(err, &domainError)
@@ -237,7 +262,8 @@ func TestFileRepository_GetAccounts_ShouldReturnAccounts_WhenFileHasTransactions
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
 	accounts, err := fileRepository.GetAccounts()
@@ -266,7 +292,8 @@ func TestFileRepository_GetBalanceReport_ShouldReturnReport_WhenFileHasTransacti
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	fileRepository := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	fileRepository, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
 	report, err := fileRepository.GetBalanceReport("", "")
@@ -285,7 +312,8 @@ func TestFileRepository_Create_ShouldSortTransactionsChronologically(t *testing.
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	txJan := domain.Transaction{Date: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC), Description: "Jan", Code: "JAN"}
 	txFeb := domain.Transaction{Date: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), Description: "Feb", Code: "FEB"}
@@ -317,7 +345,8 @@ func TestFileRepository_Create_ShouldInsertMonthSeparators(t *testing.T) {
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	txJan := domain.Transaction{Date: time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC), Description: "Jan"}
 	txFeb := domain.Transaction{Date: time.Date(2026, 2, 10, 0, 0, 0, 0, time.UTC), Description: "Feb"}
@@ -353,7 +382,8 @@ func TestFileRepository_Create_ShouldBeStableForSameDayTransactions(t *testing.T
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	date := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	tx1 := domain.Transaction{Date: date, Description: "First"}
@@ -385,7 +415,8 @@ func TestFileRepository_ShouldPreservePrologueAndEpilogue(t *testing.T) {
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	tx := domain.Transaction{Date: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), Description: "Coffee"}
 
@@ -401,10 +432,6 @@ func TestFileRepository_ShouldPreservePrologueAndEpilogue(t *testing.T) {
 	assert.Contains(t, text, "; End of file", "Epilogue should be present")
 	assert.Contains(t, text, "Coffee", "New transaction should be present")
 	assert.Contains(t, text, "Initial", "Existing transaction should be present")
-}
-
-func TestFileRepository_ShouldNotDuplicateMonthHeaders(t *testing.T) {
-	// ... (existing test)
 }
 
 func TestFileRepository_ShouldPreserveInterleavedComments(t *testing.T) {
@@ -435,7 +462,8 @@ account Assets:Cash
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act: Update the Coffee transaction
 	tx := domain.Transaction{
@@ -474,7 +502,8 @@ func TestFileRepository_ShouldSortPriceUpdatesChronologically(t *testing.T) {
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Add a transaction on the 1st
 	tx1 := domain.Transaction{Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Description: "First"}
@@ -516,7 +545,8 @@ P 2026/01/02 GOLD 100 EUR
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act
 	// Delete the transaction. The price update MUST remain.

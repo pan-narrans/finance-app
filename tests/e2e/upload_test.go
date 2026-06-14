@@ -305,3 +305,47 @@ func TestE2E_BankDocumentUpload_ShouldFollowInteractiveFlow(t *testing.T) {
 		return ok && s.Draft.Description == "RESTAURANT"
 	}, 5*time.Second, 100*time.Millisecond, "Import should complete and enter review flow")
 }
+
+
+func TestE2E_BankDocumentUpload_ShouldHandleError_WhenFaultyFileSelectedAsBank(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+	
+	bankFileName := "not_a_csv.txt"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	content := []byte("This is definitely not a bank export.")
+	_ = os.WriteFile(bankFilePath, content, 0644)
+
+	// Act 1: Upload
+	env.sendDocument(bankFilePath, content)
+	
+	// Wait for session to be created
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created for document")
+
+	env.sendCallback(telegram.CallbackImportYes)
+	
+	// Wait for state transition
+	assert.Eventually(t, func() bool {
+		s, _ := env.adapter.SessionManager().Get(env.userID)
+		return s.State == telegram.StateAwaitingBankSelection
+	}, 5*time.Second, 100*time.Millisecond, "Session should transition to bank selection")
+
+	// Act 2: Select Bank
+	env.sendCallback(telegram.CallbackSelectBank, "imagin")
+
+	// Assert
+	assert.Eventually(t, func() bool {
+		// Session should be cleared on terminal error to avoid leaks/stale states
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		return !ok
+	}, 5*time.Second, 100*time.Millisecond, "Session should be cleared after failed import")
+
+	
+	contentInLedger, _ := os.ReadFile(env.ledgerPath)
+	assert.Empty(t, strings.TrimSpace(string(contentInLedger)), "Ledger should remain empty")
+}
+
+
