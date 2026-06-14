@@ -235,9 +235,11 @@ func TestImportService_Import_ShouldIdentifyUnknownTransactions(t *testing.T) {
 	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 
-	// Only "Known" should be processed
+	// Both transactions should check if they exist first
 	mockUseCase.On("GetByCode", "KNOWN").Return(nil, nil).Once()
 	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "KNOWN" })).Return(nil).Once()
+
+	mockUseCase.On("GetByCode", "UNKNOWN").Return(nil, nil).Once()
 
 	// Act
 	summary, err := service.Import("file.xls")
@@ -251,4 +253,38 @@ func TestImportService_Import_ShouldIdentifyUnknownTransactions(t *testing.T) {
 
 	mockUseCase.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
+}
+
+func TestImportService_Import_ShouldHandleExistingUnknownTransactions(t *testing.T) {
+	// Arrange
+	mockUseCase := new(MockTransactionUseCase)
+	mockParser := new(MockBankParser)
+	mockProvider := new(MockFileParserProvider)
+	service := NewImportService(mockUseCase, mockProvider)
+
+	transaction := domain.Transaction{
+		Description: "Unknown but existing",
+		Code:        "EXISTING_UNKNOWN",
+		Postings: []domain.Posting{
+			{Account: "Assets:Bank", Amount: new(float64), Currency: "EUR"},
+			{Account: "Expenses:Unknown"},
+		},
+	}
+
+	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockParser.On("Parse", "file.xls").Return([]domain.Transaction{transaction}, nil)
+
+	// Even if it has unknown account, we should check if it exists
+	mockUseCase.On("GetByCode", "EXISTING_UNKNOWN").Return(&transaction, nil)
+
+	// Act
+	summary, err := service.Import("file.xls")
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Equal(t, 1, summary.Total)
+	assert.Equal(t, 0, len(summary.Pending), "Should NOT be pending if it already exists in repo")
+	assert.Equal(t, 1, summary.Updated, "Should be treated as Updated")
+
+	mockUseCase.AssertExpectations(t)
 }

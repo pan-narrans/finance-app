@@ -59,6 +59,11 @@ func TestTransactionService_Add_ShouldSaveTransaction_WhenInputIsValid(t *testin
 		},
 	}
 
+	expectedCode := transaction.GenerateCode()
+	mockTransactionRepository.On("FindByCode", expectedCode).Return(nil, nil)
+
+	// The service will generate the code and set it before calling Create
+	transaction.Code = expectedCode
 	mockTransactionRepository.On("Create", transaction).Return(nil)
 
 	// Act
@@ -159,6 +164,11 @@ func TestTransactionService_Add_ShouldReturnError_WhenPersistenceFails(t *testin
 		},
 	}
 
+	expectedCode := transaction.GenerateCode()
+	mockTransactionRepository.On("FindByCode", expectedCode).Return(nil, nil)
+
+	// The service will generate the code and set it before calling Create
+	transaction.Code = expectedCode
 	mockTransactionRepository.On("Create", transaction).Return(fmt.Errorf("disk full"))
 
 	// Act
@@ -167,5 +177,33 @@ func TestTransactionService_Add_ShouldReturnError_WhenPersistenceFails(t *testin
 	// Assert
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to save transaction")
+	mockTransactionRepository.AssertExpectations(t)
+}
+
+func TestTransactionService_Add_ShouldReturnError_WhenTransactionAlreadyExists(t *testing.T) {
+	// Arrange
+	mockTransactionRepository := new(MockTransactionRepository)
+	transactionService := NewTransactionService(mockTransactionRepository)
+
+	date := time.Now()
+	val := 10.0
+	transaction := domain.Transaction{
+		Date:        date,
+		Code:        "EXISTING_CODE",
+		Description: "Lunch",
+		Postings: []domain.Posting{
+			{Account: "Expenses:Food", Amount: &val, Currency: "USD"},
+			{Account: "Assets:Checking", Amount: nil},
+		},
+	}
+
+	mockTransactionRepository.On("FindByCode", "EXISTING_CODE").Return(&transaction, nil)
+
+	// Act
+	err := transactionService.Add(transaction)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "transaction already exists")
 	mockTransactionRepository.AssertExpectations(t)
 }

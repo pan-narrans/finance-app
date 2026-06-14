@@ -39,7 +39,19 @@ func (transactionService *TransactionService) Add(transaction domain.Transaction
 		return fmt.Errorf("invalid transaction: %w", err)
 	}
 
-	// 2. Persistence
+	// 2. Duplicate Check
+	if transaction.Code == "" {
+		transaction.Code = transaction.GenerateCode()
+	}
+	existing, err := transactionService.repository.FindByCode(transaction.Code)
+	if err != nil {
+		return fmt.Errorf("failed to check for duplicates: %w", err)
+	}
+	if existing != nil {
+		return domain.NewDomainError("Transaction", "Code", "transaction already exists")
+	}
+
+	// 3. Persistence
 	if err := transactionService.repository.Create(transaction); err != nil {
 		return fmt.Errorf("failed to save transaction: %w", err)
 	}
