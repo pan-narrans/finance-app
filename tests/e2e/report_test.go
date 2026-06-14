@@ -22,6 +22,15 @@ func TestE2E_ReportGeneration_ShouldReturnReportSections_WhenHappyPath(t *testin
 	}, 5*time.Second, 100*time.Millisecond, "Session should be created for Salary")
 	env.sendCallback("confirm")
 
+	// Wait for first transaction to be written to ledger
+	assert.Eventually(t, func() bool {
+		content, err := os.ReadFile(env.ledgerPath)
+		if err != nil {
+			return false
+		}
+		return strings.Contains(string(content), "Income:Salary")
+	}, 5*time.Second, 100*time.Millisecond, "First transaction should be written to ledger")
+
 	env.sendText("50 Expenses:Food")
 	assert.Eventually(t, func() bool {
 		_, ok := env.adapter.SessionManager().Get(env.userID)
