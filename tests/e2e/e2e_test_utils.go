@@ -1,6 +1,9 @@
 package e2e
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,13 +41,42 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 		t.Skip("Skipping E2E test. Set RUN_E2E=true to run.")
 	}
 
-	botToken := os.Getenv("TELEGRAM_TOKEN")
-	require.NotEmpty(t, botToken, "TELEGRAM_TOKEN must be set for E2E tests")
+	// Use a hardcoded fake token for E2E to ensure we never hit real API
+	botToken := "123456:mock-token"
 
-	// We might need a real User ID and Chat ID for some assertions if we want to check real Telegram state
-	// but for now we'll use them to simulate the "from" user.
-	userID := int64(12345) // Test ID
+	// Mock Telegram API server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Log incoming requests for debugging
+		// t.Logf("[MOCK] %s %s", r.Method, r.URL.Path)
+
+		if strings.HasSuffix(r.URL.Path, "/getMe") {
+			fmt.Fprintln(w, `{"ok":true,"result":{"id":12345,"is_bot":true,"first_name":"Test Bot","username":"test_bot"}}`)
+			return
+		}
+
+		if strings.HasSuffix(r.URL.Path, "/sendMessage") || strings.HasSuffix(r.URL.Path, "/editMessageText") || strings.HasSuffix(r.URL.Path, "/editMessageReplyMarkup") {
+			fmt.Fprintln(w, `{"ok":true,"result":{"message_id":1,"date":1623672000,"chat":{"id":12345,"type":"private"},"text":"mock response"}}`)
+			return
+		}
+
+		if strings.HasSuffix(r.URL.Path, "/answerCallbackQuery") || strings.HasSuffix(r.URL.Path, "/setMyCommands") {
+			fmt.Fprintln(w, `{"ok":true,"result":true}`)
+			return
+		}
+
+		// Default fallback: 404 to trigger E2E fallbacks for downloads
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintln(w, `{"ok":false,"error_code":404,"description":"Not Found"}`)
+	}))
+
+	t.Cleanup(server.Close)
+
+	// User and Chat ID
+	userID := int64(12345)
 	chatID := int64(12345)
+
 
 	tmpDir := t.TempDir()
 	ledgerPath := filepath.Join(tmpDir, "test.ledger")
@@ -75,8 +107,9 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 	parserFactory := excel.NewParserFactory(configManager)
 	importService := app.NewImportService(txService, parserFactory)
 
-	// In E2E, we use the real Telegram API
+	// In E2E, we use the mock server
 	settings := telebot.Settings{
+		URL:    server.URL,
 		Token:  botToken,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	}
@@ -151,6 +184,10 @@ func (e *e2eEnv) sendCallback(unique string, data ...string) {
 		},
 	})
 }
+
+
+
+
 
 func (e *e2eEnv) sendDocument(fileName string, content []byte) {
 	e.adapter.Bot().ProcessUpdate(telebot.Update{

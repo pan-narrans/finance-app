@@ -71,3 +71,21 @@ func TestE2E_ReportGeneration_ShouldHandleEmptyLedger(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, sections)
 }
+
+func TestE2E_ReportGeneration_ShouldHandleDateRanges(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// Add data for last month
+	lastMonth := time.Now().AddDate(0, -1, 0).Format("2006/01/02")
+	_ = os.WriteFile(env.ledgerPath, []byte(lastMonth+" * Last Month Income\n  Income:Salary  1000 EUR\n  Assets:Checking\n"), 0644)
+
+	// Act
+	env.sendCommand("report last")
+
+	// Assert
+	sections, err := env.reportService.GetMonthlyReport("last month")
+	require.NoError(t, err)
+	assert.NotEmpty(t, sections, "Report for last month should not be empty")
+}
+

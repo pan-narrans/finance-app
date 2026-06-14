@@ -300,3 +300,39 @@ func TestE2E_BankDocumentUpload_ShouldHandleDiscard(t *testing.T) {
 		return !strings.Contains(ledgerText, "RESTAURANT") && strings.Contains(ledgerText, "SUPERMARKET")
 	}, 5*time.Second, 100*time.Millisecond, "Ledger should contain only the second transaction")
 }
+
+func TestE2E_BankDocumentUpload_ShouldBeOverwrittenByTextMessage(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	bankFileName := "imagin.csv"
+	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
+	csvContent := "Concepto;Fecha;Importe;Saldo\n" +
+		"RESTAURANT;15/04/2026;-45,00EUR;1000,00EUR\n"
+	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
+
+	// Act 1: Upload document
+	env.sendDocument(bankFilePath, []byte(csvContent))
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "RESTAURANT"
+	}, 5*time.Second, 100*time.Millisecond, "Session should be created for import")
+
+	// Act 2: Send text message
+	env.sendText("10 Pizza")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "Pizza" && len(s.PendingQueue) == 0
+	}, 5*time.Second, 100*time.Millisecond, "Import session should be overwritten by Pizza")
+
+	env.sendCallback(telegram.CallbackConfirm)
+
+	// Assert
+	var content []byte
+	assert.Eventually(t, func() bool {
+		var err error
+		content, err = os.ReadFile(env.ledgerPath)
+		return err == nil && strings.Contains(string(content), "Pizza") && !strings.Contains(string(content), "RESTAURANT")
+	}, 5*time.Second, 100*time.Millisecond, "Only the last manual transaction should be in ledger")
+}
+

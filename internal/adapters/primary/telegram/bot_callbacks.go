@@ -180,6 +180,8 @@ handleCreateAcc starts the guided account creation flow.
 func (a *TelegramAdapter) handleCreateAcc(c telebot.Context) error {
 	userID := c.Sender().ID
 	_, ok := a.sessionManager.Get(userID)
+
+
 	if !ok {
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
@@ -203,6 +205,8 @@ func (a *TelegramAdapter) handleSelectParent(c telebot.Context) error {
 	parent := a.getCallbackPayload(c, CallbackSelectParent)
 
 	if _, ok := a.sessionManager.Get(userID); !ok {
+
+
 		return c.Edit(MsgSessionExpired + " Please start over.")
 	}
 
