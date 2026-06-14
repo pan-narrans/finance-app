@@ -14,6 +14,7 @@ Ensure code is robust, testable, and adheres to high architectural standards (He
 3.  **Testing Pyramid**: Prioritize fast, isolated unit tests. Use Interfaces (Ports) to mock external dependencies.
 4.  **Smart Mocking**: Use Go Interfaces to isolate business logic. Never mock simple structs (Entities/DTOs); instantiate them as real fixtures.
 5.  **Coverage Criterion**: Aim for "Edge Case" coverage (nil pointers, empty slices, error propagation) over simple percentage targets.
+6.  **Defensive Deduplication**: Ensure that the application layer (Services) performs explicit checks for existing entities (e.g., via unique Codes or IDs) before performing 'Add' operations, preventing data corruption or duplicates.
 
 ## Style Rules (Go Specific)
 
