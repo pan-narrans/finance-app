@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,20 +45,20 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 	// Use a hardcoded fake token for E2E to ensure we never hit real API
 	botToken := "123456:mock-token"
 
+	var msgCounter int64
+
 	// Mock Telegram API server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		
-		// Log incoming requests for debugging
-		// t.Logf("[MOCK] %s %s", r.Method, r.URL.Path)
-
 		if strings.HasSuffix(r.URL.Path, "/getMe") {
 			fmt.Fprintln(w, `{"ok":true,"result":{"id":12345,"is_bot":true,"first_name":"Test Bot","username":"test_bot"}}`)
 			return
 		}
 
 		if strings.HasSuffix(r.URL.Path, "/sendMessage") || strings.HasSuffix(r.URL.Path, "/editMessageText") || strings.HasSuffix(r.URL.Path, "/editMessageReplyMarkup") {
-			fmt.Fprintln(w, `{"ok":true,"result":{"message_id":1,"date":1623672000,"chat":{"id":12345,"type":"private"},"text":"mock response"}}`)
+			newID := atomic.AddInt64(&msgCounter, 1)
+			fmt.Fprintf(w, `{"ok":true,"result":{"message_id":%d,"date":1623672000,"chat":{"id":12345,"type":"private"},"text":"mock response"}}`+"\n", newID)
 			return
 		}
 
@@ -76,7 +77,6 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 	// User and Chat ID
 	userID := int64(12345)
 	chatID := int64(12345)
-
 
 	tmpDir := t.TempDir()
 	ledgerPath := filepath.Join(tmpDir, "test.ledger")
@@ -171,6 +171,12 @@ func (e *e2eEnv) sendCallback(unique string, data ...string) {
 		callbackData += "\f" + strings.Join(data, "\f")
 	}
 
+	// Retrieve last message ID to satisfy stale message protection
+	msgID := 2
+	if s, ok := e.adapter.SessionManager().Get(e.userID); ok && s.LastMessageID != 0 {
+		msgID = s.LastMessageID
+	}
+
 	e.adapter.Bot().ProcessUpdate(telebot.Update{
 		Callback: &telebot.Callback{
 			ID:     "cb",
@@ -178,16 +184,12 @@ func (e *e2eEnv) sendCallback(unique string, data ...string) {
 			Data:   "\f" + callbackData,
 			Sender: &telebot.User{ID: e.userID},
 			Message: &telebot.Message{
-				ID:   2,
+				ID:   msgID,
 				Chat: &telebot.Chat{ID: e.chatID, Type: telebot.ChatPrivate},
 			},
 		},
 	})
 }
-
-
-
-
 
 func (e *e2eEnv) sendDocument(fileName string, content []byte) {
 	e.adapter.Bot().ProcessUpdate(telebot.Update{

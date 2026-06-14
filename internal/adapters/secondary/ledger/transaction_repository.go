@@ -51,6 +51,17 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 	fileRepository.mu.Lock()
 	defer fileRepository.mu.Unlock()
 
+	// Check for duplicates inside the lock to ensure atomicity
+	data, err := os.ReadFile(fileRepository.FilePath)
+	if err == nil {
+		regex := fileRepository.transactionRegex(transaction.Code)
+		if regex.Match(data) {
+			return domain.NewDomainError("Transaction", "Code", "transaction already exists")
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
 	content := fileRepository.formatter.FormatTransaction(transaction, alignment)
 	content += "\n"
@@ -117,7 +128,7 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	newContent := fileRepository.formatter.FormatTransaction(transaction, alignment) + "\n"
 	updatedData := regex.ReplaceAllString(string(data), newContent)
 
-	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
+	return fileRepository.atomicWrite([]byte(updatedData))
 }
 
 func (fileRepository *TransactionFileRepository) Delete(code string) error {
@@ -144,7 +155,19 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 
 	updatedData := regex.ReplaceAllString(string(data), "")
 
-	return os.WriteFile(fileRepository.FilePath, []byte(updatedData), 0644)
+	return fileRepository.atomicWrite([]byte(updatedData))
+}
+
+/*
+atomicWrite writes data to a temporary file and renames it to the target file path.
+This ensures the write is atomic and prevents file corruption on crash/failure.
+*/
+func (fileRepository *TransactionFileRepository) atomicWrite(data []byte) error {
+	tmpPath := fileRepository.FilePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, fileRepository.FilePath)
 }
 
 // GetAccounts retrieves the list of accounts from the ledger file using the ledger CLI.

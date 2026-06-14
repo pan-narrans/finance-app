@@ -21,6 +21,13 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		return c.Edit(MsgSessionExpired + " Please send the transaction again.")
 	}
 
+
+
+	// Stale Message Protection: Only allow confirmation from the latest message
+	if c.Callback() != nil && c.Callback().Message != nil && c.Callback().Message.ID != session.LastMessageID {
+		return c.Respond(&telebot.CallbackResponse{Text: "Stale message. Use the latest one.", ShowAlert: true})
+	}
+
 	if err := a.transactionUseCase.Add(session.Draft); err != nil {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}

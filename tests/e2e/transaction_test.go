@@ -3,12 +3,15 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+
 	"github.com/a-perez/finance-app/internal/adapters/primary/telegram"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gopkg.in/telebot.v3"
 )
 
@@ -284,12 +287,125 @@ func TestE2E_Transaction_ShouldHandleRapidFireCommands(t *testing.T) {
 	}, 5*time.Second, 100*time.Millisecond)
 }
 
+func TestE2E_Transaction_ShouldRejectStaleMessage(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// 1. Send first transaction (A)
+	env.sendText("10 Coffee")
+	var msgID_A int
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		msgID_A = s.LastMessageID
+		return ok && s.Draft.Description == "Coffee" && msgID_A != 0
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// 2. Send second transaction (B) - this overwrites the session
+	env.sendText("20 Lunch")
+	var msgID_B int
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		msgID_B = s.LastMessageID
+		return ok && s.Draft.Description == "Lunch" && msgID_B != msgID_A
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// 3. Try to confirm using the OLD message ID (A)
+	env.adapter.Bot().ProcessUpdate(telebot.Update{
+		Callback: &telebot.Callback{
+			ID:      "cb-stale",
+			Unique:  telegram.CallbackConfirm,
+			Sender:  &telebot.User{ID: env.userID},
+			Message: &telebot.Message{ID: msgID_A, Chat: &telebot.Chat{ID: env.chatID}},
+			Data:    "\f" + telegram.CallbackConfirm,
+		},
+	})
+
+	// Assert: Session should still be Lunch, and ledger should be empty (A was rejected)
+	time.Sleep(500 * time.Millisecond)
+	s, _ := env.adapter.SessionManager().Get(env.userID)
+	assert.Equal(t, "Lunch", s.Draft.Description, "Session should still be Lunch")
+
+	content, _ := os.ReadFile(env.ledgerPath)
+	assert.Empty(t, strings.TrimSpace(string(content)), "Ledger should be empty because A was stale")
+}
+
+func TestE2E_Transaction_ShouldOnlySaveOnce_WhenDuplicateConfirmationReceived(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// 1. Start transaction
+	env.sendText("15 Pizza")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.LastMessageID != 0
+	}, 5*time.Second, 100*time.Millisecond)
+
+	// 2. Send TWO confirmation callbacks rapidly using the helper
+	go env.sendCallback(telegram.CallbackConfirm)
+	go env.sendCallback(telegram.CallbackConfirm)
+
+	// Assert: Ledger should have exactly ONE entry for Pizza
+	assert.Eventually(t, func() bool {
+		content, _ := os.ReadFile(env.ledgerPath)
+		count := strings.Count(string(content), "Pizza")
+		return count == 1
+	}, 5*time.Second, 100*time.Millisecond, "Should have exactly one Pizza entry")
+}
+
+func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// Add mapping so "visa" maps to the same account as the bank import
+	_ = os.WriteFile(filepath.Join(env.tmpDir, "mappings.json"), []byte(`{"accounts": {"VISA": "Assets:Checking:ImaginBank"}}`), 0644)
+	_ = env.configManager.Reload()
+
+	// 1. Manual entry using "visa" as source
+	env.sendText("visa 10 Coffee")
+	assert.Eventually(t, func() bool {
+		_, ok := env.adapter.SessionManager().Get(env.userID)
+		if !ok {
+			return false
+		}
+		env.adapter.SessionManager().Update(env.userID, func(s *telegram.UserSession) {
+			s.Draft.Description = "CONSISTENT_DESC"
+			s.Draft.Code = "" // Clear stale code to force re-generation
+			// Force Metadata ID to match what bank import will generate for "1000,00EUR" balance
+			s.Draft.Metadata.ID = "a8661157"
+			// Force negative amount to match bank import (expense)
+			negAmount := -10.0
+			s.Draft.Postings[0].Amount = &negAmount
+		})
+
+		return true
+	}, 5*time.Second, 100*time.Millisecond)
 
 
+	// Wait for LastMessageID
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.LastMessageID != 0
+	}, 5*time.Second, 100*time.Millisecond)
 
+	env.sendCallback(telegram.CallbackConfirm)
 
+	assert.Eventually(t, func() bool {
+		content, _ := os.ReadFile(env.ledgerPath)
+		return strings.Contains(string(content), "CONSISTENT_DESC")
+	}, 5*time.Second, 100*time.Millisecond)
 
+	// 2. Import same transaction via bank file
+	today := time.Now().Format("02/01/2006")
+	bankFilePath := filepath.Join(env.tmpDir, "imagin.csv")
+	csvContent := "Concepto;Fecha;Importe;Saldo\n" +
+		"CONSISTENT_DESC;" + today + ";-10,00EUR;1000,00EUR\n"
+	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
+	summary, err := env.importService.Import(bankFilePath)
+	require.NoError(t, err)
 
-
+	// Assert: It should be detected as an update/duplicate (Updated=1), NOT added again
+	assert.Equal(t, 1, summary.Updated, "Bank import should match existing manual entry")
+	assert.Equal(t, 0, summary.Added, "Should not add duplicate")
+}
 
