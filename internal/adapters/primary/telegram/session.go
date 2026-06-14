@@ -18,6 +18,8 @@ const (
 	StateCreatingAccountParent    SearchState = "creating_parent"   // StateCreatingAccountParent indicates the user is selecting the root account.
 	StateCreatingAccountChild     SearchState = "creating_child"    // StateCreatingAccountChild indicates the user is typing a subaccount name.
 	StateCreatingAccountReview    SearchState = "creating_review"   // StateCreatingAccountReview indicates the user is reviewing the constructed path.
+	StateAwaitingImportConfirm    SearchState = "awaiting_import_confirm"
+	StateAwaitingBankSelection    SearchState = "awaiting_bank_selection"
 )
 
 /*
@@ -34,7 +36,10 @@ type UserSession struct {
 	PendingQueue          []domain.Transaction
 	LastMessageID         int
 	LastChatID            int64
+	ImportFilePath        string
+	ImportBankType        string
 }
+
 
 /*
 SessionManager provides thread-safe management of active user sessions.

@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -58,7 +59,7 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		case StateCreatingAccountChild:
 			// If it's a valid transaction, let it interrupt.
 			// Otherwise, treat as child account input.
-			if _, err := a.transactionParserUC.ParseText(text, domain.OriginTelegram); err != nil {
+			if _, err := a.transactionParserUC.ParseText(a.getCleanedText(c), domain.OriginTelegram); err != nil {
 				return a.handleChildInput(c)
 			}
 		}
@@ -74,7 +75,8 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 		if exists && (session.State == StateCreatingAccountParent || session.State == StateCreatingAccountReview) {
 			return c.Send(MsgUseButtons, telebot.ModeHTML)
 		}
-		return c.Send(err.Error())
+		log.Printf("Parse error: %v", err)
+		return c.Send(MsgPromptTransaction, telebot.ModeHTML)
 	}
 
 	// Capture source keyword for potential mapping update
@@ -94,17 +96,18 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 
 /*
 handleDocument processes uploaded files (e.g., bank statements).
-It downloads the file to a temporary location and triggers the import use case.
+It downloads the file to a temporary location and asks the user for confirmation.
 */
 func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	if !a.isTriggered(c) {
 		return nil
 	}
 	doc := c.Message().Document
+	userID := c.Sender().ID
 
-	// Create a temporary file to save the download in a writable directory
+	// Create a temporary file to save the download
 	tmpDir := os.TempDir()
-	tmpFile := filepath.Join(tmpDir, doc.FileName)
+	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("%d_%s", userID, doc.FileName))
 
 	err := a.teleBot.Download(&doc.File, tmpFile)
 	if err != nil {
@@ -122,37 +125,24 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	if err != nil {
 		return c.Send(fmt.Sprintf("Failed to download file: %v", err))
 	}
-	defer os.Remove(tmpFile)
 
-	summary, err := a.importUseCase.Import(tmpFile)
+	// Update session with the file path and new state
+	a.sessionManager.Set(userID, &UserSession{
+		State:          StateAwaitingImportConfirm,
+		ImportFilePath: tmpFile,
+	})
 
-	if err != nil {
-		return c.Send(fmt.Sprintf("Import failed: %v", err))
+	msg, selector := a.ui.BuildBankExportPrompt()
+	sent, err := a.teleBot.Send(c.Chat(), msg, selector, telebot.ModeHTML)
+	if err == nil {
+		a.sessionManager.Update(userID, func(s *UserSession) {
+			s.LastMessageID = sent.ID
+			s.LastChatID = sent.Chat.ID
+		})
 	}
-
-	response := fmt.Sprintf(
-		"Import Complete!\nTotal: %d\nAdded: %d\nUpdated: %d\nFailed: %d",
-		summary.Total, summary.Added, summary.Updated, summary.Failed,
-	)
-
-	if len(summary.Pending) > 0 {
-		userID := c.Sender().ID
-		firstPending := summary.Pending[0]
-		a.sessionManager.Set(
-			userID, &UserSession{
-				Draft:                 firstPending,
-				PendingQueue:          summary.Pending[1:],
-				OriginalSourceKeyword: a.transactionParserUC.GuessSource(firstPending.Description),
-			},
-		)
-
-		response += fmt.Sprintf("\n\n<b>%d transactions need review.</b>", len(summary.Pending))
-		c.Send(response, telebot.ModeHTML)
-		return a.sendDraftMessage(c, firstPending)
-	}
-
-	return c.Send(response)
+	return err
 }
+
 
 /*
 handleSearchQuery processes text input when the user is searching for an account.
@@ -243,6 +233,11 @@ func (a *TelegramAdapter) isTriggered(c telebot.Context) bool {
 
 	// Trigger on replies to bot's messages
 	if msg.IsReply() && msg.ReplyTo.Sender.ID == a.teleBot.Me.ID {
+		return true
+	}
+
+	// Document uploads in groups also trigger
+	if msg.Document != nil {
 		return true
 	}
 

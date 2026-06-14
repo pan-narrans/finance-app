@@ -23,17 +23,28 @@ func NewParserFactory(configUseCase ports.ConfigurationUseCase) *ParserFactory {
 	}
 }
 
-// GetParser returns a BankParser implementation matched by filename keyword.
-func (f *ParserFactory) GetParser(filePath string) (ports.BankParser, error) {
-	fileName := strings.ToLower(filepath.Base(filePath))
+// GetParser returns a BankParser implementation matched by filename keyword or explicit type.
+func (f *ParserFactory) GetParser(filePath string, parserType string) (ports.BankParser, error) {
 	appConfig := f.configUseCase.Get()
+	target := parserType
+	if target == "" {
+		target = strings.ToLower(filepath.Base(filePath))
+	} else {
+		target = strings.ToLower(target)
+	}
 
 	switch {
-	case strings.Contains(fileName, "openbank") || strings.Contains(fileName, "extractdocument"):
+	case strings.Contains(target, "openbank") || strings.Contains(target, "extractdocument"):
 		return NewOpenBankParser(appConfig.Mappings, appConfig.Settings), nil
-	case strings.Contains(fileName, "imagin"):
+	case strings.Contains(target, "imagin"):
 		return NewImaginBankParser(appConfig.Mappings, appConfig.Settings), nil
 	default:
-		return nil, fmt.Errorf("no parser found for file: %s", fileName)
+		return nil, fmt.Errorf("no parser found for target: %s", target)
 	}
 }
+
+// GetAvailableParsers returns the list of supported bank parser keys.
+func (f *ParserFactory) GetAvailableParsers() []string {
+	return []string{"imagin", "openbank"}
+}
+

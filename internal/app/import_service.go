@@ -29,8 +29,8 @@ func NewImportService(transactionUseCase ports.TransactionUseCase, parserProvide
 /*
 Import finds correct parser for file, parses it, and saves resulting transactions.
 */
-func (importService *ImportService) Import(filePath string) (*ports.ImportSummary, error) {
-	parser, err := importService.parserProvider.GetParser(filePath)
+func (importService *ImportService) Import(filePath string, parserType string) (*ports.ImportSummary, error) {
+	parser, err := importService.parserProvider.GetParser(filePath, parserType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get parser: %w", err)
 	}
@@ -100,4 +100,9 @@ func (importService *ImportService) Import(filePath string) (*ports.ImportSummar
 	}
 
 	return summary, nil
+}
+
+// GetAvailableBanks returns the list of supported bank identifiers.
+func (importService *ImportService) GetAvailableBanks() []string {
+	return importService.parserProvider.GetAvailableParsers()
 }

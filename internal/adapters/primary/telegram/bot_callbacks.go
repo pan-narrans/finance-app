@@ -3,6 +3,7 @@ package telegram
 import (
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 
@@ -281,6 +282,10 @@ handleCancelImport clears the session and informs the user.
 */
 func (a *TelegramAdapter) handleCancelImport(c telebot.Context) error {
 	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+	if ok && session.ImportFilePath != "" {
+		os.Remove(session.ImportFilePath)
+	}
 	a.sessionManager.Delete(userID)
 	return c.Edit(MsgImportCancelled)
 }
@@ -313,6 +318,78 @@ func (a *TelegramAdapter) handleAcceptAll(c telebot.Context) error {
 
 	a.sessionManager.Delete(userID)
 	return c.Edit(fmt.Sprintf("Accepted all! ✅\nSaved %d/%d transactions.", saved, total), telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleImportYes(c telebot.Context) error {
+	userID := c.Sender().ID
+	_, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit(MsgSessionExpired)
+	}
+
+	a.sessionManager.Update(userID, func(s *UserSession) {
+		s.State = StateAwaitingBankSelection
+	})
+
+	banks := a.importUseCase.GetAvailableBanks()
+	msg, selector := a.ui.BuildBankSelector(banks)
+	sent, err := a.teleBot.Edit(c.Message(), msg, selector, telebot.ModeHTML)
+	if err == nil {
+		a.sessionManager.Update(userID, func(s *UserSession) {
+			s.LastMessageID = sent.ID
+		})
+	}
+	return err
+}
+
+func (a *TelegramAdapter) handleImportNo(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+	if ok && session.ImportFilePath != "" {
+		os.Remove(session.ImportFilePath)
+	}
+	a.sessionManager.Delete(userID)
+	return c.Edit("Upload cancelled. ❌")
+}
+
+func (a *TelegramAdapter) handleBankSelect(c telebot.Context) error {
+	userID := c.Sender().ID
+	bankType := a.getCallbackPayload(c, CallbackSelectBank)
+	session, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit(MsgSessionExpired)
+	}
+
+	summary, err := a.importUseCase.Import(session.ImportFilePath, bankType)
+	if err != nil {
+		return c.Edit(fmt.Sprintf("Import failed: %v", err))
+	}
+	defer os.Remove(session.ImportFilePath)
+
+	response := fmt.Sprintf(
+		"Import Complete!\nTotal: %d\nAdded: %d\nUpdated: %d\nFailed: %d",
+		summary.Total, summary.Added, summary.Updated, summary.Failed,
+	)
+
+	if len(summary.Pending) > 0 {
+		firstPending := summary.Pending[0]
+		a.sessionManager.Update(userID, func(s *UserSession) {
+			s.Draft = firstPending
+			s.PendingQueue = summary.Pending[1:]
+			s.State = StateNone
+			s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(firstPending.Description)
+			s.ImportFilePath = "" // Clear path as it's done
+		})
+
+		// Send summary first
+		_, _ = a.teleBot.Send(c.Chat(), response, telebot.ModeHTML)
+		
+		// Then send first draft for review (which updates session.LastMessageID)
+		return a.sendDraftMessage(c, firstPending)
+	}
+
+	a.sessionManager.Delete(userID)
+	return c.Edit(response, telebot.ModeHTML)
 }
 
 /*

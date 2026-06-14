@@ -33,8 +33,10 @@ type BankParser interface {
 FileParserProvider defines the contract for obtaining the correct parser for a file.
 */
 type FileParserProvider interface {
-	GetParser(filePath string) (BankParser, error)
+	GetParser(filePath string, parserType string) (BankParser, error)
+	GetAvailableParsers() []string
 }
+
 
 /*
 MappingProvider defines the contract for description cleaning and account resolution.

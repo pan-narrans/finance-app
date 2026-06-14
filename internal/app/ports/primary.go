@@ -29,8 +29,10 @@ type ImportSummary struct {
 
 // ImportUseCase defines the orchestrator for bank file imports.
 type ImportUseCase interface {
-	Import(filePath string) (*ImportSummary, error)
+	Import(filePath string, parserType string) (*ImportSummary, error)
+	GetAvailableBanks() []string
 }
+
 
 /*
 AppConfig combines application settings and the derived mapping service.

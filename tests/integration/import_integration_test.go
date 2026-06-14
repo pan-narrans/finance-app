@@ -65,7 +65,8 @@ func TestImportService_Integration_ShouldImportTransactions_WhenValidBankFilePro
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
 	// Act
-	summary, err := importService.Import(bankFilePath)
+	summary, err := importService.Import(bankFilePath, "")
+
 
 	// Assert
 	require.NoError(t, err)
@@ -105,7 +106,8 @@ func TestImportService_Integration_ShouldHandleUnknownAccounts_WhenMappingsAreMi
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
 	// Act
-	summary, err := importService.Import(bankFilePath)
+	summary, err := importService.Import(bankFilePath, "")
+
 
 	// Assert
 	require.NoError(t, err)
