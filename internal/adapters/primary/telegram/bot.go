@@ -125,17 +125,32 @@ func (a *TelegramAdapter) RegisterHandlers() {
 			return func(c telebot.Context) error {
 				chatID := c.Chat().ID
 				senderID := c.Sender().ID
-				_, chatAllowed := a.allowedIDs[chatID]
-				_, senderAllowed := a.allowedIDs[senderID]
 
-				if !chatAllowed && !senderAllowed {
-					log.Printf("[AUTH] Unauthorized access attempt from Chat ID: %d, Sender ID: %d (Allowed: %v)", chatID, senderID, a.allowedIDs)
+				// Get latest authorized IDs from config
+				allowedIDs := a.configUseCase.Get().Settings.TelegramUserIDs
+				
+				// Helper to check if ID is allowed
+				isAllowed := func(id int64) bool {
+					// Check dynamic config first
+					for _, allowed := range allowedIDs {
+						if allowed == id {
+							return true
+						}
+					}
+					// Fallback to static initial IDs (from ENV)
+					_, found := a.allowedIDs[id]
+					return found
+				}
+
+				if !isAllowed(chatID) && !isAllowed(senderID) {
+					log.Printf("[AUTH] Unauthorized access attempt from Chat ID: %d, Sender ID: %d", chatID, senderID)
 					return nil
 				}
 				return next(c)
 			}
 		},
 	)
+
 
 	a.teleBot.Handle(
 		"/start", func(c telebot.Context) error {

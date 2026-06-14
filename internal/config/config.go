@@ -19,7 +19,9 @@ type fileConfig struct {
 	ImaginBankAccount     string   `json:"imaginbank_account"`
 	OpenBankAccount       string   `json:"openbank_account"`
 	RootAccounts          []string `json:"root_accounts"`
+	TelegramUserIDs       []int64  `json:"telegram_user_ids"`
 }
+
 
 /*
 LoadConfig loads the config from a JSON file and returns [domain.Settings].
@@ -56,8 +58,13 @@ func LoadConfig(path string) (domain.Settings, error) {
 		settings.RootAccounts = fc.RootAccounts
 	}
 
+	if len(fc.TelegramUserIDs) > 0 {
+		settings.TelegramUserIDs = fc.TelegramUserIDs
+	}
+
 	return settings, nil
 }
+
 
 /*
 applyIfNonZero updates the target pointer with the value only if the value is not the zero-value for its type.
