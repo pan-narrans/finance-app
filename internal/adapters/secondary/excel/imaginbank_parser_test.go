@@ -54,7 +54,6 @@ func TestImaginBankParser_Parse_ShouldReturnTransactions_WhenValidCsvProvided(t 
 	assert.Equal(t, "Income:Unknown", transactions[1].Postings[1].Account)
 }
 
-
 func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 	// Arrange
 	tempDir := t.TempDir()

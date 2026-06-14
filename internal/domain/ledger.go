@@ -57,15 +57,17 @@ func (l *Ledger) Sort() {
 	sortable := l.Entries[prologueEnd:]
 
 	// 2. Stable sort dated entries
-	slices.SortStableFunc(sortable, func(a, b LedgerEntry) int {
-		if a.Date.Before(b.Date) {
-			return -1
-		}
-		if a.Date.After(b.Date) {
-			return 1
-		}
-		return 0
-	})
+	slices.SortStableFunc(
+		sortable, func(a, b LedgerEntry) int {
+			if a.Date.Before(b.Date) {
+				return -1
+			}
+			if a.Date.After(b.Date) {
+				return 1
+			}
+			return 0
+		},
+	)
 
 	// 3. Reassemble
 	l.Entries = append(prologue, sortable...)
@@ -84,7 +86,7 @@ func (l *Ledger) Format() string {
 
 			if month != lastMonth || year != lastYear {
 				monthName := strings.ToUpper(month.String())
-				
+
 				// Spacing before header
 				if sb.Len() > 0 {
 					// Ensure we have exactly two newlines before a new month header
@@ -97,7 +99,7 @@ func (l *Ledger) Format() string {
 						}
 					}
 				}
-				
+
 				sb.WriteString(";--------\n")
 				sb.WriteString(fmt.Sprintf(";- %s -\n", monthName))
 				sb.WriteString(";--------\n\n")
@@ -108,7 +110,7 @@ func (l *Ledger) Format() string {
 		}
 
 		sb.WriteString(entry.RawText)
-		
+
 		// Ensure entry ends with newline
 		if !strings.HasSuffix(entry.RawText, "\n") {
 			sb.WriteString("\n")
@@ -131,5 +133,3 @@ func (l *Ledger) Format() string {
 	}
 	return result
 }
-
-

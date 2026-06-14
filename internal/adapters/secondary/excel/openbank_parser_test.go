@@ -70,7 +70,6 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 	assert.Equal(t, "72c8aa47", transactions[1].Metadata.ID)
 }
 
-
 func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *testing.T) {
 	// Arrange
 	tempDir := t.TempDir()

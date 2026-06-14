@@ -13,7 +13,6 @@ type Settings struct {
 	TelegramUserIDs       []int64
 }
 
-
 /*
 DefaultSettings returns the standard fallback configuration for the application.
 */

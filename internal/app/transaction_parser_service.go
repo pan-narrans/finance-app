@@ -115,8 +115,6 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	return tx, nil
 }
 
-
-
 /*
 parseAmount handles numeric conversion from raw input strings.
 It supports both dot and comma as decimal separators.
@@ -147,7 +145,6 @@ func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConf
 
 	return account
 }
-
 
 /*
 resolveSourceAccount determines the asset/origin account for the transaction.

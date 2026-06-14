@@ -139,4 +139,3 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 
 	return &tx, nil
 }
-

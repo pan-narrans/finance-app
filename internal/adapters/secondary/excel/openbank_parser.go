@@ -167,7 +167,6 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 	return &tx, nil
 }
 
-
 func getInnerText(node *html.Node) string {
 	var sb strings.Builder
 	var collectText func(*html.Node)

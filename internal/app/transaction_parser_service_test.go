@@ -101,11 +101,10 @@ func TestTransactionParserService_ParseText_ShouldUseDefaultAsset_WhenSourceIsUn
 
 	// Assert
 	require.NoError(t, err)
-	// We no longer fallback to Income:Alex automatically if it's not mapped, 
+	// We no longer fallback to Income:Alex automatically if it's not mapped,
 	// to avoid "Hey 10 coffee" becoming "Income:Hey".
 	assert.Equal(t, "Assets:Cash", tx.Postings[1].Account)
 }
-
 
 func TestTransactionParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *testing.T) {
 	// ... (existing test)
@@ -133,7 +132,6 @@ func TestTransactionParserService_ParseText_ShouldIgnoreConversationalNoise_AndU
 	assert.Equal(t, "Assets:Checking:Main", tx.Postings[1].Account)
 }
 
-
 func TestTransactionParserService_ParseText_ShouldTreatPositiveAmountAsExpenseByDefault(t *testing.T) {
 	// Arrange
 	settings := domain.Settings{
@@ -155,11 +153,11 @@ func TestTransactionParserService_ParseText_ShouldTreatPositiveAmountAsExpenseBy
 	// Assert
 	require.NoError(t, err)
 	require.Len(t, tx.Postings, 2)
-	
+
 	// Convention: Target (Debit) first. For expense, target is Expenses.
 	assert.Equal(t, "Expenses:Unknown", tx.Postings[0].Account)
 	assert.Equal(t, 10.0, *tx.Postings[0].Amount)
-	
+
 	// Source (Credit) second.
 	assert.Equal(t, "Assets:Cash", tx.Postings[1].Account)
 	assert.Nil(t, tx.Postings[1].Amount)
@@ -201,7 +199,6 @@ func TestTransactionParserService_ParseText_ShouldFormatIncomeCorrectly(t *testi
 func TestTransactionParserService_HashID_ShouldBeConsistent(t *testing.T) {
 	// ... (existing test)
 }
-
 
 func TestTransactionParserService_HashID_ShouldReturnEmpty_WhenInputIsEmpty(t *testing.T) {
 	// Arrange

@@ -45,7 +45,6 @@ func TestMappingService_IsIncomeAccount(t *testing.T) {
 	assert.False(t, svc.IsIncomeAccount("Assets:Cash"))
 }
 
-
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	// Arrange
 	data := MappingData{

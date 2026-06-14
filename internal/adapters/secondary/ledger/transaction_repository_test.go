@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 	"github.com/stretchr/testify/assert"
@@ -47,7 +46,6 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	expectedContent := ";--------\n;- APRIL -\n;--------\n\n" + formatter.FormatTransaction(transaction, 52)
 	expectedContent = strings.TrimSpace(expectedContent)
 
-
 	// Act
 	err = fileRepository.Create(transaction)
 
@@ -57,9 +55,6 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	assert.NoError(t, err)
 	assert.Equal(t, expectedContent, strings.TrimSpace(string(content)))
 }
-
-
-
 
 func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *testing.T) {
 	// Arrange
@@ -282,7 +277,6 @@ func TestFileRepository_GetBalanceReport_ShouldReturnReport_WhenFileHasTransacti
 	assert.Contains(t, report, "10.00 EUR")
 }
 
-
 func TestFileRepository_Create_ShouldSortTransactionsChronologically(t *testing.T) {
 	// Arrange
 	tmpFile, err := os.CreateTemp("", "test_sort_*.ledger")
@@ -409,8 +403,6 @@ func TestFileRepository_ShouldPreservePrologueAndEpilogue(t *testing.T) {
 	assert.Contains(t, text, "Initial", "Existing transaction should be present")
 }
 
-
-
 func TestFileRepository_ShouldNotDuplicateMonthHeaders(t *testing.T) {
 	// ... (existing test)
 }
@@ -470,7 +462,6 @@ account Assets:Cash
 	assert.Contains(t, text, "Better Coffee", "Update should be applied")
 }
 
-
 func TestFileRepository_ShouldSortPriceUpdatesChronologically(t *testing.T) {
 	// Arrange
 	tmpFile, err := os.CreateTemp("", "test_price_sort_*.ledger")
@@ -487,7 +478,7 @@ func TestFileRepository_ShouldSortPriceUpdatesChronologically(t *testing.T) {
 
 	// Add a transaction on the 1st
 	tx1 := domain.Transaction{Date: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Description: "First"}
-	
+
 	// Add a transaction on the 10th
 	tx10 := domain.Transaction{Date: time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC), Description: "Tenth"}
 
@@ -539,6 +530,3 @@ P 2026/01/02 GOLD 100 EUR
 	assert.NotContains(t, text, "Target")
 	assert.Contains(t, text, "P 2026/01/02 GOLD 100 EUR", "Price update must survive transaction deletion")
 }
-
-
-

@@ -50,7 +50,6 @@ type MappingProvider interface {
 	GetMappingData() domain.MappingData
 }
 
-
 /*
 MappingServiceConstructor is a function type that creates a MappingProvider.
 */

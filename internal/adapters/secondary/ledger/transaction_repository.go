@@ -53,11 +53,13 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 
 	alignment := fileRepository.configUseCase.Get().Settings.LedgerAlignment
 	newRaw := fileRepository.formatter.FormatTransaction(transaction, alignment)
-	ledger.Entries = append(ledger.Entries, domain.LedgerEntry{
-		Date:    transaction.Date,
-		RawText: newRaw,
-		Type:    domain.EntryTypeTransaction,
-	})
+	ledger.Entries = append(
+		ledger.Entries, domain.LedgerEntry{
+			Date:    transaction.Date,
+			RawText: newRaw,
+			Type:    domain.EntryTypeTransaction,
+		},
+	)
 
 	return fileRepository.writeLedger(ledger)
 }
@@ -114,13 +116,13 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 					break
 				}
 			}
-			
+
 			newTx := fileRepository.formatter.FormatTransaction(transaction, alignment)
 			comments := ""
 			if lastTxLine < len(lines)-1 {
 				comments = "\n" + strings.Join(lines[lastTxLine+1:], "\n")
 			}
-			
+
 			entry.Date = transaction.Date
 			entry.RawText = strings.TrimRight(newTx, "\n") + comments
 			found = true
@@ -157,7 +159,7 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 
 	for _, entry := range ledger.Entries {
 		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
-			// PRESERVE COMMENTS: If a deleted transaction has trailing comments, 
+			// PRESERVE COMMENTS: If a deleted transaction has trailing comments,
 			// we should ideally re-attach them to the entry above or keep them as a raw entry.
 			// For simplicity, if it has comments, we turn it into a comment-only entry.
 			lines := strings.Split(entry.RawText, "\n")
@@ -169,15 +171,17 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 					break
 				}
 			}
-			
+
 			if lastTxLine < len(lines)-1 {
 				comments := strings.Join(lines[lastTxLine+1:], "\n")
-				newEntries = append(newEntries, domain.LedgerEntry{
-					Type:    domain.EntryTypeComment,
-					RawText: comments,
-				})
+				newEntries = append(
+					newEntries, domain.LedgerEntry{
+						Type:    domain.EntryTypeComment,
+						RawText: comments,
+					},
+				)
 			}
-			
+
 			found = true
 			continue
 		}
@@ -256,7 +260,7 @@ func (fileRepository *TransactionFileRepository) readLedger() (domain.Ledger, er
 	}
 
 	content := string(data)
-	
+
 	// 1. Regex to find ALL entry starts (Transactions OR Prices)
 	entryStartRegex := regexp.MustCompile(`(?m)^(P\s+)?(\d{4}[\/-]\d{2}[\/-]\d{2})`)
 	matches := entryStartRegex.FindAllStringSubmatchIndex(content, -1)
@@ -268,14 +272,16 @@ func (fileRepository *TransactionFileRepository) readLedger() (domain.Ledger, er
 	}
 
 	var ledger domain.Ledger
-	
+
 	// 2. Capture Prologue (everything before first date)
 	prologue := content[:matches[0][0]]
 	if prologue != "" {
-		ledger.Entries = append(ledger.Entries, domain.LedgerEntry{
-			Type:    domain.EntryTypeDirective,
-			RawText: strings.TrimRight(prologue, "\n \t"),
-		})
+		ledger.Entries = append(
+			ledger.Entries, domain.LedgerEntry{
+				Type:    domain.EntryTypeDirective,
+				RawText: strings.TrimRight(prologue, "\n \t"),
+			},
+		)
 	}
 
 	// Stylized Month Header Regex for stripping

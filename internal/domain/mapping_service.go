@@ -161,7 +161,6 @@ func (s *MappingService) IsIncomeAccount(account string) bool {
 	return strings.HasPrefix(upper, "INCOME") || strings.Contains(upper, ":INCOME")
 }
 
-
 /*
 ResolvePayer matches card numbers in the full description to their owners.
 
