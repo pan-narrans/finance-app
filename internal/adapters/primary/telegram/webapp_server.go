@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -17,6 +18,16 @@ import (
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
+type contextKey string
+
+const (
+	userContextKey contextKey = "user"
+)
+
+type WebAppUser struct {
+	ID int64 `json:"id"`
+}
 
 /*
 MessageRefresher defines the contract for updating Telegram chat messages.
@@ -74,11 +85,15 @@ func (s *WebAppServer) Start() error {
 	}
 	fsServer := http.FileServer(http.FS(staticFS))
 
-	// Middleware for logging
+	// Middleware stack
 	handler := http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
-			mux.ServeHTTP(w, r)
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				s.authMiddleware(mux).ServeHTTP(w, r)
+			} else {
+				mux.ServeHTTP(w, r)
+			}
 		},
 	)
 
@@ -87,6 +102,34 @@ func (s *WebAppServer) Start() error {
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("WebApp server listening on %s (embedded assets)", addr)
 	return http.ListenAndServe(addr, handler)
+}
+
+func (s *WebAppServer) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			initDataRaw := r.Header.Get("X-TMA-Init-Data")
+			if initDataRaw == "" {
+				http.Error(w, "Unauthorized: Missing initData", http.StatusUnauthorized)
+				return
+			}
+
+			if !s.validateInitData(initDataRaw) {
+				http.Error(w, "Unauthorized: Invalid initData", http.StatusUnauthorized)
+				return
+			}
+
+			params, _ := url.ParseQuery(initDataRaw)
+			userJSON := params.Get("user")
+			var user WebAppUser
+			if err := json.Unmarshal([]byte(userJSON), &user); err != nil {
+				http.Error(w, "Bad Request: Invalid user data", http.StatusBadRequest)
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), userContextKey, &user)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		},
+	)
 }
 
 func (s *WebAppServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) {
@@ -115,9 +158,8 @@ func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Reques
 	}
 
 	var payload struct {
-		InitData string `json:"initData"`
-		Account  string `json:"account"`
-		Type     string `json:"type"` // "source" or "target"
+		Account string `json:"account"`
+		Type    string `json:"type"` // "source" or "target"
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -125,23 +167,9 @@ func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// 1. Validate InitData
-	initData, err := url.ParseQuery(payload.InitData)
-	if err != nil || !s.validateInitData(payload.InitData) {
-		if err != nil {
-			log.Printf("InitData parse error: %v", err)
-		}
+	user, ok := r.Context().Value(userContextKey).(*WebAppUser)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// 2. Extract User ID
-	userJSON := initData.Get("user")
-	var user struct {
-		ID int64 `json:"id"`
-	}
-	if err := json.Unmarshal([]byte(userJSON), &user); err != nil {
-		http.Error(w, "Invalid user data", http.StatusBadRequest)
 		return
 	}
 
