@@ -139,7 +139,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 
 	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
 	var postings []domain.Posting
-	bankAccount := p.settings.OpenBankAccount
+	bankAccount := p.settings.OpenBankAssetAccount
 
 	if amount >= 0 {
 		// Influx: Assets (Target) increase, Income (Source) remains credit balance
