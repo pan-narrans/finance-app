@@ -92,7 +92,7 @@ func NewTelegramAdapter(
 		webAppBaseURL:       cfg.WebAppBaseURL,
 	}
 
-	adapter.webAppServer = NewWebAppServer(cfg.HTTPPort, cfg.BotToken, configUC, sessionManager, adapter)
+	adapter.webAppServer = NewWebAppServer(cfg.HTTPPort, cfg.BotToken, configUC, txUC, sessionManager, adapter)
 
 	return adapter, nil
 }

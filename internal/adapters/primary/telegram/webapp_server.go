@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/adapters/primary/telegram/webapp"
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -45,6 +46,7 @@ type WebAppServer struct {
 	port           int
 	botToken       string
 	configUseCase  ports.ConfigurationUseCase
+	transactionUC  ports.TransactionUseCase
 	sessionManager *SessionManager
 	refresher      MessageRefresher
 }
@@ -56,6 +58,7 @@ func NewWebAppServer(
 	port int,
 	token string,
 	configUC ports.ConfigurationUseCase,
+	transactionUC ports.TransactionUseCase,
 	sessionManager *SessionManager,
 	refresher MessageRefresher,
 ) *WebAppServer {
@@ -63,6 +66,7 @@ func NewWebAppServer(
 		port:           port,
 		botToken:       token,
 		configUseCase:  configUC,
+		transactionUC:  transactionUC,
 		sessionManager: sessionManager,
 		refresher:      refresher,
 	}
@@ -77,6 +81,7 @@ func (s *WebAppServer) Start() error {
 	// API Endpoints
 	mux.HandleFunc("/api/accounts", s.handleGetAccounts)
 	mux.HandleFunc("/api/select", s.handleSelectAccount)
+	mux.HandleFunc("/api/transaction", s.handleTransaction)
 
 	// Static Assets (Embedded)
 	staticFS, err := fs.Sub(webapp.Assets, "dist")
@@ -149,6 +154,59 @@ func (s *WebAppServer) handleGetAccounts(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (s *WebAppServer) handleTransaction(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload struct {
+		Date        string  `json:"date"`
+		Description string  `json:"description"`
+		Amount      float64 `json:"amount"`
+		Source      string  `json:"source"`
+		Target      string  `json:"target"`
+		Currency    string  `json:"currency"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	date, err := time.Parse("2006-01-02", payload.Date)
+	if err != nil {
+		http.Error(w, "Invalid date format (expected YYYY-MM-DD)", http.StatusBadRequest)
+		return
+	}
+
+	tx := domain.Transaction{
+		Date:        date,
+		Description: payload.Description,
+		Metadata: domain.Metadata{
+			Origin: domain.OriginTelegram,
+		},
+		Postings: []domain.Posting{
+			{
+				Account:  domain.FormatAccountPath(payload.Target),
+				Amount:   &payload.Amount,
+				Currency: payload.Currency,
+			},
+			{
+				Account: domain.FormatAccountPath(payload.Source),
+			},
+		},
+	}
+
+	if err := s.transactionUC.Add(tx); err != nil {
+		log.Printf("Failed to add transaction: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to add transaction: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Request) {
