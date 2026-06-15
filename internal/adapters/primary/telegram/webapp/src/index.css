@@ -185,6 +185,55 @@ body {
   color: #f44336;
 }
 
+.period-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.period-selector button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--secondary-bg-color);
+  background-color: var(--secondary-bg-color);
+  color: var(--text-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.period-selector button.active {
+  background-color: var(--button-color);
+  color: var(--button-text-color);
+  border-color: var(--button-color);
+}
+
+.report-section {
+  margin-bottom: 32px;
+}
+
+.report-section h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+}
+
+.report-date-range {
+  font-size: 0.8rem;
+  color: var(--hint-color);
+  margin-bottom: 12px;
+}
+
+.report-content {
+  background-color: var(--secondary-bg-color);
+  padding: 16px;
+  border-radius: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 0;
+}
+
 .page {
   animation: fadeIn 0.3s ease-out;
 }

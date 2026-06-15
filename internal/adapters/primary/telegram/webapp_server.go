@@ -48,6 +48,7 @@ type WebAppServer struct {
 	botToken       string
 	configUseCase  ports.ConfigurationUseCase
 	transactionUC  ports.TransactionUseCase
+	reportUC       ports.ReportUseCase
 	sessionManager *SessionManager
 	refresher      MessageRefresher
 }
@@ -60,6 +61,7 @@ func NewWebAppServer(
 	token string,
 	configUC ports.ConfigurationUseCase,
 	transactionUC ports.TransactionUseCase,
+	reportUC ports.ReportUseCase,
 	sessionManager *SessionManager,
 	refresher MessageRefresher,
 ) *WebAppServer {
@@ -68,6 +70,7 @@ func NewWebAppServer(
 		botToken:       token,
 		configUseCase:  configUC,
 		transactionUC:  transactionUC,
+		reportUC:       reportUC,
 		sessionManager: sessionManager,
 		refresher:      refresher,
 	}
@@ -84,6 +87,7 @@ func (s *WebAppServer) Start() error {
 	mux.HandleFunc("/api/select", s.handleSelectAccount)
 	mux.HandleFunc("/api/transaction", s.handleTransaction)
 	mux.HandleFunc("/api/history", s.handleHistory)
+	mux.HandleFunc("/api/reports", s.handleReports)
 
 	// Static Assets (Embedded)
 	staticFS, err := fs.Sub(webapp.Assets, "dist")
@@ -233,6 +237,24 @@ func (s *WebAppServer) handleHistory(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(transactions)
+}
+
+func (s *WebAppServer) handleReports(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	period := r.URL.Query().Get("period")
+	sections, err := s.reportUC.GetMonthlyReport(period)
+	if err != nil {
+		log.Printf("Failed to get reports: %v", err)
+		http.Error(w, "Failed to get reports", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sections)
 }
 
 func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Request) {
