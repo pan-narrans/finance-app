@@ -106,7 +106,7 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: p.settings.ImaginBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
+			{Account: p.settings.ImaginAssetAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}

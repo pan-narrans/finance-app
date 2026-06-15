@@ -33,7 +33,7 @@ func TestOpenBankParser_Parse_ShouldReturnTransactions_WhenValidHtmlProvided(t *
 		Prefixes: []string{"Apple pay:"},
 	}
 	mappingProvider := domain.NewMappingService(mappingData, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAssetAccount: "Assets:Checking:OpenBank"}
 	parser := NewOpenBankParser(mappingProvider, settings)
 
 	// Act
@@ -67,7 +67,7 @@ func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *te
 	_ = os.WriteFile(htmlPath, htmlContent, 0644)
 
 	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAssetAccount: "Assets:Checking:OpenBank"}
 	parser := NewOpenBankParser(mappingProvider, settings)
 
 	// Act
@@ -82,7 +82,7 @@ func TestOpenBankParser_Parse_ShouldHandleIso8859Chars_WhenEncodedProperly(t *te
 func TestOpenBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 	// Arrange
 	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAssetAccount: "Assets:Checking:OpenBank"}
 	parser := NewOpenBankParser(mappingProvider, settings)
 
 	// Act
@@ -96,7 +96,7 @@ func TestOpenBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 func TestOpenBankParser_RowToTransaction_ShouldSkipRow_WhenDataIsInvalid(t *testing.T) {
 	// Arrange
 	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAssetAccount: "Assets:Checking:OpenBank"}
 	parser := NewOpenBankParser(mappingProvider, settings)
 
 	// Act & Assert
@@ -136,7 +136,7 @@ func TestOpenBankParser_RowToTransaction_ShouldStripPrefixes(t *testing.T) {
 		Prefixes: []string{"Apple pay:", "Tarjeta:"},
 	}
 	mappingProvider := domain.NewMappingService(mappingData, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAssetAccount: "Assets:Checking:OpenBank"}
 	parser := NewOpenBankParser(mappingProvider, settings)
 
 	tests := []struct {
@@ -166,7 +166,7 @@ func TestOpenBankParser_RowToTransaction_ShouldApplyDescriptionMappings(t *testi
 		},
 	}
 	mappingProvider := domain.NewMappingService(mappingData, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAccount: "Assets:Checking:OpenBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", OpenBankAssetAccount: "Assets:Checking:OpenBank"}
 	parser := NewOpenBankParser(mappingProvider, settings)
 
 	tests := []struct {

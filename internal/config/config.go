@@ -16,8 +16,8 @@ type fileConfig struct {
 	DefaultIncomeAccount  string   `json:"default_income_account"`
 	DefaultExpenseAccount string   `json:"default_expense_account"`
 	LedgerAlignment       int      `json:"ledger_alignment"`
-	ImaginBankAccount     string   `json:"imaginbank_account"`
-	OpenBankAccount       string   `json:"openbank_account"`
+	ImaginAssetAccount    string   `json:"imagin_asset_account"`
+	OpenBankAssetAccount  string   `json:"openbank_asset_account"`
 	RootAccounts          []string `json:"root_accounts"`
 }
 
@@ -49,8 +49,8 @@ func LoadConfig(path string) (domain.Settings, error) {
 	applyIfNonZero(&settings.DefaultIncomeAccount, fc.DefaultIncomeAccount)
 	applyIfNonZero(&settings.DefaultExpenseAccount, fc.DefaultExpenseAccount)
 	applyIfNonZero(&settings.LedgerAlignment, fc.LedgerAlignment)
-	applyIfNonZero(&settings.ImaginBankAccount, fc.ImaginBankAccount)
-	applyIfNonZero(&settings.OpenBankAccount, fc.OpenBankAccount)
+	applyIfNonZero(&settings.ImaginAssetAccount, fc.ImaginAssetAccount)
+	applyIfNonZero(&settings.OpenBankAssetAccount, fc.OpenBankAssetAccount)
 
 	if len(fc.RootAccounts) > 0 {
 		settings.RootAccounts = fc.RootAccounts

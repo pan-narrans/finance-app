@@ -4,6 +4,6 @@
   "default_income_account": "Income:Unknown",
   "default_expense_account": "Expenses:Unknown",
   "ledger_alignment": 52,
-  "imaginbank_account": "Assets:Checking:ImaginBank",
-  "openbank_account": "Assets:Checking:OpenBank"
+  "imagin_asset_account": "Assets:Checking:ImaginBank",
+  "openbank_asset_account": "Assets:Checking:OpenBank"
 }

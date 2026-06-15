@@ -136,7 +136,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		Description: cleanDescription,
 		Metadata:    metadata,
 		Postings: []domain.Posting{
-			{Account: p.settings.OpenBankAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
+			{Account: p.settings.OpenBankAssetAccount, Amount: &amount, Currency: p.settings.DefaultCurrency},
 			{Account: targetAccount},
 		},
 	}
