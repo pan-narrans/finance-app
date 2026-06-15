@@ -7,10 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,6 +52,7 @@ type WebAppServer struct {
 	configUseCase  ports.ConfigurationUseCase
 	transactionUC  ports.TransactionUseCase
 	reportUC       ports.ReportUseCase
+	importUC       ports.ImportUseCase
 	sessionManager *SessionManager
 	refresher      MessageRefresher
 }
@@ -62,6 +66,7 @@ func NewWebAppServer(
 	configUC ports.ConfigurationUseCase,
 	transactionUC ports.TransactionUseCase,
 	reportUC ports.ReportUseCase,
+	importUC ports.ImportUseCase,
 	sessionManager *SessionManager,
 	refresher MessageRefresher,
 ) *WebAppServer {
@@ -71,6 +76,7 @@ func NewWebAppServer(
 		configUseCase:  configUC,
 		transactionUC:  transactionUC,
 		reportUC:       reportUC,
+		importUC:       importUC,
 		sessionManager: sessionManager,
 		refresher:      refresher,
 	}
@@ -88,6 +94,7 @@ func (s *WebAppServer) Start() error {
 	mux.HandleFunc("/api/transaction", s.handleTransaction)
 	mux.HandleFunc("/api/history", s.handleHistory)
 	mux.HandleFunc("/api/reports", s.handleReports)
+	mux.HandleFunc("/api/import", s.handleImport)
 
 	// Static Assets (Embedded)
 	staticFS, err := fs.Sub(webapp.Assets, "dist")
@@ -255,6 +262,47 @@ func (s *WebAppServer) handleReports(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(sections)
+}
+
+func (s *WebAppServer) handleImport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Limit to 10MB
+	r.ParseMultipartForm(10 << 20)
+
+	file, handler, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Error retrieving file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Save to temp file
+	tempFile, err := os.CreateTemp("", "finance-import-*"+filepath.Ext(handler.Filename))
+	if err != nil {
+		http.Error(w, "Error creating temp file", http.StatusInternalServerError)
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	if _, err := io.Copy(tempFile, file); err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	summary, err := s.importUC.Import(tempFile.Name())
+	if err != nil {
+		log.Printf("Import failed: %v", err)
+		http.Error(w, fmt.Sprintf("Import failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(summary)
 }
 
 func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Request) {

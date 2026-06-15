@@ -234,6 +234,65 @@ body {
   margin: 0;
 }
 
+.hint {
+  font-size: 0.9rem;
+  color: var(--hint-color);
+  margin-bottom: 24px;
+}
+
+.file-input-label {
+  display: block;
+  padding: 40px 20px;
+  border: 2px dashed var(--secondary-bg-color);
+  border-radius: 16px;
+  text-align: center;
+  color: var(--link-color);
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.import-summary {
+  margin-top: 32px;
+  padding: 20px;
+  background-color: var(--secondary-bg-color);
+  border-radius: 16px;
+}
+
+.import-summary h3 {
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background-color: var(--bg-color);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.summary-val {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.summary-lab {
+  font-size: 0.75rem;
+  color: var(--hint-color);
+}
+
+.summary-item.success .summary-val { color: #4caf50; }
+.summary-item.info .summary-val { color: var(--link-color); }
+.summary-item.error .summary-val { color: #f44336; }
+
 .page {
   animation: fadeIn 0.3s ease-out;
 }
