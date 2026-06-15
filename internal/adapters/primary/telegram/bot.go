@@ -101,17 +101,49 @@ func NewTelegramAdapter(
 Start registers the bot's handlers and begins polling for updates.
 */
 func (a *TelegramAdapter) Start() {
+	a.RegisterHandlers()
+
+	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
+
+	// Start HTTP Server for WebApp
+	go func() {
+		if err := a.webAppServer.Start(); err != nil {
+			log.Printf("WebApp server error: %v", err)
+		}
+	}()
+
+	a.teleBot.Start()
+}
+
+/*
+RegisterHandlers sets up the bot's middleware and message/callback handlers.
+*/
+func (a *TelegramAdapter) RegisterHandlers() {
 	// Middleware: Auth
 	a.teleBot.Use(
 		func(next telebot.HandlerFunc) telebot.HandlerFunc {
 			return func(c telebot.Context) error {
 				chatID := c.Chat().ID
 				senderID := c.Sender().ID
-				_, chatAllowed := a.allowedIDs[chatID]
-				_, senderAllowed := a.allowedIDs[senderID]
 
-				if !chatAllowed && !senderAllowed {
-					log.Printf("Unauthorized access attempt from Chat ID: %d, Sender ID: %d", chatID, senderID)
+				// Get latest authorized IDs from config
+				allowedIDs := a.configUseCase.Get().Settings.TelegramUserIDs
+
+				// Helper to check if ID is allowed
+				isAllowed := func(id int64) bool {
+					// Check dynamic config first
+					for _, allowed := range allowedIDs {
+						if allowed == id {
+							return true
+						}
+					}
+					// Fallback to static initial IDs (from ENV)
+					_, found := a.allowedIDs[id]
+					return found
+				}
+
+				if !isAllowed(chatID) && !isAllowed(senderID) {
+					log.Printf("[AUTH] Unauthorized access attempt from Chat ID: %d, Sender ID: %d", chatID, senderID)
 					return nil
 				}
 				return next(c)
@@ -168,17 +200,6 @@ func (a *TelegramAdapter) Start() {
 	if err := a.teleBot.SetCommands(commands); err != nil {
 		log.Printf("Warning: failed to set bot commands: %v", err)
 	}
-
-	log.Printf("Bot started as @%s", a.teleBot.Me.Username)
-
-	// Start HTTP Server for WebApp
-	go func() {
-		if err := a.webAppServer.Start(); err != nil {
-			log.Printf("WebApp server error: %v", err)
-		}
-	}()
-
-	a.teleBot.Start()
 }
 
 /*
@@ -187,4 +208,18 @@ Satisfies the MessageRefresher interface for the WebAppServer.
 */
 func (a *TelegramAdapter) RefreshDraftMessage(userID int64) error {
 	return a.refreshDraftMessage(userID)
+}
+
+/*
+Bot returns the underlying telebot.Bot instance.
+*/
+func (a *TelegramAdapter) Bot() *telebot.Bot {
+	return a.teleBot
+}
+
+/*
+SessionManager returns the session manager instance.
+*/
+func (a *TelegramAdapter) SessionManager() *SessionManager {
+	return a.sessionManager
 }

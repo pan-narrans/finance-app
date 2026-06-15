@@ -5,5 +5,6 @@
   "default_expense_account": "Expenses:Unknown",
   "ledger_alignment": 52,
   "imagin_asset_account": "Assets:Checking:ImaginBank",
-  "openbank_asset_account": "Assets:Checking:OpenBank"
+  "openbank_asset_account": "Assets:Checking:OpenBank",
+  "telegram_user_ids": []
 }

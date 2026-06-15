@@ -149,6 +149,12 @@ func (e *testEnv) sendCallback(unique string, data ...string) {
 		callbackData += "\f" + strings.Join(data, "\f")
 	}
 
+	// Retrieve last message ID to satisfy stale message protection
+	msgID := 2
+	if s, ok := e.adapter.SessionManager().Get(e.userID); ok && s.LastMessageID != 0 {
+		msgID = s.LastMessageID
+	}
+
 	e.poller.updates <- telebot.Update{
 		Callback: &telebot.Callback{
 			ID:     "cb",
@@ -156,7 +162,7 @@ func (e *testEnv) sendCallback(unique string, data ...string) {
 			Data:   "\f" + callbackData,
 			Sender: &telebot.User{ID: e.userID},
 			Message: &telebot.Message{
-				ID:   2,
+				ID:   msgID,
 				Chat: &telebot.Chat{ID: e.userID},
 			},
 		},
@@ -165,19 +171,26 @@ func (e *testEnv) sendCallback(unique string, data ...string) {
 }
 
 func (e *testEnv) sendCallbackWithRawData(data string) {
+	// Retrieve last message ID to satisfy stale message protection
+	msgID := 2
+	if s, ok := e.adapter.SessionManager().Get(e.userID); ok && s.LastMessageID != 0 {
+		msgID = s.LastMessageID
+	}
+
 	e.poller.updates <- telebot.Update{
 		Callback: &telebot.Callback{
 			ID:     "cb",
 			Sender: &telebot.User{ID: e.userID},
 			Data:   data,
 			Message: &telebot.Message{
-				ID:   2,
+				ID:   msgID,
 				Chat: &telebot.Chat{ID: e.userID},
 			},
 		},
 	}
 	time.Sleep(150 * time.Millisecond)
 }
+
 
 func TestTelegramIntegration_HappyPaths(t *testing.T) {
 	env := setupTestEnv(t)

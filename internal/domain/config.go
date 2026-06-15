@@ -10,6 +10,7 @@ type Settings struct {
 	ImaginAssetAccount    string
 	OpenBankAssetAccount  string
 	RootAccounts          []string
+	TelegramUserIDs       []int64
 }
 
 /*

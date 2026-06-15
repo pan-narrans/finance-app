@@ -19,6 +19,7 @@ type fileConfig struct {
 	ImaginAssetAccount    string   `json:"imagin_asset_account"`
 	OpenBankAssetAccount  string   `json:"openbank_asset_account"`
 	RootAccounts          []string `json:"root_accounts"`
+	TelegramUserIDs       []int64  `json:"telegram_user_ids"`
 }
 
 /*
@@ -54,6 +55,10 @@ func LoadConfig(path string) (domain.Settings, error) {
 
 	if len(fc.RootAccounts) > 0 {
 		settings.RootAccounts = fc.RootAccounts
+	}
+
+	if len(fc.TelegramUserIDs) > 0 {
+		settings.TelegramUserIDs = fc.TelegramUserIDs
 	}
 
 	return settings, nil

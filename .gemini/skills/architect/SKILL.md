@@ -38,6 +38,8 @@ Ensure system integrity by enforcing Hexagonal Architecture (Ports and Adapters)
     - **ISP**: Define small, specific ports (interfaces) instead of broad ones.
     - **DIP**: Core logic (`App`/`Domain`) must depend on ports, not on adapter concretions.
 9.  **KISS (Keep It Simple)**: Prioritize readability and maintainability. Avoid premature optimization or generic abstractions that add cognitive load without clear benefit.
+10. **TDD Mandatory**: All implementation plans MUST prioritize the creation of failing tests as the first step of execution. Never modify source code without first verifying the requirement with a test.
+
 
 ## Documentation Responsibility
 

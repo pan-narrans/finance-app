@@ -56,15 +56,45 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		return domain.Transaction{}, fmt.Errorf("format not recognized; use: '[source] amount description'")
 	}
 
-	amount, err := s.parseAmount(matches[2])
+	appConfig := s.configUseCase.Get()
+	sourceKeyword := matches[1]
+	amountStr := matches[2]
+	description := matches[4]
+
+	// Strict Source Validation: Only use sourceKeyword if it's a known mapping.
+	if sourceKeyword != "" {
+		if _, found := appConfig.Mappings.ResolveSource(sourceKeyword); !found {
+			description = sourceKeyword + " " + description
+			sourceKeyword = ""
+		}
+	}
+
+	amount, err := s.parseAmount(amountStr)
 	if err != nil {
 		return domain.Transaction{}, fmt.Errorf("invalid amount format: %w", err)
 	}
 
-	appConfig := s.configUseCase.Get()
-	cleanDescription := appConfig.Mappings.CleanDescription(matches[4])
-	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription, amount)
-	sourceAccount := s.resolveSourceAccount(appConfig, matches[1])
+	cleanDescription := appConfig.Mappings.CleanDescription(description)
+	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription)
+	sourceAccount := s.resolveSourceAccount(appConfig, sourceKeyword)
+
+	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
+	var postings []domain.Posting
+	isIncome := appConfig.Mappings.IsIncomeAccount(targetAccount)
+
+	if isIncome {
+		// Income: Assets (Target) increase, Income (Source) remains credit balance
+		postings = []domain.Posting{
+			{Account: sourceAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+			{Account: targetAccount, Amount: nil},
+		}
+	} else {
+		// Expense/Transfer: Expense (Target) increases, Assets (Source) decrease
+		postings = []domain.Posting{
+			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+			{Account: sourceAccount, Amount: nil},
+		}
+	}
 
 	// Add Metadata
 	metadata := domain.Metadata{
@@ -78,10 +108,7 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
 		Metadata:    metadata,
-		Postings: []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: sourceAccount, Amount: nil},
-		},
+		Postings:    postings,
 	}
 	tx.Code = tx.GenerateCode()
 
@@ -102,13 +129,11 @@ resolveTargetAccount determines the expense/income account for the transaction.
 It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
-func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string, amount float64) string {
-	account := appConfig.Mappings.ResolveAccount(
-		cleanDescription,
-		amount,
-		appConfig.Settings.DefaultIncomeAccount,
-		appConfig.Settings.DefaultExpenseAccount,
-	)
+func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string) string {
+	account, found := appConfig.Mappings.ResolveAccount(cleanDescription)
+	if !found {
+		account = appConfig.Settings.DefaultExpenseAccount
+	}
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(account, ":Unknown") {

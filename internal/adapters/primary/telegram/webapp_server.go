@@ -61,6 +61,17 @@ func NewWebAppServer(
 Start launches the HTTP server in a blocking manner.
 */
 func (s *WebAppServer) Start() error {
+	handler := s.Router()
+
+	addr := fmt.Sprintf(":%d", s.port)
+	log.Printf("WebApp server listening on %s (embedded assets)", addr)
+	return http.ListenAndServe(addr, handler)
+}
+
+/*
+Router creates and returns the http.Handler for the WebApp.
+*/
+func (s *WebAppServer) Router() http.Handler {
 	mux := http.NewServeMux()
 
 	// API Endpoints
@@ -70,23 +81,19 @@ func (s *WebAppServer) Start() error {
 	// Static Assets (Embedded)
 	staticFS, err := fs.Sub(webapp.Assets, "dist")
 	if err != nil {
-		return fmt.Errorf("failed to access embedded assets: %w", err)
+		log.Printf("Warning: failed to access embedded assets: %v", err)
+	} else {
+		fsServer := http.FileServer(http.FS(staticFS))
+		mux.Handle("/", fsServer)
 	}
-	fsServer := http.FileServer(http.FS(staticFS))
 
 	// Middleware for logging
-	handler := http.HandlerFunc(
+	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
 			mux.ServeHTTP(w, r)
 		},
 	)
-
-	mux.Handle("/", fsServer)
-
-	addr := fmt.Sprintf(":%d", s.port)
-	log.Printf("WebApp server listening on %s (embedded assets)", addr)
-	return http.ListenAndServe(addr, handler)
 }
 
 func (s *WebAppServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) {
