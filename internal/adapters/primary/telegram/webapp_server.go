@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,6 +83,7 @@ func (s *WebAppServer) Start() error {
 	mux.HandleFunc("/api/accounts", s.handleGetAccounts)
 	mux.HandleFunc("/api/select", s.handleSelectAccount)
 	mux.HandleFunc("/api/transaction", s.handleTransaction)
+	mux.HandleFunc("/api/history", s.handleHistory)
 
 	// Static Assets (Embedded)
 	staticFS, err := fs.Sub(webapp.Assets, "dist")
@@ -207,6 +209,30 @@ func (s *WebAppServer) handleTransaction(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *WebAppServer) handleHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if val, err := strconv.Atoi(l); err == nil {
+			limit = val
+		}
+	}
+
+	transactions, err := s.transactionUC.List(limit)
+	if err != nil {
+		log.Printf("Failed to get history: %v", err)
+		http.Error(w, "Failed to get history", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(transactions)
 }
 
 func (s *WebAppServer) handleSelectAccount(w http.ResponseWriter, r *http.Request) {

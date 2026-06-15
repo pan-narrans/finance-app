@@ -1,12 +1,16 @@
 package ledger
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
@@ -25,6 +29,7 @@ Methods:
   - FindByCode: Searches the file for a transaction with the given unique code.
   - Update: Replaces an existing transaction block in the file with a new formatted version.
   - Delete: Removes a transaction block from the file by its unique code.
+  - List: Retrieves the last N transactions from the ledger.
 */
 type TransactionFileRepository struct {
 	FilePath      string
@@ -173,6 +178,89 @@ func (fileRepository *TransactionFileRepository) GetAccounts() ([]string, error)
 	}
 
 	return accounts, nil
+}
+
+func (fileRepository *TransactionFileRepository) List(limit int) ([]domain.Transaction, error) {
+	fileRepository.mu.Lock()
+	defer fileRepository.mu.Unlock()
+
+	if _, err := os.Stat(fileRepository.FilePath); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	// Use ledger csv to get all transactions.
+	// Ledger CSV columns: 0:date, 1:check, 2:payee, 3:account, 4:currency, 5:amount, 6:cost, 7:notes
+	cmd := exec.Command("ledger", "-f", fileRepository.FilePath, "csv")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("ledger csv failed: %w", err)
+	}
+
+	reader := csv.NewReader(strings.NewReader(string(output)))
+	var transactions []domain.Transaction
+	var currentTx *domain.Transaction
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		date, _ := time.Parse("2006/01/02", record[0])
+		payee := record[2]
+		account := record[3]
+		currency := record[4]
+		amountStr := strings.ReplaceAll(record[5], ",", "")
+		amount, _ := strconv.ParseFloat(amountStr, 64)
+
+		notes := record[7]
+		code := ""
+		if strings.Contains(notes, "Code: ") {
+			parts := strings.Split(notes, "Code: ")
+			if len(parts) > 1 {
+				code = strings.TrimSpace(parts[1])
+				if len(code) > 16 {
+					code = code[:16]
+				}
+			}
+		}
+
+		if currentTx == nil || currentTx.Description != payee || !currentTx.Date.Equal(date) || (code != "" && currentTx.Code != code) {
+			if currentTx != nil {
+				transactions = append(transactions, *currentTx)
+			}
+			currentTx = &domain.Transaction{
+				Date:        date,
+				Description: payee,
+				Code:        code,
+				Postings:    []domain.Posting{},
+			}
+		}
+
+		amt := amount
+		currentTx.Postings = append(currentTx.Postings, domain.Posting{
+			Account:  account,
+			Amount:   &amt,
+			Currency: currency,
+		})
+	}
+	if currentTx != nil {
+		transactions = append(transactions, *currentTx)
+	}
+
+	// Reverse to get latest first
+	for i, j := 0, len(transactions)-1; i < j; i, j = i+1, j-1 {
+		transactions[i], transactions[j] = transactions[j], transactions[i]
+	}
+
+	if limit > 0 && len(transactions) > limit {
+		transactions = transactions[:limit]
+	}
+
+	return transactions, nil
 }
 
 // GetBalanceReport executes the ledger balance command for the given period and filter.

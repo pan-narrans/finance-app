@@ -79,3 +79,7 @@ func (transactionService *TransactionService) Delete(code string) error {
 func (transactionService *TransactionService) GetByCode(code string) (*domain.Transaction, error) {
 	return transactionService.repository.FindByCode(code)
 }
+
+func (transactionService *TransactionService) List(limit int) ([]domain.Transaction, error) {
+	return transactionService.repository.List(limit)
+}

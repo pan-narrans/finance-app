@@ -17,6 +17,7 @@ type TransactionRepository interface {
 	Update(transaction domain.Transaction) error
 	Delete(code string) error
 	GetAccounts() ([]string, error)
+	List(limit int) ([]domain.Transaction, error)
 }
 
 /*

@@ -15,6 +15,7 @@ type TransactionUseCase interface {
 	Update(transaction domain.Transaction) error
 	Delete(code string) error
 	GetByCode(code string) (*domain.Transaction, error)
+	List(limit int) ([]domain.Transaction, error)
 }
 
 // ImportSummary tracks the outcome of an import process.
