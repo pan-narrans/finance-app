@@ -107,6 +107,12 @@ func (s *WebAppServer) Start() error {
 	handler := http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("[HTTP] %s %s", r.Method, r.URL.Path)
+
+			// Allow framing by Telegram
+			w.Header().Set("Content-Security-Policy", "frame-ancestors https://web.telegram.org https://t.me;")
+			// Remove X-Frame-Options if any, or set to allow
+			w.Header().Del("X-Frame-Options")
+
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				s.authMiddleware(mux).ServeHTTP(w, r)
 			} else {
