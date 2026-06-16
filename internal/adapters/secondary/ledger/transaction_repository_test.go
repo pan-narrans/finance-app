@@ -555,3 +555,59 @@ P 2026/01/02 GOLD 100 EUR
 	assert.NotContains(t, text, "Target")
 	assert.Contains(t, text, "P 2026/01/02 GOLD 100 EUR", "Price update must survive transaction deletion")
 }
+
+func TestFileRepository_Create_ShouldNotDuplicateHeaders_WhenExistingHasTrailingSpaces(t *testing.T) {
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "repro_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+	tmpFile.Close()
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	// Manually create a file with a header that has trailing spaces
+	headerWithSpaces := ";--------  \n;- JUNE -  \n;--------  \n\n"
+	tx1 := domain.Transaction{
+		Date:        time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC),
+		Description: "steam",
+		Code:        "8aeb0806",
+		Postings: []domain.Posting{
+			{Account: "Expenses:Ocio:Juegos", Amount: new(float64), Currency: "EUR"},
+			{Account: "Assets:Cash"},
+		},
+	}
+	*tx1.Postings[0].Amount = 10.0
+
+	// Format tx1
+	tx1Raw := formatter.FormatTransaction(tx1, 52)
+
+	err = os.WriteFile(tmpFile.Name(), []byte(headerWithSpaces+tx1Raw), 0644)
+	require.NoError(t, err)
+
+	// Now add another transaction via repo
+	tx2 := domain.Transaction{
+		Date:        time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC),
+		Description: "steam",
+		Code:        "2682ffac",
+		Postings: []domain.Posting{
+			{Account: "Expenses:Ocio:Juegos", Amount: new(float64), Currency: "EUR"},
+			{Account: "Assets:Cash"},
+		},
+	}
+	*tx2.Postings[0].Amount = 10.0
+
+	// Act
+	err = repo.Create(tx2)
+	require.NoError(t, err)
+
+	// Assert
+	content, err := os.ReadFile(tmpFile.Name())
+	require.NoError(t, err)
+	text := string(content)
+
+	count := strings.Count(text, "JUNE")
+	assert.Equal(t, 1, count, "Should only have one JUNE header even if existing one has trailing spaces")
+}
+

@@ -274,7 +274,7 @@ func (fileRepository *TransactionFileRepository) readLedger() (domain.Ledger, er
 	var ledger domain.Ledger
 
 	// Stylized Month Header Regex for stripping
-	sepRegex := regexp.MustCompile(`(?m);-+\r?\n;- [A-Z ]+ -\r?\n;-+\r?\n*`)
+	sepRegex := regexp.MustCompile(`(?m);-+[ \t]*\r?\n;- [A-Z ]+ -[ \t]*\r?\n;-+[ \t]*\r?\n*`)
 
 	// 2. Capture Prologue (everything before first date)
 	prologue := content[:matches[0][0]]
