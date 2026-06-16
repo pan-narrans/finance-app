@@ -112,7 +112,7 @@ func (p *ImaginBankParser) rowToTransaction(row []string) (*domain.Transaction, 
 
 	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
 	var postings []domain.Posting
-	bankAccount := p.settings.ImaginBankAccount
+	bankAccount := p.settings.ImaginAssetAccount
 
 	if amount >= 0 {
 		// Influx: Assets (Target) increase, Income (Source) remains credit balance

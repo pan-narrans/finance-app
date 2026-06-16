@@ -345,6 +345,31 @@ func TestFileRepository_Create_ShouldInsertMonthSeparators(t *testing.T) {
 	assert.True(t, febHeaderIdx < febTxIdx)
 }
 
+func TestFileRepository_Create_ShouldNotDuplicateHeaders(t *testing.T) {
+	// Arrange
+	tmpFile, _ := os.CreateTemp("", "test_header_dup_*.ledger")
+	defer os.Remove(tmpFile.Name())
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	date := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	tx1 := domain.Transaction{Date: date, Description: "Tx1", Code: "1"}
+	tx2 := domain.Transaction{Date: date, Description: "Tx2", Code: "2"}
+
+	// Act
+	_ = repo.Create(tx1)
+	_ = repo.Create(tx2)
+
+	// Assert
+	content, _ := os.ReadFile(tmpFile.Name())
+	text := string(content)
+
+	count := strings.Count(text, "OCTOBER")
+	assert.Equal(t, 1, count, "Should only have one OCTOBER header")
+}
+
 func TestFileRepository_Create_ShouldBeStableForSameDayTransactions(t *testing.T) {
 	// Arrange
 	tmpFile, err := os.CreateTemp("", "test_stable_*.ledger")
