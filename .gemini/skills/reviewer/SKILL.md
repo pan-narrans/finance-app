@@ -48,3 +48,6 @@ Provide rigorous, objective code reviews to ensure project integrity and adheren
 ## Interaction Pattern
 
 When reviewing, provide a summary of findings categorized by **Critical** (must fix), **Warning** (should fix), and **Nitpick** (stylistic preference).
+
+### Mandatory Post-Task Review
+Once a task is complete, perform a full review of the architecture and code looking for smells (long methods, deep nesting, god objects, logic leaks, etc.). Ensure the change adheres to the project's architectural mandates and SOLID principles.
