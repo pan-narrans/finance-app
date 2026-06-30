@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
+	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
 )
 
@@ -208,6 +209,63 @@ Satisfies the MessageRefresher interface for the WebAppServer.
 */
 func (a *TelegramAdapter) RefreshDraftMessage(userID int64) error {
 	return a.refreshDraftMessage(userID)
+}
+
+/*
+StartImportReview initializes the import review queue for a user and prompts them with the first pending transaction.
+Satisfies the MessageRefresher interface for the WebAppServer.
+*/
+func (a *TelegramAdapter) StartImportReview(userID int64, pending []domain.Transaction) error {
+	if len(pending) == 0 {
+		return nil
+	}
+
+	firstPending := pending[0]
+	a.sessionManager.Set(
+		userID, &UserSession{
+			Draft:                 firstPending,
+			PendingQueue:          pending[1:],
+			OriginalSourceKeyword: a.transactionParserUC.GuessSource(firstPending.Description),
+		},
+	)
+
+	// Send import welcome/review status message
+	response := fmt.Sprintf(
+		"Import Complete via WebApp!\nTotal pending transactions needing review: <b>%d</b>\n\nStarting review now:",
+		len(pending),
+	)
+	recipient := &telebot.User{ID: userID}
+	_, err := a.teleBot.Send(recipient, response, telebot.ModeHTML)
+	if err != nil {
+		log.Printf("Warning: failed to send import complete message to user %d: %v", userID, err)
+	}
+
+	// Send draft message for the first pending transaction
+	appConfig := a.configUseCase.Get()
+	msg, selector := a.ui.BuildImportReviewMessage(
+		firstPending,
+		len(pending)-1,
+		appConfig.Mappings,
+		appConfig.Settings,
+		a.formatter,
+		true, // Assume private chat
+		a.teleBot.Me.Username,
+	)
+
+	sentMsg, err := a.teleBot.Send(recipient, msg, telebot.ModeHTML, selector)
+	if err != nil {
+		return err
+	}
+
+	// Update session with the message details so we can edit/refresh it later
+	a.sessionManager.Update(
+		userID, func(s *UserSession) {
+			s.LastMessageID = sentMsg.ID
+			s.LastChatID = sentMsg.Chat.ID
+		},
+	)
+
+	return nil
 }
 
 /*

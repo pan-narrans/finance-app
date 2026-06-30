@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/a-perez/finance-app/internal/domain"
 )
@@ -59,6 +61,20 @@ func LoadConfig(path string) (domain.Settings, error) {
 
 	if len(fc.TelegramUserIDs) > 0 {
 		settings.TelegramUserIDs = fc.TelegramUserIDs
+	}
+
+	// Always fallback or override with environment TELEGRAM_USER_IDS if set
+	if envIDsRaw := os.Getenv("TELEGRAM_USER_IDS"); envIDsRaw != "" {
+		var envIDs []int64
+		for _, part := range strings.Split(envIDsRaw, ",") {
+			part = strings.TrimSpace(part)
+			if val, err := strconv.ParseInt(part, 10, 64); err == nil {
+				envIDs = append(envIDs, val)
+			}
+		}
+		if len(envIDs) > 0 {
+			settings.TelegramUserIDs = envIDs
+		}
 	}
 
 	return settings, nil

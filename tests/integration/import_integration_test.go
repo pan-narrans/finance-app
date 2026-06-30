@@ -35,7 +35,7 @@ func TestImportService_Integration_ShouldImportTransactions_WhenValidBankFilePro
 		}
 	}`
 	_ = os.WriteFile(configPath, []byte(configJSON), 0644)
-	
+
 	// Add mapping to avoid "Unknown" and ensure it gets Added
 	mappingsJSON := `{
 		"accounts": {

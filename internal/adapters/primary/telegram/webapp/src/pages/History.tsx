@@ -21,7 +21,7 @@ export function History() {
   useEffect(() => {
     fetchWithAuth('/api/history?limit=50')
       .then((data) => {
-        setTransactions(data);
+        setTransactions(data || []);
         setLoading(false);
       })
       .catch((err) => {

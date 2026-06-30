@@ -43,6 +43,14 @@ func (mockTransactionRepository *MockTransactionRepository) GetAccounts() ([]str
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (mockTransactionRepository *MockTransactionRepository) List(limit int) ([]domain.Transaction, error) {
+	args := mockTransactionRepository.Called(limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Transaction), args.Error(1)
+}
+
 func TestTransactionService_Add_ShouldSaveTransaction_WhenInputIsValid(t *testing.T) {
 	// Arrange
 	mockTransactionRepository := new(MockTransactionRepository)

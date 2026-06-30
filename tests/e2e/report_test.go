@@ -88,4 +88,3 @@ func TestE2E_ReportGeneration_ShouldHandleDateRanges(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, sections, "Report for last month should not be empty")
 }
-

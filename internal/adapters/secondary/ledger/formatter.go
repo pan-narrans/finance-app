@@ -42,15 +42,17 @@ func (f *LedgerFormatter) FormatTransaction(t domain.Transaction, alignment int)
 		statusMark = "! "
 	}
 
-	codeMark := ""
-	if t.Code != "" {
-		codeMark = fmt.Sprintf("(%s) ", t.Code)
+	var headerParts []string
+	headerParts = append(headerParts, t.Date.Format("2006/01/02"))
+	if statusMark != "" {
+		headerParts = append(headerParts, strings.TrimSpace(statusMark))
 	}
+	if t.Code != "" {
+		headerParts = append(headerParts, fmt.Sprintf("(%s)", t.Code))
+	}
+	headerParts = append(headerParts, t.Description)
 
-	f.writeLine(&sb, "%s", t.Date.Format("2006/01/02"))
-	f.writeLine(&sb, " %s", statusMark)
-	f.writeLine(&sb, "%s", codeMark)
-	f.writeLine(&sb, "%s", t.Description)
+	sb.WriteString(strings.Join(headerParts, " "))
 	sb.WriteByte('\n')
 
 	f.addMetadata(&sb, t.Metadata)

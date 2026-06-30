@@ -32,6 +32,11 @@ func (m *MockRefresher) RefreshDraftMessage(userID int64) error {
 	return args.Error(0)
 }
 
+func (m *MockRefresher) StartImportReview(userID int64, pending []domain.Transaction) error {
+	args := m.Called(userID, pending)
+	return args.Error(0)
+}
+
 // MockConfigUseCase implements ports.ConfigurationUseCase
 type MockConfigUseCase struct {
 	mock.Mock
@@ -55,6 +60,68 @@ func (m *MockConfigUseCase) UpdateMapping(fn func(data *domain.MappingData)) err
 func (m *MockConfigUseCase) LearnMapping(transaction domain.Transaction, t, s bool, os string) error {
 	args := m.Called(transaction, t, s, os)
 	return args.Error(0)
+}
+
+// MockTransactionUseCase implements ports.TransactionUseCase
+type MockTransactionUseCase struct {
+	mock.Mock
+}
+
+func (m *MockTransactionUseCase) Add(transaction domain.Transaction) error {
+	args := m.Called(transaction)
+	return args.Error(0)
+}
+
+func (m *MockTransactionUseCase) Update(transaction domain.Transaction) error {
+	args := m.Called(transaction)
+	return args.Error(0)
+}
+
+func (m *MockTransactionUseCase) Delete(code string) error {
+	args := m.Called(code)
+	return args.Error(0)
+}
+
+func (m *MockTransactionUseCase) GetByCode(code string) (*domain.Transaction, error) {
+	args := m.Called(code)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.Transaction), args.Error(1)
+}
+
+func (m *MockTransactionUseCase) List(limit int) ([]domain.Transaction, error) {
+	args := m.Called(limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Transaction), args.Error(1)
+}
+
+// MockReportUseCase implements ports.ReportUseCase
+type MockReportUseCase struct {
+	mock.Mock
+}
+
+func (m *MockReportUseCase) GetMonthlyReport(period string) ([]ports.ReportSection, error) {
+	args := m.Called(period)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]ports.ReportSection), args.Error(1)
+}
+
+// MockImportUseCase implements ports.ImportUseCase
+type MockImportUseCase struct {
+	mock.Mock
+}
+
+func (m *MockImportUseCase) Import(filePath string) (*ports.ImportSummary, error) {
+	args := m.Called(filePath)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*ports.ImportSummary), args.Error(1)
 }
 
 func generateValidInitData(botToken string, userID int64) string {
@@ -96,12 +163,15 @@ func TestWebAppServer_GetAccounts_ShouldReturnAccountsFromConfig(t *testing.T) {
 	sessionManager := telegram.NewSessionManager()
 	mockRefresher := new(MockRefresher)
 	botToken := "fake-token"
-	
-	server := telegram.NewWebAppServer(0, botToken, mockConfig, sessionManager, mockRefresher)
-	
+
+	server := telegram.NewWebAppServer(0, botToken, mockConfig, new(MockTransactionUseCase), new(MockReportUseCase), new(MockImportUseCase), sessionManager, mockRefresher)
+
 	mappingService := domain.NewMappingService(domain.MappingData{}, []string{"Assets:Checking", "Expenses:Food"})
 	appConfig := &ports.AppConfig{
-		Settings: domain.Settings{RootAccounts: []string{"Assets", "Expenses"}},
+		Settings: domain.Settings{
+			RootAccounts:    []string{"Assets", "Expenses"},
+			TelegramUserIDs: []int64{12345},
+		},
 		Mappings: mappingService,
 	}
 	mockConfig.On("Get").Return(appConfig)
@@ -109,8 +179,13 @@ func TestWebAppServer_GetAccounts_ShouldReturnAccountsFromConfig(t *testing.T) {
 	ts := httptest.NewServer(server.Router())
 	defer ts.Close()
 
+	initData := generateValidInitData(botToken, 12345)
+	req, err := http.NewRequest("GET", ts.URL+"/api/accounts", nil)
+	require.NoError(t, err)
+	req.Header.Set("X-TMA-Init-Data", initData)
+
 	// Act
-	resp, err := http.Get(ts.URL + "/api/accounts")
+	resp, err := http.DefaultClient.Do(req)
 
 	// Assert
 	require.NoError(t, err)
@@ -134,8 +209,14 @@ func TestWebAppServer_SelectAccount_ShouldUpdateSessionAndRefreshMessage(t *test
 	botToken := "fake-token"
 	userID := int64(12345)
 
-	server := telegram.NewWebAppServer(0, botToken, mockConfig, sessionManager, mockRefresher)
-	
+	server := telegram.NewWebAppServer(0, botToken, mockConfig, new(MockTransactionUseCase), new(MockReportUseCase), new(MockImportUseCase), sessionManager, mockRefresher)
+
+	mockConfig.On("Get").Return(&ports.AppConfig{
+		Settings: domain.Settings{
+			TelegramUserIDs: []int64{userID},
+		},
+	})
+
 	sessionManager.Set(userID, &telegram.UserSession{
 		Draft: domain.Transaction{
 			Postings: []domain.Posting{{}, {}},
@@ -144,9 +225,8 @@ func TestWebAppServer_SelectAccount_ShouldUpdateSessionAndRefreshMessage(t *test
 
 	initData := generateValidInitData(botToken, userID)
 	payload := map[string]string{
-		"initData": initData,
-		"account":  "Assets:Checking:OpenBank",
-		"type":     "target",
+		"account": "Assets:Checking:OpenBank",
+		"type":    "target",
 	}
 	body, _ := json.Marshal(payload)
 
@@ -155,8 +235,13 @@ func TestWebAppServer_SelectAccount_ShouldUpdateSessionAndRefreshMessage(t *test
 	ts := httptest.NewServer(server.Router())
 	defer ts.Close()
 
+	req, err := http.NewRequest("POST", ts.URL+"/api/select", bytes.NewBuffer(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-TMA-Init-Data", initData)
+
 	// Act
-	resp, err := http.Post(ts.URL+"/api/select", "application/json", bytes.NewBuffer(body))
+	resp, err := http.DefaultClient.Do(req)
 
 	// Assert
 	require.NoError(t, err)

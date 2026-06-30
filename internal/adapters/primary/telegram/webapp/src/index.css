@@ -22,9 +22,32 @@ body {
 }
 
 .app-header {
+  position: relative;
   padding: 16px;
   text-align: center;
   border-bottom: 1px solid var(--secondary-bg-color);
+}
+
+.back-button-ui {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--link-color);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.back-button-ui:active {
+  background-color: var(--secondary-bg-color);
 }
 
 .app-header h1 {
@@ -300,4 +323,94 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.pending-review-section {
+  margin-top: 24px;
+}
+
+.pending-review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pending-review-header h3 {
+  margin: 0;
+}
+
+.cancel-import-btn {
+  padding: 8px 12px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.cancel-import-btn:active {
+  opacity: 0.8;
+}
+
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pending-tx-card {
+  padding: 16px;
+  background-color: var(--secondary-bg-color);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pending-tx-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--hint-color);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.pending-tx-desc {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 12px;
+}
+
+.pending-tx-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pending-tx-actions input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(0, 0, 0, 0.15);
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.resolve-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background-color: var(--button-color);
+  color: var(--button-text-color);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.resolve-btn:active {
+  opacity: 0.8;
 }

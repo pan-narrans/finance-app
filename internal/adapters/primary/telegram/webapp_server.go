@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +39,7 @@ This allows the WebAppServer to trigger UI updates without being tightly coupled
 */
 type MessageRefresher interface {
 	RefreshDraftMessage(userID int64) error
+	StartImportReview(userID int64, pending []domain.Transaction) error
 }
 
 /*
@@ -86,6 +86,15 @@ func NewWebAppServer(
 Start launches the HTTP server in a blocking manner.
 */
 func (s *WebAppServer) Start() error {
+	addr := fmt.Sprintf(":%d", s.port)
+	log.Printf("WebApp server listening on %s (embedded assets)", addr)
+	return http.ListenAndServe(addr, s.Router())
+}
+
+/*
+Router creates and returns the http.Handler for the WebApp.
+*/
+func (s *WebAppServer) Router() http.Handler {
 	mux := http.NewServeMux()
 
 	// API Endpoints
@@ -99,7 +108,7 @@ func (s *WebAppServer) Start() error {
 	// Static Assets (Embedded)
 	staticFS, err := fs.Sub(webapp.Assets, "dist")
 	if err != nil {
-		return fmt.Errorf("failed to access embedded assets: %w", err)
+		log.Printf("Warning: failed to access embedded assets: %v", err)
 	}
 	fsServer := http.FileServer(http.FS(staticFS))
 
@@ -122,10 +131,7 @@ func (s *WebAppServer) Start() error {
 	)
 
 	mux.Handle("/", fsServer)
-
-	addr := fmt.Sprintf(":%d", s.port)
-	log.Printf("WebApp server listening on %s (embedded assets)", addr)
-	return http.ListenAndServe(addr, handler)
+	return handler
 }
 
 func (s *WebAppServer) authMiddleware(next http.Handler) http.Handler {
@@ -150,6 +156,21 @@ func (s *WebAppServer) authMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
+			// Strict Authorization Check: Validate user ID against allowed IDs
+			allowedIDs := s.configUseCase.Get().Settings.TelegramUserIDs
+			isAllowed := false
+			for _, id := range allowedIDs {
+				if id == user.ID {
+					isAllowed = true
+					break
+				}
+			}
+			if !isAllowed {
+				log.Printf("[AUTH-WEBAPP] Unauthorized API access attempt from User ID: %d", user.ID)
+				http.Error(w, "Forbidden: User is not authorized to use this application", http.StatusForbidden)
+				return
+			}
+
 			ctx := context.WithValue(r.Context(), userContextKey, &user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		},
@@ -163,12 +184,21 @@ func (s *WebAppServer) handleGetAccounts(w http.ResponseWriter, r *http.Request)
 	}
 
 	appConfig := s.configUseCase.Get()
+	accounts := appConfig.Mappings.GetAllAccounts()
+	if accounts == nil {
+		accounts = []string{}
+	}
+	roots := appConfig.Settings.RootAccounts
+	if roots == nil {
+		roots = []string{}
+	}
+
 	response := struct {
 		Accounts []string `json:"accounts"`
 		Roots    []string `json:"roots"`
 	}{
-		Accounts: appConfig.Mappings.GetAllAccounts(),
-		Roots:    appConfig.Settings.RootAccounts,
+		Accounts: accounts,
+		Roots:    roots,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -247,6 +277,9 @@ func (s *WebAppServer) handleHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get history", http.StatusInternalServerError)
 		return
 	}
+	if transactions == nil {
+		transactions = []domain.Transaction{}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(transactions)
@@ -264,6 +297,9 @@ func (s *WebAppServer) handleReports(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to get reports: %v", err)
 		http.Error(w, "Failed to get reports", http.StatusInternalServerError)
 		return
+	}
+	if sections == nil {
+		sections = []ports.ReportSection{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -286,8 +322,9 @@ func (s *WebAppServer) handleImport(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Save to temp file
-	tempFile, err := os.CreateTemp("", "finance-import-*"+filepath.Ext(handler.Filename))
+	// Save to temp file (preserve original filename keywords so parser factory can match bank type)
+	safeName := strings.ReplaceAll(handler.Filename, "/", "_")
+	tempFile, err := os.CreateTemp("", "finance-import-*"+safeName)
 	if err != nil {
 		http.Error(w, "Error creating temp file", http.StatusInternalServerError)
 		return
@@ -396,3 +433,5 @@ func (s *WebAppServer) validateInitData(initDataRaw string) bool {
 
 	return expectedHash == hash
 }
+
+// trigger-air-rebuild-v6

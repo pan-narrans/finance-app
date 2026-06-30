@@ -191,7 +191,6 @@ func (e *testEnv) sendCallbackWithRawData(data string) {
 	time.Sleep(150 * time.Millisecond)
 }
 
-
 func TestTelegramIntegration_HappyPaths(t *testing.T) {
 	env := setupTestEnv(t)
 

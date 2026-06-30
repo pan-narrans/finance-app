@@ -39,6 +39,13 @@ func (mockUseCase *MockTransactionUseCase) GetByCode(code string) (*domain.Trans
 	}
 	return args.Get(0).(*domain.Transaction), args.Error(1)
 }
+func (mockUseCase *MockTransactionUseCase) List(limit int) ([]domain.Transaction, error) {
+	args := mockUseCase.Called(limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domain.Transaction), args.Error(1)
+}
 
 type MockBankParser struct {
 	mock.Mock

@@ -16,5 +16,6 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : {};
 }

@@ -15,7 +15,7 @@ import (
 func TestE2E_BankDocumentUpload_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 	// Arrange
 	env := setupE2EEnv(t)
-	
+
 	// Create a dummy imagin bank file
 	bankFileName := "imagin.csv"
 	bankFilePath := filepath.Join(env.tmpDir, bankFileName)
@@ -51,7 +51,7 @@ func TestE2E_BankDocumentUpload_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 func TestE2E_BankDocumentUpload_ShouldHandleDuplicates(t *testing.T) {
 	// Arrange
 	env := setupE2EEnv(t)
-	
+
 	// Add mapping to make it "Known"
 	_ = os.WriteFile(filepath.Join(env.tmpDir, "mappings.json"), []byte(`{"accounts": {"RESTAURANT": "Expenses:Food"}}`), 0644)
 	_ = env.configManager.Reload()
@@ -63,7 +63,7 @@ func TestE2E_BankDocumentUpload_ShouldHandleDuplicates(t *testing.T) {
 
 	// Act - Import twice
 	_, _ = env.importService.Import(bankFilePath)
-	
+
 	// Wait for first import to persist (it's synchronous but let's be safe)
 	assert.Eventually(t, func() bool {
 		content, _ := os.ReadFile(env.ledgerPath)
@@ -336,4 +336,3 @@ func TestE2E_BankDocumentUpload_ShouldBeOverwrittenByTextMessage(t *testing.T) {
 		return err == nil && strings.Contains(string(content), "Pizza") && !strings.Contains(string(content), "RESTAURANT")
 	}, 5*time.Second, 100*time.Millisecond, "Only the last manual transaction should be in ledger")
 }
-

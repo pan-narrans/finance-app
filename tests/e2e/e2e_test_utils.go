@@ -50,7 +50,7 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 	// Mock Telegram API server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		if strings.HasSuffix(r.URL.Path, "/getMe") {
 			fmt.Fprintln(w, `{"ok":true,"result":{"id":12345,"is_bot":true,"first_name":"Test Bot","username":"test_bot"}}`)
 			return

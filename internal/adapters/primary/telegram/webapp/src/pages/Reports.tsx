@@ -16,7 +16,7 @@ export function Reports() {
     setLoading(true);
     fetchWithAuth(`/api/reports?period=${period}`)
       .then((data) => {
-        setSections(data);
+        setSections(data || []);
         setLoading(false);
       })
       .catch((err) => {

@@ -19,7 +19,7 @@ export function AddTransaction() {
   useEffect(() => {
     fetchWithAuth('/api/accounts')
       .then((data) => {
-        setAccounts(data.accounts);
+        setAccounts(data?.accounts || []);
         setLoading(false);
       })
       .catch((err) => {
