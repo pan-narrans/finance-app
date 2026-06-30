@@ -122,6 +122,16 @@ func (s *WebAppServer) Router() http.Handler {
 			// Remove X-Frame-Options if any, or set to allow
 			w.Header().Del("X-Frame-Options")
 
+			// Prevent WebView caching of index.html so updates are instant
+			if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+				w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+				w.Header().Set("Pragma", "no-cache")
+				w.Header().Set("Expires", "0")
+			} else if strings.HasPrefix(r.URL.Path, "/assets/") {
+				// Assets contain content hashes, so they are safe to cache aggressively
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
+
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				s.authMiddleware(mux).ServeHTTP(w, r)
 			} else {
@@ -434,4 +444,4 @@ func (s *WebAppServer) validateInitData(initDataRaw string) bool {
 	return expectedHash == hash
 }
 
-// trigger-air-rebuild-v7
+// trigger-air-rebuild-v8
