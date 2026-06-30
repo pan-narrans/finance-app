@@ -334,6 +334,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 20px;
 }
 
 .pending-review-header h3 {
@@ -341,13 +342,13 @@ body {
 }
 
 .cancel-import-btn {
-  padding: 8px 12px;
+  padding: 5px 10px;
   background-color: #f44336;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   cursor: pointer;
 }
 

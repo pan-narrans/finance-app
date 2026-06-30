@@ -169,7 +169,7 @@ export function Import() {
           <div className="pending-review-header">
             <h3>Review Pending Transactions ({summary.Pending.length})</h3>
             <button className="cancel-import-btn" onClick={handleCancel}>
-              Cancel Import 🛑
+              Cancel
             </button>
           </div>
           <p className="hint">The following transactions have unknown categories. Please resolve them below:</p>

@@ -434,4 +434,4 @@ func (s *WebAppServer) validateInitData(initDataRaw string) bool {
 	return expectedHash == hash
 }
 
-// trigger-air-rebuild-v6
+// trigger-air-rebuild-v7
