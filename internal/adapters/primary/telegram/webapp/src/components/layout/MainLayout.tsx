@@ -15,7 +15,7 @@ export function MainLayout() {
     if (location.pathname !== '/') {
       WebApp.BackButton.show();
       const handleTmaBack = () => {
-        navigate(-1);
+        navigate('/');
       };
       WebApp.BackButton.onClick(handleTmaBack);
       return () => {
@@ -28,7 +28,7 @@ export function MainLayout() {
   }, [location.pathname, navigate]);
 
   const handleBackClick = () => {
-    navigate(-1);
+    navigate('/');
   };
 
   return (
