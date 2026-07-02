@@ -29,6 +29,7 @@ export function Import() {
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [accounts, setAccounts] = useState<string[]>([]);
   const [resolvedAccounts, setResolvedAccounts] = useState<Record<string, string>>({});
+  const [resolving, setResolving] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchWithAuth('/api/accounts')
@@ -48,6 +49,7 @@ export function Import() {
     setUploading(true);
     setSummary(null);
     setResolvedAccounts({});
+    setResolving({});
     WebApp.HapticFeedback.impactOccurred('medium');
 
     const formData = new FormData();
@@ -78,15 +80,21 @@ export function Import() {
     WebApp.HapticFeedback.notificationOccurred('warning');
     setSummary(null);
     setResolvedAccounts({});
+    setResolving({});
     WebApp.showAlert('Import cancelled.');
   };
 
   const handleResolve = async (tx: Transaction) => {
+    if (resolving[tx.Code]) return;
+
     const target = resolvedAccounts[tx.Code];
     if (!target) {
       WebApp.showAlert('Please select a category first.');
       return;
     }
+
+    setResolving((prev) => ({ ...prev, [tx.Code]: true }));
+    WebApp.HapticFeedback.impactOccurred('medium');
 
     try {
       const dateStr = new Date(tx.Date).toISOString().split('T')[0];
@@ -117,6 +125,8 @@ export function Import() {
       WebApp.showAlert('Transaction resolved and saved!');
     } catch (err) {
       WebApp.showAlert('Failed to save transaction.');
+    } finally {
+      setResolving((prev) => ({ ...prev, [tx.Code]: false }));
     }
   };
 
@@ -193,8 +203,12 @@ export function Import() {
                       value={resolvedAccounts[tx.Code] || ''}
                       onChange={(e) => setResolvedAccounts({ ...resolvedAccounts, [tx.Code]: e.target.value })}
                     />
-                    <button className="resolve-btn" onClick={() => handleResolve(tx)}>
-                      Resolve ✅
+                    <button 
+                      className="resolve-btn" 
+                      onClick={() => handleResolve(tx)}
+                      disabled={resolving[tx.Code]}
+                    >
+                      {resolving[tx.Code] ? 'Saving...' : 'Resolve ✅'}
                     </button>
                   </div>
                 </div>
