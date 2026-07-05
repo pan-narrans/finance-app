@@ -12,7 +12,7 @@ var (
 	// entryStartRegex finds ALL entry starts (Transactions OR Prices)
 	entryStartRegex = regexp.MustCompile(`(?m)^(P\s+)?(\d{4}[\/-]\d{2}[\/-]\d{2})`)
 	// sepRegex finds stylized month headers for stripping
-	sepRegex = regexp.MustCompile(`(?m);-+\r?\n;- [A-Z ]+ -\r?\n;-+\r?\n*`)
+	sepRegex = regexp.MustCompile(`(?m);-+\s*\r?\n;- [A-Z ]+ -\s*\r?\n;-+\s*\r?\n*`)
 )
 
 type EntryType int
@@ -99,12 +99,16 @@ func ParseLedger(content string) Ledger {
 	// 1. Capture Prologue (everything before first date)
 	prologue := content[:matches[0][0]]
 	if prologue != "" {
-		ledger.Entries = append(
-			ledger.Entries, LedgerEntry{
-				Type:    EntryTypeDirective,
-				RawText: strings.TrimRight(prologue, "\n \t"),
-			},
-		)
+		prologue = sepRegex.ReplaceAllString(prologue, "")
+		prologue = strings.TrimRight(prologue, "\n \t")
+		if prologue != "" {
+			ledger.Entries = append(
+				ledger.Entries, LedgerEntry{
+					Type:    EntryTypeDirective,
+					RawText: prologue,
+				},
+			)
+		}
 	}
 
 	// 2. Capture Blocks

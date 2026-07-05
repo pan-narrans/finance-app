@@ -381,7 +381,8 @@ func TestFileRepository_Create_ShouldNotDuplicateHeaders(t *testing.T) {
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	date := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
 	tx1 := domain.Transaction{Date: date, Description: "Tx1", Code: "1"}
@@ -478,7 +479,8 @@ func TestFileRepository_ShouldNotDuplicateMonthHeaders(t *testing.T) {
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Act - Add another transaction in MARCH
 	tx := domain.Transaction{
@@ -639,7 +641,8 @@ func TestFileRepository_Create_ShouldNotDuplicateHeaders_WhenExistingHasTrailing
 
 	formatter := NewLedgerFormatter()
 	configUC := &mockConfigUC{alignment: 52}
-	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	repo, err := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+	require.NoError(t, err)
 
 	// Manually create a file with a header that has trailing spaces
 	headerWithSpaces := ";--------  \n;- JUNE -  \n;--------  \n\n"
