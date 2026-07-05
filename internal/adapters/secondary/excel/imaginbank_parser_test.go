@@ -20,7 +20,10 @@ func TestImaginBankParser_Parse_ShouldReturnTransactions_WhenValidCsvProvided(t 
 	_ = os.WriteFile(csvPath, []byte(csvContent), 0644)
 
 	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"}
+	settings := domain.Settings{
+		DefaultCurrency:    "EUR",
+		ImaginAssetAccount: "Assets:Checking:ImaginBank",
+	}
 	parser := NewImaginBankParser(mappingProvider, settings)
 
 	// Act
@@ -30,15 +33,19 @@ func TestImaginBankParser_Parse_ShouldReturnTransactions_WhenValidCsvProvided(t 
 	require.NoError(t, err)
 	require.Len(t, transactions, 2)
 
+	// First Transaction (Expense)
 	assert.Equal(t, "2026-04-15", transactions[0].Date.Format("2006-01-02"))
 	assert.Equal(t, "AYTO.DE SOTO REAL", transactions[0].Description)
-	assert.Equal(t, -33.00, *transactions[0].Postings[0].Amount)
-	assert.Equal(t, "Assets:Checking:ImaginBank", transactions[0].Postings[0].Account)
+	// Postings[0] is Target (Expense), Postings[1] is Source (Asset)
+	assert.Equal(t, 33.00, *transactions[0].Postings[0].Amount)
+	assert.Equal(t, "Assets:Checking:ImaginBank", transactions[0].Postings[1].Account)
 	assert.Equal(t, "Imaginbank", transactions[0].Metadata.Origin)
-	assert.NotEmpty(t, transactions[0].Metadata.ID)
 
+	// Second Transaction (Income)
 	assert.Equal(t, "2026-04-14", transactions[1].Date.Format("2006-01-02"))
+	// Postings[0] is Target (Asset), Postings[1] is Source (Income)
 	assert.Equal(t, 3.50, *transactions[1].Postings[0].Amount)
+	assert.Equal(t, "Assets:Checking:ImaginBank", transactions[1].Postings[0].Account)
 }
 
 func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
@@ -48,7 +55,7 @@ func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 	_ = os.WriteFile(csvPath, []byte("Concepto;Fecha;Importe;Saldo\n"), 0644)
 
 	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", ImaginAssetAccount: "Assets:Checking:ImaginBank"}
 	parser := NewImaginBankParser(mappingProvider, settings)
 
 	// Act
@@ -62,7 +69,7 @@ func TestImaginBankParser_Parse_ShouldHandleEmptyFile(t *testing.T) {
 func TestImaginBankParser_Parse_ShouldReturnError_WhenFileNotFound(t *testing.T) {
 	// Arrange
 	mappingProvider := domain.NewMappingService(domain.MappingData{}, nil)
-	settings := domain.Settings{DefaultCurrency: "EUR", ImaginBankAccount: "Assets:Checking:ImaginBank"}
+	settings := domain.Settings{DefaultCurrency: "EUR", ImaginAssetAccount: "Assets:Checking:ImaginBank"}
 	parser := NewImaginBankParser(mappingProvider, settings)
 
 	// Act

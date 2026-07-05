@@ -8,7 +8,6 @@ import (
 
 	"github.com/a-perez/finance-app/internal/domain"
 )
-
 // fileConfig is the JSON representation of the configuration file.
 type fileConfig struct {
 	DefaultCurrency       string   `json:"default_currency"`
@@ -16,9 +15,12 @@ type fileConfig struct {
 	DefaultIncomeAccount  string   `json:"default_income_account"`
 	DefaultExpenseAccount string   `json:"default_expense_account"`
 	LedgerAlignment       int      `json:"ledger_alignment"`
-	ImaginBankAccount     string   `json:"imaginbank_account"`
-	OpenBankAccount       string   `json:"openbank_account"`
+	ImaginAssetAccount    string   `json:"imagin_asset_account"`
+	ImaginBankAccount     string   `json:"imaginbank_account"` // Legacy support
+	OpenBankAssetAccount  string   `json:"openbank_asset_account"`
+	OpenBankAccount       string   `json:"openbank_account"` // Legacy support
 	RootAccounts          []string `json:"root_accounts"`
+	TelegramUserIDs       []int64  `json:"telegram_user_ids"`
 }
 
 /*
@@ -49,11 +51,26 @@ func LoadConfig(path string) (domain.Settings, error) {
 	applyIfNonZero(&settings.DefaultIncomeAccount, fc.DefaultIncomeAccount)
 	applyIfNonZero(&settings.DefaultExpenseAccount, fc.DefaultExpenseAccount)
 	applyIfNonZero(&settings.LedgerAlignment, fc.LedgerAlignment)
-	applyIfNonZero(&settings.ImaginBankAccount, fc.ImaginBankAccount)
-	applyIfNonZero(&settings.OpenBankAccount, fc.OpenBankAccount)
+
+	// Bank accounts: Support both new and legacy keys
+	if fc.ImaginAssetAccount != "" {
+		settings.ImaginAssetAccount = fc.ImaginAssetAccount
+	} else if fc.ImaginBankAccount != "" {
+		settings.ImaginAssetAccount = fc.ImaginBankAccount
+	}
+
+	if fc.OpenBankAssetAccount != "" {
+		settings.OpenBankAssetAccount = fc.OpenBankAssetAccount
+	} else if fc.OpenBankAccount != "" {
+		settings.OpenBankAssetAccount = fc.OpenBankAccount
+	}
 
 	if len(fc.RootAccounts) > 0 {
 		settings.RootAccounts = fc.RootAccounts
+	}
+
+	if len(fc.TelegramUserIDs) > 0 {
+		settings.TelegramUserIDs = fc.TelegramUserIDs
 	}
 
 	return settings, nil

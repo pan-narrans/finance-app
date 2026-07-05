@@ -56,15 +56,37 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		return domain.Transaction{}, fmt.Errorf("format not recognized; use: '[source] amount description'")
 	}
 
-	amount, err := s.parseAmount(matches[2])
+	appConfig := s.configUseCase.Get()
+	sourceKeyword := matches[1]
+	amountStr := matches[2]
+	description := matches[4]
+
+	amount, err := s.parseAmount(amountStr)
 	if err != nil {
 		return domain.Transaction{}, fmt.Errorf("invalid amount format: %w", err)
 	}
 
-	appConfig := s.configUseCase.Get()
-	cleanDescription := appConfig.Mappings.CleanDescription(matches[4])
-	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription, amount)
-	sourceAccount := s.resolveSourceAccount(appConfig, matches[1])
+	cleanDescription := appConfig.Mappings.CleanDescription(description)
+	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription)
+	sourceAccount := s.resolveSourceAccount(appConfig, sourceKeyword)
+
+	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
+	var postings []domain.Posting
+	isIncome := appConfig.Mappings.IsIncomeAccount(targetAccount)
+
+	if isIncome {
+		// Income: Assets (Target) increase, Income (Source) remains credit balance
+		postings = []domain.Posting{
+			{Account: sourceAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+			{Account: targetAccount, Amount: nil},
+		}
+	} else {
+		// Expense/Transfer: Expense (Target) increases, Assets (Source) decrease
+		postings = []domain.Posting{
+			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+			{Account: sourceAccount, Amount: nil},
+		}
+	}
 
 	// Add Metadata
 	metadata := domain.Metadata{
@@ -78,10 +100,7 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
 		Metadata:    metadata,
-		Postings: []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: sourceAccount, Amount: nil},
-		},
+		Postings:    postings,
 	}
 	tx.Code = tx.GenerateCode()
 
@@ -90,10 +109,39 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 
 /*
 parseAmount handles numeric conversion from raw input strings.
-It supports both dot and comma as decimal separators.
+It supports international formats (e.g., 1,234.56 or 1.234,56) by
+identifying thousands separators versus decimal points.
 */
 func (s *TransactionParserService) parseAmount(amountStr string) (float64, error) {
-	normalized := strings.Replace(amountStr, ",", ".", 1)
+	normalized := strings.TrimSpace(amountStr)
+
+	lastComma := strings.LastIndex(normalized, ",")
+	lastDot := strings.LastIndex(normalized, ".")
+
+	if lastComma != -1 && lastDot != -1 {
+		// Both present: the last one is the decimal separator
+		if lastComma > lastDot {
+			normalized = strings.ReplaceAll(normalized, ".", "")
+			normalized = strings.Replace(normalized, ",", ".", 1)
+		} else {
+			normalized = strings.ReplaceAll(normalized, ",", "")
+		}
+	} else if lastComma != -1 {
+		// Only commas: more than one means they are thousands separators
+		if strings.Count(normalized, ",") > 1 {
+			normalized = strings.ReplaceAll(normalized, ",", "")
+		} else {
+			// Single comma: assume decimal unless it looks like a thousands separator (e.g., "1,000")
+			// but we prefer decimal for simplicity in common mobile inputs.
+			normalized = strings.Replace(normalized, ",", ".", 1)
+		}
+	} else if lastDot != -1 {
+		// Only dots: more than one means they are thousands separators
+		if strings.Count(normalized, ".") > 1 {
+			normalized = strings.ReplaceAll(normalized, ".", "")
+		}
+	}
+
 	return strconv.ParseFloat(normalized, 64)
 }
 
@@ -102,13 +150,11 @@ resolveTargetAccount determines the expense/income account for the transaction.
 It uses mapping keywords first, and if the result is unknown, it attempts to
 find the best ranked match as a suggestion.
 */
-func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string, amount float64) string {
-	account := appConfig.Mappings.ResolveAccount(
-		cleanDescription,
-		amount,
-		appConfig.Settings.DefaultIncomeAccount,
-		appConfig.Settings.DefaultExpenseAccount,
-	)
+func (s *TransactionParserService) resolveTargetAccount(appConfig *ports.AppConfig, cleanDescription string) string {
+	account, found := appConfig.Mappings.ResolveAccount(cleanDescription)
+	if !found {
+		account = appConfig.Settings.DefaultExpenseAccount
+	}
 
 	// Auto-pick if Unknown
 	if strings.HasSuffix(account, ":Unknown") {

@@ -23,14 +23,19 @@ func (d *MappingData) Learn(transaction Transaction, targetOverride bool, source
 		d.Accounts = make(map[string]string)
 	}
 
+	targetIndex, sourceIndex := 0, 1
+	if transaction.IsIncome() {
+		targetIndex, sourceIndex = 1, 0
+	}
+
 	if targetOverride {
 		key := strings.ToUpper(transaction.Description)
-		d.Accounts[key] = transaction.Postings[0].Account
+		d.Accounts[key] = transaction.Postings[targetIndex].Account
 	}
 
 	if sourceOverride && originalSource != "" {
 		key := strings.ToUpper(originalSource)
-		d.Accounts[key] = transaction.Postings[1].Account
+		d.Accounts[key] = transaction.Postings[sourceIndex].Account
 	}
 }
 
@@ -147,24 +152,18 @@ func (s *MappingService) CleanDescription(description string) string {
 
 /*
 ResolveAccount matches description against keywords to determine the target account.
-
-Resolution logic:
-  - Return mapped account if description contains a known keyword.
-  - Fallback to defaultIncome if amount is positive.
-  - Fallback to defaultExpense if amount is negative or zero.
+It returns the mapped account name and true if found; otherwise, returns empty string and false.
 */
-func (s *MappingService) ResolveAccount(description string, amount float64, defaultIncome, defaultExpense string) string {
-	account := ""
+func (s *MappingService) ResolveAccount(description string) (string, bool) {
+	return s.findMatch(description, s.sortedAccountKeywords, s.accountMappings)
+}
 
-	if match, ok := s.findMatch(description, s.sortedAccountKeywords, s.accountMappings); ok {
-		account = match
-	} else if amount > 0 {
-		account = defaultIncome
-	} else {
-		account = defaultExpense
-	}
-
-	return account
+/*
+IsIncomeAccount returns true if the account name suggests it is an income account.
+*/
+func (s *MappingService) IsIncomeAccount(account string) bool {
+	upper := strings.ToUpper(account)
+	return strings.HasPrefix(upper, "INCOME") || strings.Contains(upper, ":INCOME")
 }
 
 /*

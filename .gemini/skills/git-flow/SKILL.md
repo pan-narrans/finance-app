@@ -26,6 +26,12 @@ Once the MR is merged:
 2. Delete the local branch: `git branch -d feature/[ID-]<name>`
 3. Run `git worktree prune` to clean up references.
 
+## Local Configuration & Secrets
+To maintain a clean root and persistent secrets across worktree changes:
+- Store all local environment variables and secrets in the hidden `.local/` directory at the repository root.
+- This directory is added to `.git/info/exclude` to ensure it is never tracked or pushed.
+- Example usage: `export $(grep -v '^#' ../.local/env | xargs) && make test-e2e`
+
 ## Branch Naming
 Follow the structure `prefix/[ID-]<description>`. Use lowercase and hyphens.
 
@@ -49,12 +55,19 @@ Follow the structure `prefix/[ID-]<description>`. Use lowercase and hyphens.
   - Release branches target `main`.
 - **Naming:**
   - **Release MR:** Name it `Release/<release-name>`.
-  - **Feature/Bug MR:** Use the exact **GitHub Issue Title**.
+  - **Feature/Bug MR:** Use the exact **GitHub Issue Title**. NEVER include the issue number (e.g., #123) in the MR title; only link it in the description using `Closes #ID`.
+
 - **Merge Method:**
   - **Release MR to main:** Use **Standard Merge** (preserve history).
   - **Feature/Bug MR to release:** Always pre-select **Squash Merge**.
 - **Linking:**
   - Link the MR to the relevant GitHub Issue using the native "Linked Issues" functionality (do not rely solely on description mentions).
+
+## Workflow Orchestration
+- **New Issue Protocol**: If the user asks to start work on a new issue:
+  1. Ask if the previous issue is finished and pushed.
+  2. Update the target `release/` branch (pull from origin).
+  3. Create the new issue-specific branch FROM the updated `release/` branch.
 
 ## Workflow Integration
 - Use `git status`, `git log`, and `git diff` to verify state before any operation.

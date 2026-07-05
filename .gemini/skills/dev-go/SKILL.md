@@ -33,3 +33,9 @@ Ensure high-quality, idiomatic Go implementation by enforcing local coding stand
 - Follow GoDoc standards.
 - Use `/* ... */` block comments for GoDoc when they exceed a single line or describe complex logic.
 - Document internal helpers (unexported) if they contain non-trivial logic.
+
+## Local Development Environment
+
+- **Secrets**: Use `[REPO_ROOT]/.local/env` for all local secrets (Telegram Token, Tunnel Name).
+- **Persistent Tunnels**: Configure `CLOUDFLARE_TUNNEL_NAME` and `WEBAPP_BASE_URL` in `.local/env` to use a permanent subdomain.
+- **Workflow**: Run `./dev.sh` from any worktree; it will automatically load local environment variables and start the tunnel and hot-reloader.

@@ -33,16 +33,30 @@ func main() {
 
 	configManager, err := config.NewManager(configPath, mappingsPath, mappingServiceConstructor)
 	if err != nil {
-		log.Fatalf("Fail init config manager: %v", err)
+		log.Fatalf("Failed to initialize config manager: %v", err)
 	}
+
+	// Bootstrap authorized users from environment if not present in config file
+	if len(configManager.Get().Settings.TelegramUserIDs) == 0 && len(env.TelegramUserIDs) > 0 {
+		log.Printf("Bootstrapping authorized users from environment variable...")
+		settings := configManager.Get().Settings
+		settings.TelegramUserIDs = env.TelegramUserIDs
+		configManager.ReloadWithData(settings, domain.MappingData{}) // Note: mappings will be reloaded from file soon
+	}
+
 	configManager.Watch()
 	defer configManager.Close()
 
 	// Secondary Adapters
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
 	ledgerFormatter := ledger.NewLedgerFormatter()
-	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
-	configManager.SetRepository(repo)
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	if err != nil {
+		log.Fatalf("Failed to initialize ledger repository: %v", err)
+	}
+	if err := configManager.SetRepository(repo); err != nil {
+		log.Fatalf("Failed to set repository: %v", err)
+	}
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer

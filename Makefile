@@ -20,9 +20,14 @@ build: build-webapp
 	@echo "Build complete: $(TMP_DIR)/$(BINARY_NAME)"
 
 # Run tests
-test:
-	@echo "Running tests..."
+test: build-webapp
+	@echo "Running unit and integration tests..."
 	@go test -v ./...
+
+# Run E2E tests (requires TELEGRAM_BOT_TOKEN)
+test-e2e:
+	@echo "Running E2E tests..."
+	@RUN_E2E=true go test -v ./tests/e2e/...
 
 # Run the application locally
 run: build
