@@ -104,10 +104,22 @@ func TestTransactionParserService_ParseText_ShouldUseDefaultAsset_WhenSourceIsUn
 	// We no longer fallback to Income:Alex automatically if it's not mapped,
 	// to avoid "Hey 10 coffee" becoming "Income:Hey".
 	assert.Equal(t, "Assets:Cash", tx.Postings[1].Account)
+	assert.Equal(t, "gift", tx.Description, "Description should not include unmapped source keyword")
 }
 
 func TestTransactionParserService_ParseText_ShouldReturnError_WhenFormatIsInvalid(t *testing.T) {
-	// ... (existing test)
+	// Arrange
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
+	}
+	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
+	svc := NewTransactionParserService(manager)
+
+	// Act
+	_, err := svc.ParseText("invalid_input_without_amounts", "Test")
+
+	// Assert
+	assert.Error(t, err, "Should return error for format not containing any amount")
 }
 
 func TestTransactionParserService_ParseText_ShouldIgnoreConversationalNoise_AndUseDefaultAsset(t *testing.T) {
@@ -197,7 +209,18 @@ func TestTransactionParserService_ParseText_ShouldFormatIncomeCorrectly(t *testi
 }
 
 func TestTransactionParserService_HashID_ShouldBeConsistent(t *testing.T) {
-	// ... (existing test)
+	// Arrange
+	svc := NewTransactionParserService(nil)
+
+	// Act
+	h1 := svc.hashID("some-stable-data")
+	h2 := svc.hashID("some-stable-data")
+	h3 := svc.hashID("different-data")
+
+	// Assert
+	assert.Equal(t, h1, h2, "Hashes should be identical for same input")
+	assert.NotEqual(t, h1, h3, "Hashes should be different for different inputs")
+	assert.Len(t, h1, 8, "Hash should be exactly 8 characters long")
 }
 
 func TestTransactionParserService_HashID_ShouldReturnEmpty_WhenInputIsEmpty(t *testing.T) {
@@ -206,4 +229,25 @@ func TestTransactionParserService_HashID_ShouldReturnEmpty_WhenInputIsEmpty(t *t
 
 	// Act & Assert
 	assert.Empty(t, svc.hashID(""))
+}
+
+func TestTransactionParserService_ParseText_ShouldNotPrependUnmappedSourceToDescription(t *testing.T) {
+	// Arrange
+	settings := domain.Settings{
+		DefaultAssetAccount: "Assets:Checking:Main",
+	}
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
+	}
+	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
+	manager.ReloadWithData(settings, domain.MappingData{})
+	svc := NewTransactionParserService(manager)
+
+	// Act
+	tx, err := svc.ParseText("visa 10 coffee", "Test")
+
+	// Assert
+	require.NoError(t, err)
+	assert.Equal(t, "coffee", tx.Description, "Description should not include unmapped source keyword")
+	assert.Equal(t, "Assets:Checking:Main", tx.Postings[1].Account, "Should default to configurable DefaultAssetAccount")
 }

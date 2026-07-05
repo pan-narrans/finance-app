@@ -429,7 +429,47 @@ func TestFileRepository_ShouldPreservePrologueAndEpilogue(t *testing.T) {
 }
 
 func TestFileRepository_ShouldNotDuplicateMonthHeaders(t *testing.T) {
-	// ... (existing test)
+	// Arrange
+	tmpFile, err := os.CreateTemp("", "test_header_dup_*.ledger")
+	require.NoError(t, err)
+	defer os.Remove(tmpFile.Name())
+
+	initial := `;--------
+;- MARCH -
+;--------
+
+2026/03/15 * Coffee
+    Expenses:Food   5 EUR
+    Assets:Cash
+`
+	err = os.WriteFile(tmpFile.Name(), []byte(initial), 0644)
+	require.NoError(t, err)
+
+	formatter := NewLedgerFormatter()
+	configUC := &mockConfigUC{alignment: 52}
+	repo := NewTransactionFileRepository(tmpFile.Name(), configUC, formatter)
+
+	// Act - Add another transaction in MARCH
+	tx := domain.Transaction{
+		Date:        time.Date(2026, 3, 20, 0, 0, 0, 0, time.UTC),
+		Description: "Lunch",
+		Postings: []domain.Posting{
+			{Account: "Expenses:Food", Amount: new(float64), Currency: "EUR"},
+			{Account: "Assets:Cash"},
+		},
+	}
+	*tx.Postings[0].Amount = 15.0
+
+	err = repo.Create(tx)
+	require.NoError(t, err)
+
+	// Assert
+	content, err := os.ReadFile(tmpFile.Name())
+	require.NoError(t, err)
+	text := string(content)
+
+	count := strings.Count(text, "MARCH")
+	assert.Equal(t, 1, count, "Should have exactly one MARCH header")
 }
 
 func TestFileRepository_ShouldPreserveInterleavedComments(t *testing.T) {
