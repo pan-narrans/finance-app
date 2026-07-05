@@ -53,12 +53,16 @@ type MockFileParserProvider struct {
 	mock.Mock
 }
 
-func (m *MockFileParserProvider) GetParser(filePath string) (ports.BankParser, error) {
-	args := m.Called(filePath)
+func (m *MockFileParserProvider) GetParser(filePath string, parserType string) (ports.BankParser, error) {
+	args := m.Called(filePath, parserType)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(ports.BankParser), args.Error(1)
+}
+
+func (m *MockFileParserProvider) GetAvailableParsers() []string {
+	return m.Called().Get(0).([]string)
 }
 
 func TestImportService_Import_ShouldHandlePartialSuccess(t *testing.T) {
@@ -73,7 +77,7 @@ func TestImportService_Import_ShouldHandlePartialSuccess(t *testing.T) {
 		{Description: "Fail", Code: "CODE2"},
 	}
 
-	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "file.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 
 	// First transaction succeeds (Add)
@@ -85,7 +89,7 @@ func TestImportService_Import_ShouldHandlePartialSuccess(t *testing.T) {
 	mockUseCase.On("Add", transactions[1]).Return(errors.New("db error")).Once()
 
 	// Act
-	summary, err := service.Import("file.xls")
+	summary, err := service.Import("file.xls", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -110,13 +114,13 @@ func TestImportService_Import_ShouldHandleUpdates(t *testing.T) {
 	}
 	existing := &domain.Transaction{Code: "EXISTING_CODE"}
 
-	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "file.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 	mockUseCase.On("GetByCode", "EXISTING_CODE").Return(existing, nil)
 	mockUseCase.On("Update", transactions[0]).Return(nil)
 
 	// Act
-	summary, err := service.Import("file.xls")
+	summary, err := service.Import("file.xls", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -133,11 +137,11 @@ func TestImportService_Import_ShouldReturnError_WhenParserFails(t *testing.T) {
 	mockProvider := new(MockFileParserProvider)
 	service := NewImportService(mockUseCase, mockProvider)
 
-	mockProvider.On("GetParser", "invalid.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "invalid.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "invalid.xls").Return([]domain.Transaction{}, errors.New("parse error"))
 
 	// Act
-	summary, err := service.Import("invalid.xls")
+	summary, err := service.Import("invalid.xls", "")
 
 	// Assert
 	assert.Error(t, err)
@@ -153,12 +157,12 @@ func TestImportService_Import_ShouldHandleLookupErrorAsRowFailure(t *testing.T) 
 	service := NewImportService(mockUseCase, mockProvider)
 
 	transactions := []domain.Transaction{{Code: "BAD_LOOKUP"}}
-	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "file.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 	mockUseCase.On("GetByCode", "BAD_LOOKUP").Return(nil, errors.New("io error"))
 
 	// Act
-	summary, err := service.Import("file.xls")
+	summary, err := service.Import("file.xls", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -184,7 +188,7 @@ func TestImportService_Import_ShouldSortTransactionsChronologically(t *testing.T
 		{Date: date1, Description: "Oldest", Code: "CODE1"},
 	}
 
-	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "file.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 
 	// Expect calls in chronological order: CODE1, CODE2, CODE3
@@ -198,7 +202,7 @@ func TestImportService_Import_ShouldSortTransactionsChronologically(t *testing.T
 	mockUseCase.On("Add", mock.MatchedBy(func(tx domain.Transaction) bool { return tx.Code == "CODE3" })).Return(nil).Once()
 
 	// Act
-	_, err := service.Import("file.xls")
+	_, err := service.Import("file.xls", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -232,7 +236,7 @@ func TestImportService_Import_ShouldIdentifyUnknownTransactions(t *testing.T) {
 		},
 	}
 
-	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "file.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return(transactions, nil)
 
 	// Both transactions should check if they exist first
@@ -242,7 +246,7 @@ func TestImportService_Import_ShouldIdentifyUnknownTransactions(t *testing.T) {
 	mockUseCase.On("GetByCode", "UNKNOWN").Return(nil, nil).Once()
 
 	// Act
-	summary, err := service.Import("file.xls")
+	summary, err := service.Import("file.xls", "")
 
 	// Assert
 	assert.NoError(t, err)
@@ -271,14 +275,14 @@ func TestImportService_Import_ShouldHandleExistingUnknownTransactions(t *testing
 		},
 	}
 
-	mockProvider.On("GetParser", "file.xls").Return(mockParser, nil)
+	mockProvider.On("GetParser", "file.xls", "").Return(mockParser, nil)
 	mockParser.On("Parse", "file.xls").Return([]domain.Transaction{transaction}, nil)
 
 	// Even if it has unknown account, we should check if it exists
 	mockUseCase.On("GetByCode", "EXISTING_UNKNOWN").Return(&transaction, nil)
 
 	// Act
-	summary, err := service.Import("file.xls")
+	summary, err := service.Import("file.xls", "")
 
 	// Assert
 	assert.NoError(t, err)

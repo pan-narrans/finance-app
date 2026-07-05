@@ -99,7 +99,9 @@ func setupE2EEnv(t *testing.T) *e2eEnv {
 	configManager, err := config.NewManager(configPath, mappingsPath, mappingServiceConstructor)
 	require.NoError(t, err)
 
-	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	require.NoError(t, err)
+
 	txService := app.NewTransactionService(repo)
 	parserService := app.NewTransactionParserService(configManager)
 	reportService := app.NewReportService(repo, configManager)

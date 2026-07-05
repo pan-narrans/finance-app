@@ -406,7 +406,8 @@ func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
 		"CONSISTENT_DESC;" + today + ";-10,00EUR;1000,00EUR\n"
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
-	summary, err := env.importService.Import(bankFilePath)
+	summary, err := env.importService.Import(bankFilePath, "imagin")
+
 	require.NoError(t, err)
 
 	// Assert: It should be detected as an update/duplicate (Updated=1), NOT added again

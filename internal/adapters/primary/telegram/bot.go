@@ -176,6 +176,8 @@ func (a *TelegramAdapter) RegisterHandlers() {
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDoneAcc}, a.handleDoneAcc)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelImport}, a.handleCancelImport)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackAcceptAll}, a.handleAcceptAll)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackImportYes}, a.handleImportYes)
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackImportNo}, a.handleImportNo)
 
 	a.teleBot.Handle(
 		telebot.OnCallback, func(c telebot.Context) error {
@@ -187,10 +189,13 @@ func (a *TelegramAdapter) RegisterHandlers() {
 				return a.handleAccountSelect(c)
 			case strings.HasPrefix(data, "\f"+CallbackSelectParent):
 				return a.handleSelectParent(c)
+			case strings.HasPrefix(data, "\f"+CallbackSelectBank):
+				return a.handleBankSelect(c)
 			}
 			return nil
 		},
 	)
+
 
 	// Set Commands Menu for Autocomplete
 	commands := []telebot.Command{
