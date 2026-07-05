@@ -61,14 +61,6 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	amountStr := matches[2]
 	description := matches[4]
 
-	// Strict Source Validation: Only use sourceKeyword if it's a known mapping.
-	if sourceKeyword != "" {
-		if _, found := appConfig.Mappings.ResolveSource(sourceKeyword); !found {
-			description = sourceKeyword + " " + description
-			sourceKeyword = ""
-		}
-	}
-
 	amount, err := s.parseAmount(amountStr)
 	if err != nil {
 		return domain.Transaction{}, fmt.Errorf("invalid amount format: %w", err)
