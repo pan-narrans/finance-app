@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-
 	"github.com/a-perez/finance-app/internal/adapters/primary/telegram"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,7 +21,7 @@ func TestE2E_SingleTransaction_ShouldUpdateLedger_WhenHappyPath(t *testing.T) {
 	// Act
 	t.Logf("Sending text from User ID: %d", env.userID)
 	env.sendText("12.50 Lunch")
-	
+
 	// Wait for session to be created (async handler)
 	var sess telegram.UserSession
 	assert.Eventually(t, func() bool {
@@ -143,7 +142,7 @@ func TestE2E_Transaction_ShouldLearnMapping_WhenManualAccountOverride(t *testing
 
 	// 4. Send another transaction with same description
 	env.sendText("30 UnusualExpense")
-	
+
 	// Assert: It should now suggest Expenses:Leisure
 	assert.Eventually(t, func() bool {
 		s, ok := env.adapter.SessionManager().Get(env.userID)
@@ -175,7 +174,7 @@ func TestE2E_Transaction_ShouldIgnoreUnauthorizedUser(t *testing.T) {
 func TestE2E_Transaction_ShouldHandlePersistenceFailure(t *testing.T) {
 	// Arrange
 	env := setupE2EEnv(t)
-	
+
 	// Make directory read-only to simulate atomic write failure (cannot create .tmp file or rename)
 	dir := filepath.Dir(env.ledgerPath)
 	_ = os.Chmod(dir, 0555)
@@ -196,7 +195,6 @@ func TestE2E_Transaction_ShouldHandlePersistenceFailure(t *testing.T) {
 	content, _ := os.ReadFile(env.ledgerPath)
 	assert.Empty(t, strings.TrimSpace(string(content)), "Ledger should be empty due to write failure")
 }
-
 
 func TestE2E_Transaction_ShouldInterruptAccountCreation_WhenNewTransactionComes(t *testing.T) {
 	// Arrange
@@ -227,7 +225,7 @@ func TestE2E_Transaction_ShouldInterruptAccountCreation_WhenNewTransactionComes(
 
 	// 4. Suddenly send a new transaction text
 	env.sendText("12.34 UniqueTransaction")
-	
+
 	// Assert: State should be reset to None, and draft should be UniqueTransaction
 	assert.Eventually(t, func() bool {
 		s, _ := env.adapter.SessionManager().Get(env.userID)
@@ -260,7 +258,7 @@ func TestE2E_Transaction_ShouldHandleBillionaireAmounts(t *testing.T) {
 	ledgerText := string(content)
 	// Check for raw amount or formatted with commas depending on alignment implementation
 	// The core requirement is that it parses and persists without overflow.
-	assert.Contains(t, ledgerText, "1000000000.99") 
+	assert.Contains(t, ledgerText, "1000000000.99")
 }
 
 func TestE2E_Transaction_ShouldHandleRapidFireCommands(t *testing.T) {
@@ -289,7 +287,6 @@ func TestE2E_Transaction_ShouldHandleRapidFireCommands(t *testing.T) {
 		return len(content) > 0 && strings.Contains(string(content), "Lunch-")
 	}, 5*time.Second, 100*time.Millisecond)
 }
-
 
 func TestE2E_Transaction_ShouldRejectStaleMessage(t *testing.T) {
 	// Arrange
@@ -381,10 +378,8 @@ func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
 			s.Draft.Postings[0].Amount = &amount
 		})
 
-
 		return true
 	}, 5*time.Second, 100*time.Millisecond)
-
 
 	// Wait for LastMessageID
 	assert.Eventually(t, func() bool {
@@ -406,7 +401,8 @@ func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
 		"CONSISTENT_DESC;" + today + ";-10,00EUR;1000,00EUR\n"
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
-	summary, err := env.importService.Import(bankFilePath)
+	summary, err := env.importService.Import(bankFilePath, "imagin")
+
 	require.NoError(t, err)
 
 	// Assert: It should be detected as an update/duplicate (Updated=1), NOT added again
@@ -414,3 +410,42 @@ func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
 	assert.Equal(t, 0, summary.Added, "Should not add duplicate")
 }
 
+func TestE2E_Transaction_ShouldLearnSourceMapping_WhenManualSourceOverride(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// 1. Send transaction with unmapped source
+	env.sendText("visa 10 coffee")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "coffee" && s.Draft.Postings[1].Account == "Income:Visa"
+	}, 5*time.Second, 100*time.Millisecond, "Should default to DefaultAssetAccount and not include visa in description")
+
+	// 2. Override source account (editing posting index 1)
+	env.sendCallback(telegram.CallbackEditAcc, "1")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.State == telegram.StateAwaitingQuery && s.EditingPosting == 1
+	}, 5*time.Second, 100*time.Millisecond, "Should be awaiting query for posting 1")
+
+	env.sendCallback(telegram.CallbackSelectAcc, "Assets:Checking:Visa")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Postings[1].Account == "Assets:Checking:Visa" && s.SourceOverridden
+	}, 5*time.Second, 100*time.Millisecond, "Source account should be overridden to Visa")
+
+	env.sendCallback(telegram.CallbackConfirm)
+
+	// 3. Wait for ledger and mapping updates
+	assert.Eventually(t, func() bool {
+		content, _ := os.ReadFile(env.ledgerPath)
+		return strings.Contains(string(content), "coffee")
+	}, 5*time.Second, 100*time.Millisecond, "Transaction should be written to ledger")
+
+	// 4. Send subsequent transaction with same source
+	env.sendText("visa 15 pizza")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "pizza" && s.Draft.Postings[1].Account == "Assets:Checking:Visa"
+	}, 5*time.Second, 100*time.Millisecond, "Subsequent transaction should automatically map source and strip it from description")
+}

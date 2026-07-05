@@ -33,8 +33,10 @@ type BankParser interface {
 FileParserProvider defines the contract for obtaining the correct parser for a file.
 */
 type FileParserProvider interface {
-	GetParser(filePath string) (BankParser, error)
+	GetParser(filePath string, parserType string) (BankParser, error)
+	GetAvailableParsers() []string
 }
+
 
 /*
 MappingProvider defines the contract for description cleaning and account resolution.
@@ -60,6 +62,14 @@ TransactionFormatter defines the contract for converting a transaction into a to
 */
 type TransactionFormatter interface {
 	FormatTransaction(tx domain.Transaction, alignment int) string
+}
+
+/*
+ConfigProvider defines a narrow interface for adapters to access necessary application settings.
+This helps break circular dependencies with the full ConfigurationUseCase.
+*/
+type ConfigProvider interface {
+	GetLedgerAlignment() int
 }
 
 /*

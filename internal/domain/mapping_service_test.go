@@ -248,3 +248,39 @@ func TestMappingService_SearchAccounts_ShouldReturnRankedResults(t *testing.T) {
 		)
 	}
 }
+
+func TestMappingData_Learn(t *testing.T) {
+	t.Run("Learn Expense", func(t *testing.T) {
+		data := MappingData{Accounts: make(map[string]string)}
+		amount := 10.0
+		tx := Transaction{
+			Description: "MCDONALDS",
+			Postings: []Posting{
+				{Account: "Expenses:Food", Amount: &amount},
+				{Account: "Assets:Checking"},
+			},
+		}
+
+		data.Learn(tx, true, true, "CASH")
+
+		assert.Equal(t, "Expenses:Food", data.Accounts["MCDONALDS"])
+		assert.Equal(t, "Assets:Checking", data.Accounts["CASH"])
+	})
+
+	t.Run("Learn Income", func(t *testing.T) {
+		data := MappingData{Accounts: make(map[string]string)}
+		amount := 1000.0
+		tx := Transaction{
+			Description: "SALARY",
+			Postings: []Posting{
+				{Account: "Assets:Checking", Amount: &amount},
+				{Account: "Income:Salary"},
+			},
+		}
+
+		data.Learn(tx, true, true, "WORK")
+
+		assert.Equal(t, "Income:Salary", data.Accounts["SALARY"], "For income, target should be from Postings[1]")
+		assert.Equal(t, "Assets:Checking", data.Accounts["WORK"], "For income, source should be from Postings[0]")
+	})
+}

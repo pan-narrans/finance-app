@@ -65,6 +65,14 @@ func (m *Manager) Get() *ports.AppConfig {
 }
 
 /*
+GetLedgerAlignment returns the current ledger alignment setting.
+It implements the ports.ConfigProvider interface.
+*/
+func (m *Manager) GetLedgerAlignment() int {
+	return m.Get().Settings.LedgerAlignment
+}
+
+/*
 Reload forces a re-read of all configuration files and updates the atomic pointer.
 */
 func (m *Manager) Reload() error {
@@ -76,13 +84,11 @@ func (m *Manager) Reload() error {
 /*
 SetRepository sets the transaction repository for dynamic account discovery and triggers a reload.
 */
-func (m *Manager) SetRepository(repo ports.TransactionRepository) {
+func (m *Manager) SetRepository(repo ports.TransactionRepository) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.repo = repo
-	if err := m.reload(); err != nil {
-		log.Printf("Warning: Failed to reload mappings after setting repository: %v", err)
-	}
+	return m.reload()
 }
 
 /*

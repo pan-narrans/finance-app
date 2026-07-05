@@ -23,14 +23,19 @@ func (d *MappingData) Learn(transaction Transaction, targetOverride bool, source
 		d.Accounts = make(map[string]string)
 	}
 
+	targetIndex, sourceIndex := 0, 1
+	if transaction.IsIncome() {
+		targetIndex, sourceIndex = 1, 0
+	}
+
 	if targetOverride {
 		key := strings.ToUpper(transaction.Description)
-		d.Accounts[key] = transaction.Postings[0].Account
+		d.Accounts[key] = transaction.Postings[targetIndex].Account
 	}
 
 	if sourceOverride && originalSource != "" {
 		key := strings.ToUpper(originalSource)
-		d.Accounts[key] = transaction.Postings[1].Account
+		d.Accounts[key] = transaction.Postings[sourceIndex].Account
 	}
 }
 
