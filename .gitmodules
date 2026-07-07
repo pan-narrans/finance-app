@@ -1,0 +1,3 @@
+[submodule "finance-skills"]
+	path = .agents
+	url = git@github.com:pan-narrans/finance-skills.git
