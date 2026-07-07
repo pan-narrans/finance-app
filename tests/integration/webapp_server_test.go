@@ -116,12 +116,20 @@ type MockImportUseCase struct {
 	mock.Mock
 }
 
-func (m *MockImportUseCase) Import(filePath string) (*ports.ImportSummary, error) {
-	args := m.Called(filePath)
+func (m *MockImportUseCase) Import(filePath string, parserType string) (*ports.ImportSummary, error) {
+	args := m.Called(filePath, parserType)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*ports.ImportSummary), args.Error(1)
+}
+
+func (m *MockImportUseCase) GetAvailableBanks() []string {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).([]string)
 }
 
 func generateValidInitData(botToken string, userID int64) string {

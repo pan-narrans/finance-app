@@ -347,7 +347,8 @@ func (s *WebAppServer) handleImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := s.importUC.Import(tempFile.Name())
+	bankType := r.FormValue("bank_type")
+	summary, err := s.importUC.Import(tempFile.Name(), bankType)
 	if err != nil {
 		log.Printf("Import failed: %v", err)
 		http.Error(w, fmt.Sprintf("Import failed: %v", err), http.StatusInternalServerError)

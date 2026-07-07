@@ -42,8 +42,13 @@ func main() {
 	// Secondary Adapters
 	ledgerPath := filepath.Join(env.LedgerRoot, env.LedgerFile)
 	ledgerFormatter := ledger.NewLedgerFormatter()
-	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
-	configManager.SetRepository(repo)
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	if err != nil {
+		log.Fatalf("Failed to initialize ledger repository: %v", err)
+	}
+	if err := configManager.SetRepository(repo); err != nil {
+		log.Fatalf("Failed to set repository: %v", err)
+	}
 
 	// Bootstrap authorized users from environment if set (must run AFTER SetRepository to prevent being overwritten)
 	if len(env.TelegramUserIDs) > 0 {
@@ -51,14 +56,6 @@ func main() {
 		settings := configManager.Get().Settings
 		settings.TelegramUserIDs = env.TelegramUserIDs
 		configManager.ReloadWithData(settings, domain.MappingData{}) // Note: mappings will be reloaded from file soon
-	}
-
-	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
-	if err != nil {
-		log.Fatalf("Failed to initialize ledger repository: %v", err)
-	}
-	if err := configManager.SetRepository(repo); err != nil {
-		log.Fatalf("Failed to set repository: %v", err)
 	}
 	parserFactory := excel.NewParserFactory(configManager)
 
