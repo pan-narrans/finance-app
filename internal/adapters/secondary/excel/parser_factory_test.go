@@ -19,7 +19,7 @@ func TestParserFactory_GetParser_ShouldReturnOpenBankParser_WhenFilenameMatches(
 	factory := NewParserFactory(manager)
 
 	// Act
-	parser, err := factory.GetParser("/path/to/openbank_export.xls")
+	parser, err := factory.GetParser("/path/to/openbank_export.xls", "")
 
 	// Assert
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestParserFactory_GetParser_ShouldReturnImaginBankParser_WhenFilenameMatche
 	factory := NewParserFactory(manager)
 
 	// Act
-	parser, err := factory.GetParser("2026_imaginbank.csv")
+	parser, err := factory.GetParser("2026_imaginbank.csv", "")
 
 	// Assert
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestParserFactory_GetParser_ShouldReturnError_WhenNoMatchFound(t *testing.T
 	factory := NewParserFactory(manager)
 
 	// Act
-	parser, err := factory.GetParser("unknown_bank.pdf")
+	parser, err := factory.GetParser("unknown_bank.pdf", "")
 
 	// Assert
 	assert.Error(t, err)
@@ -68,9 +68,25 @@ func TestParserFactory_GetParser_ShouldBeCaseInsensitive(t *testing.T) {
 	factory := NewParserFactory(manager)
 
 	// Act
-	parser, err := factory.GetParser("OPENBANK.XLS")
+	parser, err := factory.GetParser("OPENBANK.XLS", "")
 
 	// Assert
 	require.NoError(t, err)
 	assert.NotNil(t, parser)
+}
+
+func TestParserFactory_GetParser_ShouldUseExplicitType_WhenProvided(t *testing.T) {
+	// Arrange
+	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
+		return domain.NewMappingService(data, nil)
+	}
+	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
+	factory := NewParserFactory(manager)
+
+	// Act: Filename says 'unknown' but we force 'imagin'
+	parser, err := factory.GetParser("unknown.csv", "imagin")
+
+	// Assert
+	require.NoError(t, err)
+	assert.IsType(t, &ImaginBankParser{}, parser)
 }

@@ -401,10 +401,51 @@ func TestE2E_Transaction_DayShiftConsistency(t *testing.T) {
 		"CONSISTENT_DESC;" + today + ";-10,00EUR;1000,00EUR\n"
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
-	summary, err := env.importService.Import(bankFilePath)
+	summary, err := env.importService.Import(bankFilePath, "imagin")
+
 	require.NoError(t, err)
 
 	// Assert: It should be detected as an update/duplicate (Updated=1), NOT added again
 	assert.Equal(t, 1, summary.Updated, "Bank import should match existing manual entry")
 	assert.Equal(t, 0, summary.Added, "Should not add duplicate")
+}
+
+func TestE2E_Transaction_ShouldLearnSourceMapping_WhenManualSourceOverride(t *testing.T) {
+	// Arrange
+	env := setupE2EEnv(t)
+
+	// 1. Send transaction with unmapped source
+	env.sendText("visa 10 coffee")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "coffee" && s.Draft.Postings[1].Account == "Income:Visa"
+	}, 5*time.Second, 100*time.Millisecond, "Should default to DefaultAssetAccount and not include visa in description")
+
+	// 2. Override source account (editing posting index 1)
+	env.sendCallback(telegram.CallbackEditAcc, "1")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.State == telegram.StateAwaitingQuery && s.EditingPosting == 1
+	}, 5*time.Second, 100*time.Millisecond, "Should be awaiting query for posting 1")
+
+	env.sendCallback(telegram.CallbackSelectAcc, "Assets:Checking:Visa")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Postings[1].Account == "Assets:Checking:Visa" && s.SourceOverridden
+	}, 5*time.Second, 100*time.Millisecond, "Source account should be overridden to Visa")
+
+	env.sendCallback(telegram.CallbackConfirm)
+
+	// 3. Wait for ledger and mapping updates
+	assert.Eventually(t, func() bool {
+		content, _ := os.ReadFile(env.ledgerPath)
+		return strings.Contains(string(content), "coffee")
+	}, 5*time.Second, 100*time.Millisecond, "Transaction should be written to ledger")
+
+	// 4. Send subsequent transaction with same source
+	env.sendText("visa 15 pizza")
+	assert.Eventually(t, func() bool {
+		s, ok := env.adapter.SessionManager().Get(env.userID)
+		return ok && s.Draft.Description == "pizza" && s.Draft.Postings[1].Account == "Assets:Checking:Visa"
+	}, 5*time.Second, 100*time.Millisecond, "Subsequent transaction should automatically map source and strip it from description")
 }

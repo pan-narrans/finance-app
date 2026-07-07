@@ -50,7 +50,8 @@ func TestImportService_Integration_ShouldImportTransactions_WhenValidBankFilePro
 
 	// 2. Setup Ledger Repository
 	ledgerPath := filepath.Join(tempDir, "test.ledger")
-	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	require.NoError(t, err)
 
 	// 3. Setup Services
 	txService := app.NewTransactionService(repo)
@@ -65,7 +66,8 @@ func TestImportService_Integration_ShouldImportTransactions_WhenValidBankFilePro
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
 	// Act
-	summary, err := importService.Import(bankFilePath)
+	summary, err := importService.Import(bankFilePath, "")
+
 
 	// Assert
 	require.NoError(t, err)
@@ -93,7 +95,8 @@ func TestImportService_Integration_ShouldHandleUnknownAccounts_WhenMappingsAreMi
 	require.NoError(t, err)
 
 	ledgerPath := filepath.Join(tempDir, "test.ledger")
-	repo := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledger.NewLedgerFormatter())
+	require.NoError(t, err)
 	txService := app.NewTransactionService(repo)
 	parserFactory := excel.NewParserFactory(configManager)
 	importService := app.NewImportService(txService, parserFactory)
@@ -105,7 +108,8 @@ func TestImportService_Integration_ShouldHandleUnknownAccounts_WhenMappingsAreMi
 	_ = os.WriteFile(bankFilePath, []byte(csvContent), 0644)
 
 	// Act
-	summary, err := importService.Import(bankFilePath)
+	summary, err := importService.Import(bankFilePath, "")
+
 
 	// Assert
 	require.NoError(t, err)

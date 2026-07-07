@@ -53,6 +53,13 @@ func main() {
 		configManager.ReloadWithData(settings, domain.MappingData{}) // Note: mappings will be reloaded from file soon
 	}
 
+	repo, err := ledger.NewTransactionFileRepository(ledgerPath, configManager, ledgerFormatter)
+	if err != nil {
+		log.Fatalf("Failed to initialize ledger repository: %v", err)
+	}
+	if err := configManager.SetRepository(repo); err != nil {
+		log.Fatalf("Failed to set repository: %v", err)
+	}
 	parserFactory := excel.NewParserFactory(configManager)
 
 	// App Layer

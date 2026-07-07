@@ -22,7 +22,11 @@ const (
 	CallbackSelectParent = "sel_parent"
 	CallbackCancelImport = "cancel_import"
 	CallbackAcceptAll    = "accept_all"
+	CallbackImportYes    = "import_yes"
+	CallbackImportNo     = "import_no"
+	CallbackSelectBank   = "sel_bank"
 )
+
 
 // UI message constants.
 const (
@@ -36,6 +40,8 @@ const (
 	MsgSelectTopLevel         = "Select a top-level account:"
 	MsgWelcome                = "Welcome to Finance App Bot! Send me an amount and description (e.g., '12.50 dinner') or upload a bank file."
 	MsgPromptTransaction      = "Please send transaction details in format:\n<code>[source] &lt;amount&gt; &lt;description/target&gt;</code>\n\nExample: <code>Cash 10 steam</code>"
+	MsgIsBankExport           = "I detected a document. Is this a bank export?"
+	MsgSelectBank             = "Please select the bank:"
 
 	LabelConfirm    = "Confirm ✅"
 	LabelDiscard    = "Discard ❌"
@@ -47,7 +53,10 @@ const (
 	LabelAddSub     = "Add Sub-account ➕"
 	LabelCancel     = "Cancel 🔙"
 	LabelCreateAcc  = "✨ Create New Account"
+	LabelYes        = "Yes ✅"
+	LabelNo         = "No ❌"
 )
+
 
 /*
 UI provides helpers for building Telegram-specific message layouts and keyboards.
@@ -246,6 +255,35 @@ func (u *UI) BuildAccountReview(path string) (string, *telebot.ReplyMarkup) {
 
 	return fmt.Sprintf("Account constructed: <code>%s</code>\n\nWhat would you like to do?", path), selector
 }
+
+/*
+BuildBankExportPrompt creates the "Is this a bank export?" keyboard.
+*/
+func (u *UI) BuildBankExportPrompt() (string, *telebot.ReplyMarkup) {
+	selector := &telebot.ReplyMarkup{}
+	selector.Inline(
+		selector.Row(
+			selector.Data(LabelYes, CallbackImportYes),
+			selector.Data(LabelNo, CallbackImportNo),
+		),
+	)
+	return MsgIsBankExport, selector
+}
+
+/*
+BuildBankSelector creates the bank selection keyboard.
+*/
+func (u *UI) BuildBankSelector(banks []string) (string, *telebot.ReplyMarkup) {
+	selector := &telebot.ReplyMarkup{}
+	rows := make([]telebot.Row, 0, len(banks))
+	for _, bank := range banks {
+		rows = append(rows, selector.Row(selector.Data(strings.Title(bank), CallbackSelectBank, bank)))
+	}
+	rows = append(rows, makeRow(selector, LabelCancel, CallbackImportNo))
+	selector.Inline(rows...)
+	return MsgSelectBank, selector
+}
+
 
 // Helpers
 

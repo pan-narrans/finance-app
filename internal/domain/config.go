@@ -7,8 +7,8 @@ type Settings struct {
 	DefaultIncomeAccount  string
 	DefaultExpenseAccount string
 	LedgerAlignment       int
-	ImaginBankAccount     string
-	OpenBankAccount       string
+	ImaginAssetAccount    string
+	OpenBankAssetAccount  string
 	RootAccounts          []string
 	TelegramUserIDs       []int64
 }
@@ -23,8 +23,8 @@ func DefaultSettings() Settings {
 		DefaultIncomeAccount:  "Income:Unknown",
 		DefaultExpenseAccount: "Expenses:Unknown",
 		LedgerAlignment:       52,
-		ImaginBankAccount:     "Assets:Checking:ImaginBank",
-		OpenBankAccount:       "Assets:Checking:OpenBank",
+		ImaginAssetAccount:    "Assets:Checking:ImaginBank",
+		OpenBankAssetAccount:  "Assets:Checking:OpenBank",
 		RootAccounts:          []string{"Expenses", "Assets", "Liabilities", "Income"},
 	}
 }
