@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -122,6 +123,9 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 			}
 
 			newTx := fileRepository.formatter.FormatTransaction(transaction, alignment)
+			if transaction.Comment == "" {
+				newTx = preserveTransactionNotes(newTx, lines[1:lastTxLine+1])
+			}
 			comments := ""
 			if lastTxLine < len(lines)-1 {
 				comments = "\n" + strings.Join(lines[lastTxLine+1:], "\n")
@@ -139,6 +143,39 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 	}
 
 	return fileRepository.writeLedger(ledger)
+}
+
+// preserveTransactionNotes keeps indented notes when an update supplies no comment.
+// New metadata takes precedence over the first old line with the same key.
+func preserveTransactionNotes(formatted string, oldBody []string) string {
+	lines := strings.Split(formatted, "\n")
+	metadataKeys := make(map[string]bool)
+	insertAt := 1
+	for insertAt < len(lines) {
+		note, ok := strings.CutPrefix(strings.TrimSpace(lines[insertAt]), ";")
+		if !ok {
+			break
+		}
+		if key, _, ok := strings.Cut(strings.TrimSpace(note), ":"); ok {
+			metadataKeys[key] = true
+		}
+		insertAt++
+	}
+
+	var preserved []string
+	for _, line := range oldBody {
+		note, ok := strings.CutPrefix(strings.TrimSpace(line), ";")
+		if !ok {
+			continue
+		}
+		key, _, hasKey := strings.Cut(strings.TrimSpace(note), ":")
+		if hasKey && metadataKeys[key] {
+			delete(metadataKeys, key)
+			continue
+		}
+		preserved = append(preserved, line)
+	}
+	return strings.Join(slices.Insert(lines, insertAt, preserved...), "\n")
 }
 
 func (fileRepository *TransactionFileRepository) Delete(code string) error {

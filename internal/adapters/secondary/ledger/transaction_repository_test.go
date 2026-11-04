@@ -723,3 +723,30 @@ func TestFileRepository_ShouldIgnoreCodeMarkersInPayeesAndComments(t *testing.T)
 	assert.Contains(t, string(content), original)
 	assert.NotContains(t, string(content), "Updated second transaction")
 }
+
+func TestFileRepository_Update_ShouldKeepCommentAcrossRepeatedImports(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "book.ledger")
+	repo, err := NewTransactionFileRepository(path, &mockConfigUC{alignment: 40}, NewLedgerFormatter())
+	require.NoError(t, err)
+
+	tx := domain.Transaction{
+		Date:        time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC),
+		Code:        "IMPORT",
+		Description: "Coffee",
+		Comment:     "Receipt: saved in email\nShared with Alice",
+		Metadata:    domain.Metadata{Origin: "Bank", ID: "bank-row"},
+		Postings:    []domain.Posting{{Account: "Expenses:Food", Amount: new(10.0), Currency: "EUR"}, {Account: "Assets:Cash"}},
+	}
+	require.NoError(t, repo.Create(tx))
+
+	tx.Comment = ""
+	tx.Postings[0].Account = "Expenses:Coffee"
+	require.NoError(t, repo.Update(tx))
+	require.NoError(t, repo.Update(tx))
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "Expenses:Coffee")
+	assert.Equal(t, 1, strings.Count(string(content), "    ; Receipt: saved in email\n    ; Shared with Alice\n"))
+	assert.Equal(t, 1, strings.Count(string(content), "    ; ID: bank-row\n"))
+}
