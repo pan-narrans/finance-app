@@ -10,8 +10,6 @@ import (
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 // Ensure TransactionParserService implements ports.TransactionParserUseCase at compile time.
@@ -183,8 +181,7 @@ func (s *TransactionParserService) resolveSourceAccount(appConfig *ports.AppConf
 	}
 
 	// Fallback: if source name provided but no mapping, use Income:[Source]
-	titleCase := cases.Title(language.Und)
-	return fmt.Sprintf("Income:%s", titleCase.String(strings.ToLower(sourceKeyword)))
+	return "Income:" + sourceKeyword
 }
 
 /*

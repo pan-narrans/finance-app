@@ -33,7 +33,7 @@ For complex account selection and creation, the bot integrates a **Telegram Mini
 - **Search**: Features a full-screen search bar with a virtual keyboard, providing real-time filtering of all known Ledger accounts.
 - **Creation Wizard**: A built-in wizard allows for quick creation of new account paths.
     - **Nesting**: Press **Enter** in the input field to automatically add a colon (`:`) and continue nesting.
-    - **Validation**: Resulting paths are automatically **Title Cased** (e.g., `expenses:food` -> `Expenses:Food`).
+    - **Validation**: Account path capitalization is preserved.
 - **Auto-Sync**: Once a selection is made, the Mini App closes and the bot message in the chat updates asynchronously to reflect the change.
 
 ## Learning Mechanism (Mapping Persistence)

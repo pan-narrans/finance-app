@@ -164,7 +164,7 @@ func TestWebAppServer_SelectAccount_ShouldUpdateSessionAndRefreshMessage(t *test
 
 	sess, ok := sessionManager.Get(userID)
 	require.True(t, ok)
-	assert.Equal(t, "Assets:Checking:Openbank", sess.Draft.Postings[0].Account)
+	assert.Equal(t, "Assets:Checking:OpenBank", sess.Draft.Postings[0].Account)
 	assert.True(t, sess.TargetOverridden)
 	mockRefresher.AssertExpectations(t)
 }

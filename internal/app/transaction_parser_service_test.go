@@ -84,7 +84,7 @@ func TestTransactionParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(
 	assert.Equal(t, 12.50, *tx.Postings[0].Amount)
 }
 
-func TestTransactionParserService_ParseText_ShouldUseDefaultAsset_WhenSourceIsUnknown(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldPreserveSourceCase_WhenSourceIsUnknown(t *testing.T) {
 	// Arrange
 	settings := domain.Settings{
 		DefaultAssetAccount: "Assets:Cash",
@@ -101,9 +101,8 @@ func TestTransactionParserService_ParseText_ShouldUseDefaultAsset_WhenSourceIsUn
 
 	// Assert
 	require.NoError(t, err)
-	// We no longer fallback to Income:Alex automatically if it's not mapped,
-	// to avoid "Hey 10 coffee" becoming "Income:Hey".
-	assert.Equal(t, "Income:Alex", tx.Postings[1].Account)
+	// Preserve capitalization of the typed source keyword.
+	assert.Equal(t, "Income:alex", tx.Postings[1].Account)
 	assert.Equal(t, "gift", tx.Description, "Description should not include unmapped source keyword")
 }
 

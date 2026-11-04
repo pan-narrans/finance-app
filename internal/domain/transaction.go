@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 /*
@@ -169,15 +166,11 @@ func (t *Transaction) IsIncome() bool {
 	return false
 }
 
-/*
-FormatAccountPath ensures all segments of an account path are Title Cased.
-(e.g., "expenses:food:dining" -> "Expenses:Food:Dining")
-*/
+// FormatAccountPath trims segment whitespace while preserving account capitalization.
 func FormatAccountPath(path string) string {
 	segments := strings.Split(path, ":")
-	caser := cases.Title(language.Und)
-	for i, seg := range segments {
-		segments[i] = caser.String(strings.ToLower(strings.TrimSpace(seg)))
+	for i, segment := range segments {
+		segments[i] = strings.TrimSpace(segment)
 	}
 	return strings.Join(segments, ":")
 }
