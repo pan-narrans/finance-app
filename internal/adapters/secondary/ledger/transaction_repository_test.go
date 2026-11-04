@@ -43,6 +43,7 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	transaction := domain.Transaction{
 		Date:        date,
 		Description: "Lunch",
+		Comment:     "Team lunch\r\n2026/01/01 still part of comment",
 		Postings: []domain.Posting{
 			{Account: "Expenses:Food", Amount: new(float64), Currency: "EUR"},
 			{Account: "Assets:Checking", Amount: nil},
@@ -61,6 +62,7 @@ func TestFileRepository_Create_ShouldWriteFormattedTransactionToFile_WhenValidIn
 	content, err := os.ReadFile(tmpFile.Name())
 	assert.NoError(t, err)
 	assert.Equal(t, expectedContent, strings.TrimSpace(string(content)))
+	assert.Contains(t, string(content), "2026/04/04 Lunch\n    ; Team lunch\n    ; 2026/01/01 still part of comment\n")
 }
 
 func TestFileRepository_FindByCode_ShouldReturnTransaction_WhenCodeExists(t *testing.T) {
@@ -687,4 +689,3 @@ func TestFileRepository_Create_ShouldNotDuplicateHeaders_WhenExistingHasTrailing
 	count := strings.Count(text, "JUNE")
 	assert.Equal(t, 1, count, "Should only have one JUNE header even if existing one has trailing spaces")
 }
-

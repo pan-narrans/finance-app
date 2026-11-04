@@ -36,6 +36,10 @@ For complex account selection and creation, the bot integrates a **Telegram Mini
     - **Validation**: Account path capitalization is preserved.
 - **Auto-Sync**: Once a selection is made, the Mini App closes and the bot message in the chat updates asynchronously to reflect the change.
 
+## Transaction Comments
+
+Choose **Edit comment** on a draft, then send the comment as text. In groups with privacy mode enabled, reply to the prompt. Send `-` to clear the comment, or select **Cancel** to keep the previous comment. Confirmation saves it as a Ledger comment.
+
 ## Learning Mechanism (Mapping Persistence)
 
 The bot "learns" from user corrections to reduce future friction.

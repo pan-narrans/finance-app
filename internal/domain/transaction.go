@@ -56,6 +56,7 @@ type Transaction struct {
 	Date        time.Time
 	Status      TransactionStatus
 	Description string
+	Comment     string
 	Code        string
 	Metadata    Metadata
 	Postings    []Posting

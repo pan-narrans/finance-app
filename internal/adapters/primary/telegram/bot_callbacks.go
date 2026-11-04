@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"os"
 	"strconv"
@@ -50,7 +51,25 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	appConfig := a.configUseCase.Get()
 	formatted := a.formatter.FormatTransaction(session.Draft, appConfig.Settings.LedgerAlignment)
-	return c.Edit(fmt.Sprintf(MsgTransactionSaved+"\n<pre>%s</pre>", formatted), telebot.ModeHTML)
+	return c.Edit(fmt.Sprintf(MsgTransactionSaved+"\n<pre>%s</pre>", html.EscapeString(formatted)), telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) handleEditComment(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit(MsgSessionExpired)
+	}
+	if c.Message().ID != session.LastMessageID || c.Chat().ID != session.LastChatID {
+		return c.Respond(&telebot.CallbackResponse{Text: "Use the latest draft."})
+	}
+	selector := &telebot.ReplyMarkup{}
+	selector.Inline(makeRow(selector, LabelCancel, CallbackCancelEdit))
+	if err := c.Edit("Send a comment, or send - to remove it.", selector); err != nil {
+		return err
+	}
+	a.sessionManager.Update(userID, func(s *UserSession) { s.State = StateAwaitingComment })
+	return c.Respond()
 }
 
 /*

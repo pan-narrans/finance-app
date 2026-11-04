@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"fmt"
+	"html"
 	"strings"
 
 	"github.com/a-perez/finance-app/internal/app/ports"
@@ -11,6 +12,7 @@ import (
 
 // Callback constants to remove magic strings from handlers.
 const (
+	CallbackEditComment  = "edit_comment"
 	CallbackConfirm      = "confirm"
 	CallbackDiscard      = "discard"
 	CallbackEditAcc      = "edit_acc"
@@ -108,6 +110,7 @@ func (u *UI) BuildDraftMessage(
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
 		editRow,
+		makeRow(selector, "Edit comment", CallbackEditComment),
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
 
@@ -122,7 +125,7 @@ func (u *UI) BuildDraftMessage(
 	selector.Inline(rows...)
 
 	formatted := formatter.FormatTransaction(tx, settings.LedgerAlignment)
-	msg := fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>%s", formatted, msgSuffix)
+	msg := fmt.Sprintf("Draft Transaction:\n<pre>%s</pre>%s", html.EscapeString(formatted), msgSuffix)
 
 	return msg, selector
 }
@@ -160,6 +163,7 @@ func (u *UI) BuildImportReviewMessage(
 	rows := []telebot.Row{
 		makeRow(selector, LabelConfirm, CallbackConfirm),
 		editRow,
+		makeRow(selector, "Edit comment", CallbackEditComment),
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 		selector.Row(
 			selector.Data(LabelAcceptAll, CallbackAcceptAll),
@@ -178,7 +182,7 @@ func (u *UI) BuildImportReviewMessage(
 	selector.Inline(rows...)
 
 	formatted := formatter.FormatTransaction(tx, settings.LedgerAlignment)
-	msg := fmt.Sprintf("Reviewing Import (%d left):\n<pre>%s</pre>%s", pendingCount+1, formatted, msgSuffix)
+	msg := fmt.Sprintf("Reviewing Import (%d left):\n<pre>%s</pre>%s", pendingCount+1, html.EscapeString(formatted), msgSuffix)
 
 	return msg, selector
 }

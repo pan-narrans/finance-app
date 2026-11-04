@@ -193,7 +193,6 @@ func (e *testEnv) sendCallbackWithRawData(data string) {
 	time.Sleep(150 * time.Millisecond)
 }
 
-
 func TestTelegramIntegration_HappyPaths(t *testing.T) {
 	env := setupTestEnv(t)
 
@@ -353,4 +352,17 @@ func TestTelegramIntegration_MappingPersistence(t *testing.T) {
 			return data.Accounts["CASH"] == "Assets:Cash:Personal"
 		}, 2*time.Second, 100*time.Millisecond)
 	})
+}
+
+func TestTelegramIntegration_CommentSavedWithDraft(t *testing.T) {
+	env := setupTestEnv(t)
+	env.sendText("10 Dinner")
+	env.sendCallback(telegram.CallbackEditComment)
+	env.sendText("Shared with Alice & Bob\nReceipt in email")
+	env.sendCallback(telegram.CallbackConfirm)
+
+	assert.Eventually(t, func() bool {
+		content, _ := os.ReadFile(env.ledgerPath)
+		return strings.Contains(string(content), "    ; Shared with Alice & Bob\n    ; Receipt in email\n")
+	}, 2*time.Second, 100*time.Millisecond)
 }

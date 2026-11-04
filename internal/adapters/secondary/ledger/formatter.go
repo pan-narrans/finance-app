@@ -46,6 +46,12 @@ func (f *LedgerFormatter) FormatTransaction(t domain.Transaction, alignment int)
 	sb.WriteByte('\n')
 
 	f.addMetadata(&sb, t.Metadata)
+	comment := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(t.Comment, "\r\n", "\n"), "\r", "\n"))
+	if comment != "" {
+		for _, line := range strings.Split(comment, "\n") {
+			fmt.Fprintf(&sb, "    ; %s\n", line)
+		}
+	}
 	f.addPostings(&sb, t.Postings, alignment)
 
 	return sb.String()

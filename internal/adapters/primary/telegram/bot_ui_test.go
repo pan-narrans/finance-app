@@ -15,6 +15,7 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	tx := domain.Transaction{
 		Date:        time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 		Description: "Test",
+		Comment:     "Dinner <with friends>",
 		Postings: []domain.Posting{
 			{Account: "Expenses:Food", Amount: new(10.0), Currency: "EUR"},
 			{Account: "Assets:Checking", Amount: nil},
@@ -29,8 +30,9 @@ func TestUI_BuildDraftMessage_ShouldReturnFormattedTextAndMarkup(t *testing.T) {
 	assert.Contains(t, msg, "Draft Transaction:")
 	assert.Contains(t, msg, "2026/01/01")
 	assert.Contains(t, msg, "Expenses:Food")
+	assert.Contains(t, msg, "; Dinner &lt;with friends&gt;")
 	assert.NotNil(t, selector)
-	assert.Len(t, selector.InlineKeyboard, 3) // Confirm, Edit row, Discard
+	assert.Len(t, selector.InlineKeyboard, 4) // Confirm, accounts, comment, discard
 }
 
 func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *testing.T) {
@@ -53,8 +55,8 @@ func TestUI_BuildDraftMessage_ShouldIncludeSuggestions_WhenAccountIsUnknown(t *t
 	// Assert
 	assert.Contains(t, msg, "Unknown account. Suggestions:")
 	assert.NotNil(t, selector)
-	// 3 standard rows + 1 suggestion row
-	assert.Len(t, selector.InlineKeyboard, 4)
+	// 4 standard rows + 1 suggestion row
+	assert.Len(t, selector.InlineKeyboard, 5)
 }
 
 func TestUI_BuildEditPrompt_ShouldReturnCorrectType(t *testing.T) {

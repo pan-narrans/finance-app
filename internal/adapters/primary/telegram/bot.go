@@ -168,6 +168,7 @@ func (a *TelegramAdapter) RegisterHandlers() {
 	// Callback routing
 	// telebot v3 Handle() with Btn pointers only matches exact Data matches.
 	// For handlers requiring payload data, we use manual prefix routing on OnCallback.
+	a.teleBot.Handle(&telebot.Btn{Unique: CallbackEditComment}, a.handleEditComment)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackConfirm}, a.handleConfirm)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackDiscard}, a.handleDiscard)
 	a.teleBot.Handle(&telebot.Btn{Unique: CallbackCancelEdit}, a.handleCancelEdit)
@@ -195,7 +196,6 @@ func (a *TelegramAdapter) RegisterHandlers() {
 			return nil
 		},
 	)
-
 
 	// Set Commands Menu for Autocomplete
 	commands := []telebot.Command{

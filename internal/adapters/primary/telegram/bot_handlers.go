@@ -54,6 +54,19 @@ func (a *TelegramAdapter) handleText(c telebot.Context) error {
 	// 1. Handle State-based inputs
 	if exists && session.State != StateNone {
 		switch session.State {
+		case StateAwaitingComment:
+			if c.Chat().ID != session.LastChatID {
+				return nil
+			}
+			comment := strings.TrimSpace(c.Text())
+			if comment == "-" {
+				comment = ""
+			}
+			a.sessionManager.Update(userID, func(s *UserSession) {
+				s.Draft.Comment = comment
+				s.State = StateNone
+			})
+			return a.refreshDraftMessage(userID)
 		case StateAwaitingQuery:
 			return a.handleSearchQuery(c)
 		case StateCreatingAccountChild:
