@@ -36,15 +36,6 @@ func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *tes
 	assert.Empty(t, account)
 }
 
-func TestMappingService_IsIncomeAccount(t *testing.T) {
-	svc := NewMappingService(MappingData{}, nil)
-
-	assert.True(t, svc.IsIncomeAccount("Income:Salary"))
-	assert.True(t, svc.IsIncomeAccount("Equity:Income:Bonus"))
-	assert.False(t, svc.IsIncomeAccount("Expenses:Food"))
-	assert.False(t, svc.IsIncomeAccount("Assets:Cash"))
-}
-
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	// Arrange
 	data := MappingData{

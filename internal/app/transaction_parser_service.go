@@ -69,20 +69,6 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	sourceAccount := s.resolveSourceAccount(appConfig, sourceKeyword)
 
 	keys := [2]string{cleanDescription, sourceKeyword}
-	// Legacy income shorthand uses the payee as From and the optional prefix as To.
-	if appConfig.Mappings.IsIncomeAccount(targetAccount) {
-		keys = [2]string{sourceKeyword, cleanDescription}
-		sourceAccount, _ = appConfig.Mappings.ResolveSourceDescription(cleanDescription)
-		if sourceAccount == "" {
-			sourceAccount = targetAccount
-		}
-		targetAccount = appConfig.Settings.DefaultAssetAccount
-		if sourceKeyword != "" {
-			if account, found := appConfig.Mappings.ResolveAccount(sourceKeyword); found {
-				targetAccount = account
-			}
-		}
-	}
 	postings := []domain.Posting{
 		{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
 		{Account: sourceAccount},

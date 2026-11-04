@@ -229,14 +229,6 @@ func (s *MappingService) ResolveAccount(description string) (string, bool) {
 }
 
 /*
-IsIncomeAccount returns true if the account name suggests it is an income account.
-*/
-func (s *MappingService) IsIncomeAccount(account string) bool {
-	upper := strings.ToUpper(account)
-	return strings.HasPrefix(upper, "INCOME") || strings.Contains(upper, ":INCOME")
-}
-
-/*
 ResolvePayer matches card numbers in the full description to their owners.
 
 It iterates through card mappings and returns the owner's name if the

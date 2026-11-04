@@ -42,7 +42,7 @@ Choose **Edit comment** on a draft, then send the comment as text. In groups wit
 
 ## Learning Mechanism (Mapping Persistence)
 
-Confirmation learns from explicit account overrides. Source means From, and target means To. In legacy income shorthand such as `1000 salary`, the salary account supplies From and the default asset account receives To.
+Confirmation learns from explicit account overrides. The optional prefix always selects From, and the description selects To. If you omit the prefix, From uses the default asset account. To record salary into checking, use `salary 1000 checking` with `salary` mapped as From and `checking` mapped as To.
 
 See [Mappings and Scoring Logic](mappings.md) for role overrides and import review behavior.
 
