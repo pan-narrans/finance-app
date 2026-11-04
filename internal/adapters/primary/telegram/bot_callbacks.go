@@ -2,11 +2,14 @@ package telegram
 
 import (
 	"fmt"
+	"html"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
 	"gopkg.in/telebot.v3"
 )
@@ -31,16 +34,7 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
 
-	// Persist mappings if overridden
-	err := a.configUseCase.LearnMapping(
-		session.Draft,
-		session.TargetOverridden,
-		session.SourceOverridden,
-		session.OriginalSourceKeyword,
-	)
-	if err != nil {
-		log.Printf("Error saving mappings: %v", err)
-	}
+	a.learnDraftMapping(c, &session)
 
 	if len(session.PendingQueue) > 0 {
 		return a.advanceToNextPending(c, userID, &session)
@@ -50,7 +44,63 @@ func (a *TelegramAdapter) handleConfirm(c telebot.Context) error {
 
 	appConfig := a.configUseCase.Get()
 	formatted := a.formatter.FormatTransaction(session.Draft, appConfig.Settings.LedgerAlignment)
-	return c.Edit(fmt.Sprintf(MsgTransactionSaved+"\n<pre>%s</pre>", formatted), telebot.ModeHTML)
+	return c.Edit(fmt.Sprintf(MsgTransactionSaved+"\n<pre>%s</pre>", html.EscapeString(formatted)), telebot.ModeHTML)
+}
+
+func (a *TelegramAdapter) learnDraftMapping(c telebot.Context, session *UserSession) {
+	before := a.configUseCase.Get().Mappings
+	changed, err := a.configUseCase.LearnMapping(
+		session.Draft, session.TargetOverridden, session.SourceOverridden, session.OriginalSourceKeyword,
+	)
+	if err != nil {
+		log.Printf("Error saving mappings: %v", err)
+		_ = c.Send("Transaction saved. Could not save account mapping.")
+		return
+	}
+	if changed {
+		session.PendingQueue = refreshPendingMappings(session.PendingQueue, before, a.configUseCase.Get().Mappings)
+	}
+}
+
+func refreshPendingMappings(queue []domain.Transaction, before, after ports.MappingProvider) []domain.Transaction {
+	updated := slices.Clone(queue)
+	for i := range updated {
+		tx := &updated[i]
+		tx.Postings = slices.Clone(tx.Postings)
+		for index, keyword := range tx.MappingKeys {
+			if keyword == "" || index >= len(tx.Postings) {
+				continue
+			}
+			oldResolve, newResolve := before.ResolveAccount, after.ResolveAccount
+			if index == 1 {
+				oldResolve, newResolve = before.ResolveSourceDescription, after.ResolveSourceDescription
+			}
+			old, _ := oldResolve(keyword)
+			account, found := newResolve(keyword)
+			if found && account != old {
+				tx.Postings[index].Account = account
+			}
+		}
+	}
+	return updated
+}
+
+func (a *TelegramAdapter) handleEditComment(c telebot.Context) error {
+	userID := c.Sender().ID
+	session, ok := a.sessionManager.Get(userID)
+	if !ok {
+		return c.Edit(MsgSessionExpired)
+	}
+	if c.Message().ID != session.LastMessageID || c.Chat().ID != session.LastChatID {
+		return c.Respond(&telebot.CallbackResponse{Text: "Use the latest draft."})
+	}
+	selector := &telebot.ReplyMarkup{}
+	selector.Inline(makeRow(selector, LabelCancel, CallbackCancelEdit))
+	if err := c.Edit("Send a comment, or send - to remove it.", selector); err != nil {
+		return err
+	}
+	a.sessionManager.Update(userID, func(s *UserSession) { s.State = StateAwaitingComment })
+	return c.Respond()
 }
 
 /*
@@ -76,10 +126,12 @@ func (a *TelegramAdapter) advanceToNextPending(c telebot.Context, userID int64, 
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {
 			s.Draft = next
-			s.PendingQueue = s.PendingQueue[1:]
+			s.PendingQueue = session.PendingQueue[1:]
+			s.State = StateNone
+			s.EditingPosting = 0
 			s.TargetOverridden = false
 			s.SourceOverridden = false
-			s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(next.Description)
+			s.OriginalSourceKeyword = ""
 		},
 	)
 
@@ -103,7 +155,10 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 	}
 
 	payload := a.getCallbackPayload(c, CallbackEditAcc)
-	postingIdx, _ := strconv.Atoi(payload)
+	postingIdx, err := strconv.Atoi(payload)
+	if err != nil || postingIdx < 0 || postingIdx >= len(session.Draft.Postings) {
+		return c.Respond()
+	}
 
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {
@@ -112,7 +167,11 @@ func (a *TelegramAdapter) handleEditRequest(c telebot.Context) error {
 		},
 	)
 
-	results := a.configUseCase.Get().Mappings.SearchAccounts(session.Draft.Description, 5)
+	query := session.Draft.MappingKeys[postingIdx]
+	if query == "" {
+		query = session.Draft.Description
+	}
+	results := searchDraftAccounts(a.configUseCase.Get().Mappings, query, 5, postingIdx)
 
 	msg, selector := a.ui.BuildEditPrompt(postingIdx == 1, results)
 	return c.Edit(msg, selector, telebot.ModeHTML)
@@ -142,7 +201,10 @@ func (a *TelegramAdapter) handleAccountSelect(c telebot.Context) error {
 	var updatedDraft domain.Transaction
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {
-			if len(s.Draft.Postings) > s.EditingPosting {
+			if s.State == StateNone {
+				s.EditingPosting = unknownPosting(s.Draft)
+			}
+			if s.EditingPosting >= 0 && len(s.Draft.Postings) > s.EditingPosting {
 				s.Draft.Postings[s.EditingPosting].Account = formattedAccount
 			}
 			s.State = StateNone
@@ -260,7 +322,7 @@ func (a *TelegramAdapter) handleDoneAcc(c telebot.Context) error {
 	var updatedDraft domain.Transaction
 	a.sessionManager.Update(
 		userID, func(s *UserSession) {
-			if len(s.Draft.Postings) > s.EditingPosting {
+			if s.EditingPosting >= 0 && len(s.Draft.Postings) > s.EditingPosting {
 				s.Draft.Postings[s.EditingPosting].Account = formattedPath
 			}
 			s.State = StateNone
@@ -305,9 +367,11 @@ func (a *TelegramAdapter) handleAcceptAll(c telebot.Context) error {
 	saved := 0
 
 	// Save current draft
-	if err := a.transactionUseCase.Add(session.Draft); err == nil {
-		saved++
+	if err := a.transactionUseCase.Add(session.Draft); err != nil {
+		return c.Edit(fmt.Sprintf("Error saving transaction: %v", err))
 	}
+	saved++
+	a.learnDraftMapping(c, &session)
 
 	// Save everything else in the queue
 	for _, tx := range session.PendingQueue {
@@ -385,13 +449,13 @@ func (a *TelegramAdapter) handleBankSelect(c telebot.Context) error {
 			s.Draft = firstPending
 			s.PendingQueue = summary.Pending[1:]
 			s.State = StateNone
-			s.OriginalSourceKeyword = a.transactionParserUC.GuessSource(firstPending.Description)
+			s.OriginalSourceKeyword = ""
 			s.ImportFilePath = "" // Clear path as it's done
 		})
 
 		// Send summary first
 		_, _ = a.teleBot.Send(c.Chat(), response, telebot.ModeHTML)
-		
+
 		// Then send first draft for review (which updates session.LastMessageID)
 		return a.sendDraftMessage(c, firstPending)
 	}
@@ -399,7 +463,6 @@ func (a *TelegramAdapter) handleBankSelect(c telebot.Context) error {
 	a.sessionManager.Delete(userID)
 	return c.Edit(response, telebot.ModeHTML)
 }
-
 
 /*
 getCallbackPayload extracts and cleans the data payload from a callback context.

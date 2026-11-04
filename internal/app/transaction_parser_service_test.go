@@ -84,7 +84,7 @@ func TestTransactionParserService_ParseText_ShouldHandleCommaAsDecimalSeparator(
 	assert.Equal(t, 12.50, *tx.Postings[0].Amount)
 }
 
-func TestTransactionParserService_ParseText_ShouldUseDefaultAsset_WhenSourceIsUnknown(t *testing.T) {
+func TestTransactionParserService_ParseText_ShouldPreserveSourceCase_WhenSourceIsUnknown(t *testing.T) {
 	// Arrange
 	settings := domain.Settings{
 		DefaultAssetAccount: "Assets:Cash",
@@ -101,9 +101,8 @@ func TestTransactionParserService_ParseText_ShouldUseDefaultAsset_WhenSourceIsUn
 
 	// Assert
 	require.NoError(t, err)
-	// We no longer fallback to Income:Alex automatically if it's not mapped,
-	// to avoid "Hey 10 coffee" becoming "Income:Hey".
-	assert.Equal(t, "Income:Alex", tx.Postings[1].Account)
+	// Preserve capitalization of the typed source keyword.
+	assert.Equal(t, "Income:alex", tx.Postings[1].Account)
 	assert.Equal(t, "gift", tx.Description, "Description should not include unmapped source keyword")
 }
 
@@ -153,10 +152,13 @@ func TestTransactionParserService_ParseText_ShouldTreatPositiveAmountAsExpenseBy
 	assert.Nil(t, tx.Postings[1].Amount)
 }
 
-func TestTransactionParserService_ParseText_ShouldFormatIncomeCorrectly(t *testing.T) {
-	// Arrange
+func TestTransactionParserService_ParseText_ShouldPreserveRolesForIncomeAccounts(t *testing.T) {
 	data := domain.MappingData{
-		Accounts: map[string]string{"SALARY": "Income:Salary"},
+		Accounts: map[string]string{"CHECKING": "Assets:Checking"},
+		AccountRoles: map[string]domain.AccountRoles{
+			"SALARY":     {Source: "Income:Salary", Target: "Assets:PayrollHolding"},
+			"CORRECTION": {Source: "Assets:PayrollHolding", Target: "Income:Salary"},
+		},
 	}
 	settings := domain.Settings{
 		DefaultAssetAccount: "Assets:Cash",
@@ -165,25 +167,32 @@ func TestTransactionParserService_ParseText_ShouldFormatIncomeCorrectly(t *testi
 	constructor := func(data domain.MappingData, _ []string) ports.MappingProvider {
 		return domain.NewMappingService(data, nil)
 	}
-	manager, _ := config.NewManager("config.json", "mappings.json", constructor)
+	manager, err := config.NewManager("config.json", "mappings.json", constructor)
+	require.NoError(t, err)
+	defer manager.Close()
 	manager.ReloadWithData(settings, data)
-
 	svc := NewTransactionParserService(manager)
 
-	// Act: "1000 salary" - salary is an Income account
-	tx, err := svc.ParseText("1000 salary", domain.OriginTelegram)
-
-	// Assert
-	require.NoError(t, err)
-	require.Len(t, tx.Postings, 2)
-
-	// Convention: Target (Debit) first. For income, target is Assets.
-	assert.Equal(t, "Assets:Cash", tx.Postings[0].Account)
-	assert.Equal(t, 1000.0, *tx.Postings[0].Amount)
-
-	// Source (Credit) second.
-	assert.Equal(t, "Income:Salary", tx.Postings[1].Account)
-	assert.Nil(t, tx.Postings[1].Amount)
+	for _, tc := range []struct {
+		input, from, to string
+		keys            [2]string
+	}{
+		{"salary 1000 checking", "Income:Salary", "Assets:Checking", [2]string{"checking", "salary"}},
+		{"checking 1000 correction", "Assets:Checking", "Income:Salary", [2]string{"correction", "checking"}},
+		{"1000 correction", "Assets:Cash", "Income:Salary", [2]string{"correction", ""}},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			tx, err := svc.ParseText(tc.input, domain.OriginTelegram)
+			require.NoError(t, err)
+			require.Len(t, tx.Postings, 2)
+			assert.Equal(t, tc.to, tx.Postings[0].Account)
+			assert.Equal(t, tc.from, tx.Postings[1].Account)
+			require.NotNil(t, tx.Postings[0].Amount)
+			assert.Equal(t, 1000.0, *tx.Postings[0].Amount)
+			assert.Nil(t, tx.Postings[1].Amount)
+			assert.Equal(t, tc.keys, tx.MappingKeys)
+		})
+	}
 }
 
 func TestTransactionParserService_HashID_ShouldBeConsistent(t *testing.T) {

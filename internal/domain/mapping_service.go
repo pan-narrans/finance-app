@@ -9,34 +9,84 @@ import (
 
 // MappingData holds the raw configuration for transaction mappings.
 type MappingData struct {
-	Accounts     map[string]string `json:"accounts"`
-	Descriptions map[string]string `json:"descriptions"`
-	Cards        map[string]string `json:"cards"`
-	Prefixes     []string          `json:"prefixes"`
+	Accounts     map[string]string       `json:"accounts"`
+	AccountRoles map[string]AccountRoles `json:"-"`
+	Descriptions map[string]string       `json:"descriptions"`
+	Cards        map[string]string       `json:"cards"`
+	Prefixes     []string                `json:"prefixes"`
 }
 
-/*
-Learn updates the mapping data based on overrides from a confirmed transaction.
-*/
-func (d *MappingData) Learn(transaction Transaction, targetOverride bool, sourceOverride bool, originalSource string) {
-	if d.Accounts == nil {
-		d.Accounts = make(map[string]string)
-	}
+// AccountRoles stores distinct From and To accounts for a keyword.
+type AccountRoles struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
 
-	targetIndex, sourceIndex := 0, 1
-	if transaction.IsIncome() {
-		targetIndex, sourceIndex = 1, 0
+// Learn applies explicit posting overrides and reports whether a mapping changed.
+func (d *MappingData) Learn(transaction Transaction, targetOverride, sourceOverride bool, originalSource string) bool {
+	if len(transaction.Postings) < 2 {
+		return false
 	}
+	keys := transaction.MappingKeys
+	if keys == [2]string{} {
+		keys = [2]string{transaction.Description, originalSource}
+	}
+	changed := false
+	if targetOverride && d.learnAccount(keys[0], transaction.Postings[0].Account, false) {
+		changed = true
+	}
+	if sourceOverride && d.learnAccount(keys[1], transaction.Postings[1].Account, true) {
+		changed = true
+	}
+	return changed
+}
 
-	if targetOverride {
-		key := strings.ToUpper(transaction.Description)
-		d.Accounts[key] = transaction.Postings[targetIndex].Account
+func (d *MappingData) learnAccount(keyword, account string, source bool) bool {
+	key := strings.ToUpper(strings.TrimSpace(keyword))
+	if key == "" || account == "" {
+		return false
 	}
-
-	if sourceOverride && originalSource != "" {
-		key := strings.ToUpper(originalSource)
-		d.Accounts[key] = transaction.Postings[sourceIndex].Account
+	for existing := range d.Accounts {
+		if strings.EqualFold(existing, key) {
+			key = existing
+			break
+		}
 	}
+	for existing := range d.AccountRoles {
+		if strings.EqualFold(existing, key) {
+			key = existing
+			break
+		}
+	}
+	roles, split := d.AccountRoles[key]
+	if !split {
+		shared, found := d.Accounts[key]
+		if !found {
+			if d.Accounts == nil {
+				d.Accounts = make(map[string]string)
+			}
+			d.Accounts[key] = account
+			return true
+		}
+		roles = AccountRoles{Source: shared, Target: shared}
+	}
+	if source {
+		if roles.Source == account {
+			return false
+		}
+		roles.Source = account
+	} else {
+		if roles.Target == account {
+			return false
+		}
+		roles.Target = account
+	}
+	if d.AccountRoles == nil {
+		d.AccountRoles = make(map[string]AccountRoles)
+	}
+	delete(d.Accounts, key)
+	d.AccountRoles[key] = roles
+	return true
 }
 
 /*
@@ -48,6 +98,8 @@ and domain-specific values (accounts, payers) using configurable rules.
 type MappingService struct {
 	data                      MappingData
 	accountMappings           map[string]string
+	sourceMappings            map[string]string
+	sortedSourceKeywords      []string
 	descriptionMappings       map[string]string
 	sortedAccountKeywords     []string
 	sortedDescriptionKeywords []string
@@ -65,7 +117,23 @@ It pre-processes mapping data by:
   - Extracting a unique, sorted list of known account names from both mappings and discovered accounts.
 */
 func NewMappingService(data MappingData, discoveredAccounts []string) *MappingService {
-	sortedAccountKeywords := sortKeywords(data.Accounts)
+	targets := make(map[string]string)
+	sources := make(map[string]string)
+	for _, key := range sortKeywords(data.Accounts) {
+		normalized := strings.ToUpper(key)
+		targets[normalized], sources[normalized] = data.Accounts[key], data.Accounts[key]
+	}
+	roleKeys := make([]string, 0, len(data.AccountRoles))
+	for key := range data.AccountRoles {
+		roleKeys = append(roleKeys, key)
+	}
+	slices.Sort(roleKeys)
+	for _, key := range roleKeys {
+		roles := data.AccountRoles[key]
+		normalized := strings.ToUpper(key)
+		targets[normalized], sources[normalized] = roles.Target, roles.Source
+	}
+	sortedAccountKeywords := sortKeywords(targets)
 	sortedDescriptionKeywords := sortKeywords(data.Descriptions)
 
 	prefixRegexes := make([]*regexp.Regexp, 0, len(data.Prefixes))
@@ -76,11 +144,13 @@ func NewMappingService(data MappingData, discoveredAccounts []string) *MappingSe
 		}
 	}
 
-	uniqueAccounts := mergeAndSortAccounts(data.Accounts, discoveredAccounts)
+	uniqueAccounts := mergeAndSortAccounts(targets, mergeAndSortAccounts(sources, discoveredAccounts))
 
 	return &MappingService{
 		data:                      data,
-		accountMappings:           data.Accounts,
+		accountMappings:           targets,
+		sourceMappings:            sources,
+		sortedSourceKeywords:      sortKeywords(sources),
 		descriptionMappings:       data.Descriptions,
 		sortedAccountKeywords:     sortedAccountKeywords,
 		sortedDescriptionKeywords: sortedDescriptionKeywords,
@@ -159,14 +229,6 @@ func (s *MappingService) ResolveAccount(description string) (string, bool) {
 }
 
 /*
-IsIncomeAccount returns true if the account name suggests it is an income account.
-*/
-func (s *MappingService) IsIncomeAccount(account string) bool {
-	upper := strings.ToUpper(account)
-	return strings.HasPrefix(upper, "INCOME") || strings.Contains(upper, ":INCOME")
-}
-
-/*
 ResolvePayer matches card numbers in the full description to their owners.
 
 It iterates through card mappings and returns the owner's name if the
@@ -196,8 +258,13 @@ func (s *MappingService) ResolveSource(keyword string) (string, bool) {
 		return "", false
 	}
 
-	account, exists := s.accountMappings[strings.ToUpper(keyword)]
+	account, exists := s.sourceMappings[strings.ToUpper(strings.TrimSpace(keyword))]
 	return account, exists
+}
+
+// ResolveSourceDescription matches a payee against From mappings for inflows.
+func (s *MappingService) ResolveSourceDescription(description string) (string, bool) {
+	return s.findMatch(description, s.sortedSourceKeywords, s.sourceMappings)
 }
 
 /*
@@ -214,6 +281,14 @@ the result is truncated to that size. If limit is zero or negative, all matches
 are returned.
 */
 func (s *MappingService) SearchAccounts(query string, limit int) []string {
+	return s.searchAccounts(query, limit, s.accountMappings)
+}
+
+func (s *MappingService) SearchSourceAccounts(query string, limit int) []string {
+	return s.searchAccounts(query, limit, s.sourceMappings)
+}
+
+func (s *MappingService) searchAccounts(query string, limit int, mappings map[string]string) []string {
 	if query == "" {
 		return nil
 	}
@@ -222,7 +297,7 @@ func (s *MappingService) SearchAccounts(query string, limit int) []string {
 	tokens := strings.Fields(queryUpper)
 
 	accountScores := s.scoreAccounts(queryUpper, tokens)
-	mappingScores := s.scoreMappingKeys(queryUpper, tokens)
+	mappingScores := s.scoreMappingKeys(queryUpper, tokens, mappings)
 
 	// Merge scores, keeping the highest score for each account
 	for account, score := range mappingScores {
@@ -276,9 +351,9 @@ func (s *MappingService) scoreAccounts(queryUpper string, tokens []string) map[s
 scoreMappingKeys returns a map of scores based on matches against mapping keywords.
 Mapping matches are slightly penalized to prioritize direct account name matches.
 */
-func (s *MappingService) scoreMappingKeys(queryUpper string, tokens []string) map[string]int {
+func (s *MappingService) scoreMappingKeys(queryUpper string, tokens []string, mappings map[string]string) map[string]int {
 	scores := make(map[string]int)
-	for key, account := range s.accountMappings {
+	for key, account := range mappings {
 		if score, ok := calculateScore(key, queryUpper, tokens); ok {
 			// Mapping key matches are slightly penalized vs direct name matches
 			// to prioritize names if both match.

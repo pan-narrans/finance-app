@@ -36,14 +36,6 @@ func main() {
 		log.Fatalf("Failed to initialize config manager: %v", err)
 	}
 
-	// Bootstrap authorized users from environment if not present in config file
-	if len(configManager.Get().Settings.TelegramUserIDs) == 0 && len(env.TelegramUserIDs) > 0 {
-		log.Printf("Bootstrapping authorized users from environment variable...")
-		settings := configManager.Get().Settings
-		settings.TelegramUserIDs = env.TelegramUserIDs
-		configManager.ReloadWithData(settings, domain.MappingData{}) // Note: mappings will be reloaded from file soon
-	}
-
 	configManager.Watch()
 	defer configManager.Close()
 

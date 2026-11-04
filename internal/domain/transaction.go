@@ -7,9 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 /*
@@ -59,6 +56,9 @@ type Transaction struct {
 	Date        time.Time
 	Status      TransactionStatus
 	Description string
+	Comment     string
+	// MappingKeys identifies the original keyword for each posting during review.
+	MappingKeys [2]string `json:"-"`
 	Code        string
 	Metadata    Metadata
 	Postings    []Posting
@@ -155,29 +155,11 @@ func (t *Transaction) HasUnknownAccount() bool {
 	return false
 }
 
-/*
-IsIncome returns true if any of the transaction's postings involve an income account.
-This is used to handle role-swapping logic in mappings and UI.
-*/
-func (t *Transaction) IsIncome() bool {
-	for _, posting := range t.Postings {
-		upper := strings.ToUpper(posting.Account)
-		if strings.HasPrefix(upper, "INCOME") || strings.Contains(upper, ":INCOME") {
-			return true
-		}
-	}
-	return false
-}
-
-/*
-FormatAccountPath ensures all segments of an account path are Title Cased.
-(e.g., "expenses:food:dining" -> "Expenses:Food:Dining")
-*/
+// FormatAccountPath trims segment whitespace while preserving account capitalization.
 func FormatAccountPath(path string) string {
 	segments := strings.Split(path, ":")
-	caser := cases.Title(language.Und)
-	for i, seg := range segments {
-		segments[i] = caser.String(strings.ToLower(strings.TrimSpace(seg)))
+	for i, segment := range segments {
+		segments[i] = strings.TrimSpace(segment)
 	}
 	return strings.Join(segments, ":")
 }

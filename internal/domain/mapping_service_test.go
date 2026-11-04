@@ -36,15 +36,6 @@ func TestMappingService_ResolveAccount_ShouldReturnFalse_WhenNoMatchFound(t *tes
 	assert.Empty(t, account)
 }
 
-func TestMappingService_IsIncomeAccount(t *testing.T) {
-	svc := NewMappingService(MappingData{}, nil)
-
-	assert.True(t, svc.IsIncomeAccount("Income:Salary"))
-	assert.True(t, svc.IsIncomeAccount("Equity:Income:Bonus"))
-	assert.False(t, svc.IsIncomeAccount("Expenses:Food"))
-	assert.False(t, svc.IsIncomeAccount("Assets:Cash"))
-}
-
 func TestMappingService_CleanDescription_ShouldStripPrefixes(t *testing.T) {
 	// Arrange
 	data := MappingData{
@@ -272,6 +263,7 @@ func TestMappingData_Learn(t *testing.T) {
 		amount := 1000.0
 		tx := Transaction{
 			Description: "SALARY",
+			MappingKeys: [2]string{"WORK", "SALARY"},
 			Postings: []Posting{
 				{Account: "Assets:Checking", Amount: &amount},
 				{Account: "Income:Salary"},
@@ -280,7 +272,7 @@ func TestMappingData_Learn(t *testing.T) {
 
 		data.Learn(tx, true, true, "WORK")
 
-		assert.Equal(t, "Income:Salary", data.Accounts["SALARY"], "For income, target should be from Postings[1]")
-		assert.Equal(t, "Assets:Checking", data.Accounts["WORK"], "For income, source should be from Postings[0]")
+		assert.Equal(t, "Income:Salary", data.Accounts["SALARY"], "Income From account comes from Postings[1]")
+		assert.Equal(t, "Assets:Checking", data.Accounts["WORK"], "Income To account comes from Postings[0]")
 	})
 }

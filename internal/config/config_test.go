@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/a-perez/finance-app/internal/domain"
 	"os"
 	"path/filepath"
 	"testing"
@@ -58,4 +59,56 @@ func TestLoadMappings_ShouldReturnEmpty_WhenFileNotFound(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, data.Accounts)
 	assert.Empty(t, data.Accounts)
+}
+
+func TestLoadConfig_ShouldMergeEnvironmentAndFileUserIDsOnEachLoad(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("TELEGRAM_USER_IDS", "42, 43, 42")
+
+	settings, err := LoadConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{42, 43}, settings.TelegramUserIDs)
+
+	require.NoError(t, os.WriteFile(path, []byte(`{"telegram_user_ids":[43,-99,-99]}`), 0600))
+	settings, err = LoadConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{42, 43, -99}, settings.TelegramUserIDs)
+
+	t.Setenv("TELEGRAM_USER_IDS", "")
+	settings, err = LoadConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{43, -99}, settings.TelegramUserIDs)
+}
+
+func TestAccountMappingRoundTrip_ShouldPreserveOtherRoleOnOverride(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mappings.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{
+   "accounts": {
+     "cash": "Assets:OpenBank",
+     "employer": {"source":"Income:MyEmployer","target":"Assets:MyBank"}
+   }
+ }`), 0600))
+
+	data, err := LoadMappings(path)
+	require.NoError(t, err)
+	tx := domain.Transaction{
+		Description: "Coffee",
+		Postings:    []domain.Posting{{Account: "Expenses:Coffee"}, {Account: "Assets:NewBank"}},
+	}
+	assert.True(t, data.Learn(tx, false, true, "CASH"))
+	assert.False(t, data.Learn(tx, false, true, "cash"))
+	require.NoError(t, WriteMappings(path, data))
+
+	data, err = LoadMappings(path)
+	require.NoError(t, err)
+	service := domain.NewMappingService(data, nil)
+	source, found := service.ResolveSource("CaSh")
+	assert.True(t, found)
+	assert.Equal(t, "Assets:NewBank", source)
+	target, found := service.ResolveAccount("paid in CASH")
+	assert.True(t, found)
+	assert.Equal(t, "Assets:OpenBank", target)
+	source, found = service.ResolveSourceDescription("transfer from EMPLOYER")
+	assert.True(t, found)
+	assert.Equal(t, "Income:MyEmployer", source)
 }

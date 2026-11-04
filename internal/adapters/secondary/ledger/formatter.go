@@ -31,29 +31,27 @@ The alignment parameter controls the start column for amounts.
 */
 func (f *LedgerFormatter) FormatTransaction(t domain.Transaction, alignment int) string {
 	var sb strings.Builder
-	var statusMark string
-
+	header := []string{t.Date.Format("2006/01/02")}
 	switch t.Status {
-	case domain.StatusNone:
-		statusMark = ""
 	case domain.StatusCleared:
-		statusMark = "* "
+		header = append(header, "*")
 	case domain.StatusPending:
-		statusMark = "! "
+		header = append(header, "!")
 	}
-
-	codeMark := ""
 	if t.Code != "" {
-		codeMark = fmt.Sprintf("(%s) ", t.Code)
+		header = append(header, fmt.Sprintf("(%s)", t.Code))
 	}
-
-	f.writeLine(&sb, "%s", t.Date.Format("2006/01/02"))
-	f.writeLine(&sb, " %s", statusMark)
-	f.writeLine(&sb, "%s", codeMark)
-	f.writeLine(&sb, "%s", t.Description)
+	header = append(header, t.Description)
+	sb.WriteString(strings.Join(header, " "))
 	sb.WriteByte('\n')
 
 	f.addMetadata(&sb, t.Metadata)
+	comment := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(t.Comment, "\r\n", "\n"), "\r", "\n"))
+	if comment != "" {
+		for _, line := range strings.Split(comment, "\n") {
+			fmt.Fprintf(&sb, "    ; %s\n", line)
+		}
+	}
 	f.addPostings(&sb, t.Postings, alignment)
 
 	return sb.String()

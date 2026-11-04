@@ -33,17 +33,18 @@ For complex account selection and creation, the bot integrates a **Telegram Mini
 - **Search**: Features a full-screen search bar with a virtual keyboard, providing real-time filtering of all known Ledger accounts.
 - **Creation Wizard**: A built-in wizard allows for quick creation of new account paths.
     - **Nesting**: Press **Enter** in the input field to automatically add a colon (`:`) and continue nesting.
-    - **Validation**: Resulting paths are automatically **Title Cased** (e.g., `expenses:food` -> `Expenses:Food`).
+    - **Validation**: Account path capitalization is preserved.
 - **Auto-Sync**: Once a selection is made, the Mini App closes and the bot message in the chat updates asynchronously to reflect the change.
+
+## Transaction Comments
+
+Choose **Edit comment** on a draft, then send the comment as text. In groups with privacy mode enabled, reply to the prompt. Send `-` to clear the comment, or select **Cancel** to keep the previous comment. Confirmation saves it as a Ledger comment.
 
 ## Learning Mechanism (Mapping Persistence)
 
-The bot "learns" from user corrections to reduce future friction.
+Confirmation learns from explicit account overrides. The optional prefix always selects From, and the description selects To. If you omit the prefix, From uses the default asset account. To record salary into checking, use `salary 1000 checking` with `salary` mapped as From and `checking` mapped as To.
 
-1.  **Target Learning**: If you override an "Unknown" or incorrect expense account, the system maps the **UPPERCASE** description to the selected account.
-    - *Example*: `Coffee` -> Selected `Expenses:Drinks`. Next time `coffee 5` will auto-map to `Expenses:Drinks`.
-2.  **Source Learning**: If you override a source keyword, the system maps the **lowercase** keyword to the selected account.
-    - *Example*: `Personal 10 Lunch` -> Selected `Assets:Checking:Personal`. Next time `personal 20 ...` will auto-map to that account.
+See [Mappings and Scoring Logic](mappings.md) for role overrides and import review behavior.
 
 ## Security and Authorization
 

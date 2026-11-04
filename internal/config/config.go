@@ -5,9 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
 // fileConfig is the JSON representation of the configuration file.
 type fileConfig struct {
 	DefaultCurrency       string   `json:"default_currency"`
@@ -30,6 +34,11 @@ If the file is missing or invalid, it returns default values and logs a warning.
 */
 func LoadConfig(path string) (domain.Settings, error) {
 	settings := domain.DefaultSettings()
+	for _, rawID := range strings.Split(os.Getenv("TELEGRAM_USER_IDS"), ",") {
+		if id, err := strconv.ParseInt(strings.TrimSpace(rawID), 10, 64); err == nil && !slices.Contains(settings.TelegramUserIDs, id) {
+			settings.TelegramUserIDs = append(settings.TelegramUserIDs, id)
+		}
+	}
 
 	fileData, err := os.ReadFile(path)
 	if err != nil {
@@ -69,8 +78,10 @@ func LoadConfig(path string) (domain.Settings, error) {
 		settings.RootAccounts = fc.RootAccounts
 	}
 
-	if len(fc.TelegramUserIDs) > 0 {
-		settings.TelegramUserIDs = fc.TelegramUserIDs
+	for _, id := range fc.TelegramUserIDs {
+		if !slices.Contains(settings.TelegramUserIDs, id) {
+			settings.TelegramUserIDs = append(settings.TelegramUserIDs, id)
+		}
 	}
 
 	return settings, nil

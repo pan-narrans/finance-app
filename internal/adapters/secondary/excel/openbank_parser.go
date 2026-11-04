@@ -123,9 +123,15 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		metadata.PayedBy = payedBy
 	}
 
-	account, found := p.mappingProvider.ResolveAccount(cleanDescription)
+	resolve := p.mappingProvider.ResolveAccount
+	keys := [2]string{cleanDescription, ""}
+	if amount >= 0 {
+		resolve = p.mappingProvider.ResolveSourceDescription
+		keys = [2]string{"", cleanDescription}
+	}
+	account, found := resolve(cleanDescription)
 	if !found {
-		if amount > 0 {
+		if amount >= 0 {
 			account = p.settings.DefaultIncomeAccount
 		} else {
 			account = p.settings.DefaultExpenseAccount
@@ -159,6 +165,7 @@ func (p *OpenBankParser) rowToTransaction(row []string) (*domain.Transaction, er
 		Date:        date,
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
+		MappingKeys: keys,
 		Metadata:    metadata,
 		Postings:    postings,
 	}

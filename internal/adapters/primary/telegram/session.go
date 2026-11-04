@@ -7,13 +7,13 @@ import (
 	"github.com/a-perez/finance-app/internal/domain"
 )
 
-
 /*
 SearchState represents the current step in a user's multi-message interaction.
 */
 type SearchState string
 
 const (
+	StateAwaitingComment          SearchState = "awaiting_comment"
 	StateNone                     SearchState = ""                  // StateNone indicates the user is not in a multistep flow.
 	StateAwaitingQuery            SearchState = "awaiting_query"    // StateAwaitingQuery indicates the bot is waiting for an account search query.
 	StateAwaitingTransactionInput SearchState = "awaiting_tx_input" // StateAwaitingTransactionInput indicates the bot is waiting for full transaction text.
@@ -41,7 +41,6 @@ type UserSession struct {
 	ImportFilePath        string
 	ImportBankType        string
 }
-
 
 /*
 SessionManager provides thread-safe management of active user sessions.
@@ -92,7 +91,6 @@ func (m *SessionManager) Delete(userID int64) {
 	log.Printf("[DEBUG] SessionManager: Deleting session for user %d", userID)
 	delete(m.sessions, userID)
 }
-
 
 /*
 Update provides a way to modify a session in a thread-safe manner using a callback.

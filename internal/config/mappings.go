@@ -1,14 +1,21 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/a-perez/finance-app/internal/domain"
 )
+
+type mappingsFile struct {
+	domain.MappingData
+	Accounts map[string]json.RawMessage `json:"accounts"`
+}
 
 /*
 LoadMappings loads the mappings from a JSON file directly into [domain.MappingData].
@@ -32,8 +39,37 @@ func LoadMappings(path string) (domain.MappingData, error) {
 		return data, err
 	}
 
-	if err := json.Unmarshal(fileData, &data); err != nil {
+	file := mappingsFile{MappingData: data}
+	if err := json.Unmarshal(fileData, &file); err != nil {
 		return data, fmt.Errorf("invalid mappings JSON at %s: %w", path, err)
+	}
+
+	data = file.MappingData
+	seen := make(map[string]bool)
+	for key, value := range file.Accounts {
+		normalized := strings.ToUpper(key)
+		if seen[normalized] {
+			return data, fmt.Errorf("duplicate account mapping keyword %q", key)
+		}
+		seen[normalized] = true
+		if bytes.HasPrefix(bytes.TrimSpace(value), []byte("{")) {
+			var roles domain.AccountRoles
+			decoder := json.NewDecoder(bytes.NewReader(value))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&roles); err != nil || strings.TrimSpace(roles.Source) == "" || strings.TrimSpace(roles.Target) == "" {
+				return data, fmt.Errorf("account mapping %q requires nonempty source and target", key)
+			}
+			if data.AccountRoles == nil {
+				data.AccountRoles = make(map[string]domain.AccountRoles)
+			}
+			data.AccountRoles[key] = roles
+		} else {
+			var account string
+			if err := json.Unmarshal(value, &account); err != nil || strings.TrimSpace(account) == "" {
+				return data, fmt.Errorf("account mapping %q requires a nonempty account name", key)
+			}
+			data.Accounts[key] = account
+		}
 	}
 
 	return data, nil
@@ -44,7 +80,14 @@ WriteMappings saves the [domain.MappingData] to a JSON file.
 It uses an atomic write pattern (write to temp file, then rename) to prevent corruption.
 */
 func WriteMappings(path string, data domain.MappingData) error {
-	fileData, err := json.MarshalIndent(data, "", "  ")
+	file := mappingsFile{MappingData: data, Accounts: make(map[string]json.RawMessage)}
+	for key, account := range data.Accounts {
+		file.Accounts[key], _ = json.Marshal(account)
+	}
+	for key, roles := range data.AccountRoles {
+		file.Accounts[key], _ = json.Marshal(roles)
+	}
+	fileData, err := json.MarshalIndent(file, "", "  ")
 	if err != nil {
 		return err
 	}

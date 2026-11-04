@@ -10,8 +10,6 @@ import (
 
 	"github.com/a-perez/finance-app/internal/app/ports"
 	"github.com/a-perez/finance-app/internal/domain"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 )
 
 // Ensure TransactionParserService implements ports.TransactionParserUseCase at compile time.
@@ -70,22 +68,10 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription)
 	sourceAccount := s.resolveSourceAccount(appConfig, sourceKeyword)
 
-	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
-	var postings []domain.Posting
-	isIncome := appConfig.Mappings.IsIncomeAccount(targetAccount)
-
-	if isIncome {
-		// Income: Assets (Target) increase, Income (Source) remains credit balance
-		postings = []domain.Posting{
-			{Account: sourceAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: targetAccount, Amount: nil},
-		}
-	} else {
-		// Expense/Transfer: Expense (Target) increases, Assets (Source) decrease
-		postings = []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: sourceAccount, Amount: nil},
-		}
+	keys := [2]string{cleanDescription, sourceKeyword}
+	postings := []domain.Posting{
+		{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+		{Account: sourceAccount},
 	}
 
 	// Add Metadata
@@ -99,6 +85,7 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		Date:        time.Now(),
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
+		MappingKeys: keys,
 		Metadata:    metadata,
 		Postings:    postings,
 	}
@@ -183,8 +170,7 @@ func (s *TransactionParserService) resolveSourceAccount(appConfig *ports.AppConf
 	}
 
 	// Fallback: if source name provided but no mapping, use Income:[Source]
-	titleCase := cases.Title(language.Und)
-	return fmt.Sprintf("Income:%s", titleCase.String(strings.ToLower(sourceKeyword)))
+	return "Income:" + sourceKeyword
 }
 
 /*
