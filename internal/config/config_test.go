@@ -61,23 +61,23 @@ func TestLoadMappings_ShouldReturnEmpty_WhenFileNotFound(t *testing.T) {
 	assert.Empty(t, data.Accounts)
 }
 
-func TestLoadConfig_ShouldApplyEnvironmentUserIDsOnEachLoad(t *testing.T) {
+func TestLoadConfig_ShouldMergeEnvironmentAndFileUserIDsOnEachLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	t.Setenv("TELEGRAM_USER_IDS", "42, 43")
+	t.Setenv("TELEGRAM_USER_IDS", "42, 43, 42")
 
 	settings, err := LoadConfig(path)
 	require.NoError(t, err)
 	assert.Equal(t, []int64{42, 43}, settings.TelegramUserIDs)
 
-	require.NoError(t, os.WriteFile(path, []byte(`{"telegram_user_ids":[99]}`), 0600))
+	require.NoError(t, os.WriteFile(path, []byte(`{"telegram_user_ids":[43,-99,-99]}`), 0600))
 	settings, err = LoadConfig(path)
 	require.NoError(t, err)
-	assert.Equal(t, []int64{42, 43}, settings.TelegramUserIDs)
+	assert.Equal(t, []int64{42, 43, -99}, settings.TelegramUserIDs)
 
 	t.Setenv("TELEGRAM_USER_IDS", "")
 	settings, err = LoadConfig(path)
 	require.NoError(t, err)
-	assert.Equal(t, []int64{99}, settings.TelegramUserIDs)
+	assert.Equal(t, []int64{43, -99}, settings.TelegramUserIDs)
 }
 
 func TestAccountMappingRoundTrip_ShouldPreserveOtherRoleOnOverride(t *testing.T) {

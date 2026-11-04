@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -34,7 +35,7 @@ If the file is missing or invalid, it returns default values and logs a warning.
 func LoadConfig(path string) (domain.Settings, error) {
 	settings := domain.DefaultSettings()
 	for _, rawID := range strings.Split(os.Getenv("TELEGRAM_USER_IDS"), ",") {
-		if id, err := strconv.ParseInt(strings.TrimSpace(rawID), 10, 64); err == nil {
+		if id, err := strconv.ParseInt(strings.TrimSpace(rawID), 10, 64); err == nil && !slices.Contains(settings.TelegramUserIDs, id) {
 			settings.TelegramUserIDs = append(settings.TelegramUserIDs, id)
 		}
 	}
@@ -77,8 +78,10 @@ func LoadConfig(path string) (domain.Settings, error) {
 		settings.RootAccounts = fc.RootAccounts
 	}
 
-	if len(settings.TelegramUserIDs) == 0 && len(fc.TelegramUserIDs) > 0 {
-		settings.TelegramUserIDs = fc.TelegramUserIDs
+	for _, id := range fc.TelegramUserIDs {
+		if !slices.Contains(settings.TelegramUserIDs, id) {
+			settings.TelegramUserIDs = append(settings.TelegramUserIDs, id)
+		}
 	}
 
 	return settings, nil
