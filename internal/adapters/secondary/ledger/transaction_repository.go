@@ -48,9 +48,9 @@ func (fileRepository *TransactionFileRepository) Create(transaction domain.Trans
 		return err
 	}
 
-	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
+	codePattern := transactionCodePattern(transaction.Code)
 	for _, entry := range ledger.Entries {
-		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
+		if entry.Type == domain.EntryTypeTransaction && codePattern.MatchString(entry.RawText) {
 			return domain.NewDomainError("Transaction", "Code", "transaction already exists")
 		}
 	}
@@ -80,7 +80,7 @@ func (fileRepository *TransactionFileRepository) FindByCode(code string) (*domai
 		return nil, err
 	}
 
-	regex := fileRepository.transactionRegex(code)
+	regex := transactionCodePattern(code)
 	if regex.Match(data) {
 		return &domain.Transaction{Code: code}, nil
 	}
@@ -103,11 +103,11 @@ func (fileRepository *TransactionFileRepository) Update(transaction domain.Trans
 
 	found := false
 	alignment := fileRepository.configProvider.GetLedgerAlignment()
-	codeMarker := fmt.Sprintf("(%s)", transaction.Code)
+	codePattern := transactionCodePattern(transaction.Code)
 
 	for i := range ledger.Entries {
 		entry := &ledger.Entries[i]
-		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
+		if entry.Type == domain.EntryTypeTransaction && codePattern.MatchString(entry.RawText) {
 			// PRESERVE COMMENTS: We replace only the transaction part, keeping any attached comments.
 			// A transaction part ends after the last indented line.
 			oldRaw := entry.RawText
@@ -158,11 +158,11 @@ func (fileRepository *TransactionFileRepository) Delete(code string) error {
 	}
 
 	newEntries := make([]domain.LedgerEntry, 0, len(ledger.Entries))
-	codeMarker := fmt.Sprintf("(%s)", code)
+	codePattern := transactionCodePattern(code)
 	found := false
 
 	for _, entry := range ledger.Entries {
-		if entry.Type == domain.EntryTypeTransaction && strings.Contains(entry.RawText, codeMarker) {
+		if entry.Type == domain.EntryTypeTransaction && codePattern.MatchString(entry.RawText) {
 			// PRESERVE COMMENTS: If a deleted transaction has trailing comments,
 			// we should ideally re-attach them to the entry above or keep them as a raw entry.
 			// For simplicity, if it has comments, we turn it into a comment-only entry.
@@ -280,7 +280,9 @@ func (fileRepository *TransactionFileRepository) atomicWrite(data []byte) error 
 	return os.Rename(tmpPath, fileRepository.FilePath)
 }
 
-func (fileRepository *TransactionFileRepository) transactionRegex(code string) *regexp.Regexp {
-	pattern := fmt.Sprintf(`(?m)^\d{4}[\/-]\d{2}[\/-]\d{2}.*\(%s\)(?:.*\n)*?(\r?\n|$)`, regexp.QuoteMeta(code))
+// transactionCodePattern matches the code field immediately after the date and optional status.
+func transactionCodePattern(code string) *regexp.Regexp {
+	// Older app versions omitted the space before the code when status was absent.
+	pattern := fmt.Sprintf(`(?m)^\d{4}[/-]\d{2}[/-]\d{2}(?:=\d{4}[/-]\d{2}[/-]\d{2})?[ \t]*(?:[*!][ \t]+)?\(%s\)(?:[ \t]|\r?$)`, regexp.QuoteMeta(code))
 	return regexp.MustCompile(pattern)
 }

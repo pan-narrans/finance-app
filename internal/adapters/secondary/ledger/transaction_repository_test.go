@@ -3,6 +3,8 @@ package ledger
 import (
 	"errors"
 	"os"
+	"path/filepath"
+
 	"strings"
 	"testing"
 	"time"
@@ -525,9 +527,9 @@ account Assets:Cash
 ; Comment between transactions
 ; that usually gets lost
 
-2026/01/02 * Coffee
+2026/01/02 * (TX_CODE) Coffee
     Expenses:Food   5 EUR
-    Assets:Cash  (TX_CODE)
+    Assets:Cash
 
 ; Trailing comment
 `
@@ -608,7 +610,7 @@ func TestFileRepository_ShouldDifferentiatePricesFromTransactions(t *testing.T) 
 	defer os.Remove(tmpFile.Name())
 
 	// Create a file with a transaction and an adjacent price update
-	initial := `2026/01/01 Target (DELME)
+	initial := `2026/01/01 (DELME) Target
     Expenses:Foo    10 EUR
     Assets:Cash
 
@@ -688,4 +690,36 @@ func TestFileRepository_Create_ShouldNotDuplicateHeaders_WhenExistingHasTrailing
 
 	count := strings.Count(text, "JUNE")
 	assert.Equal(t, 1, count, "Should only have one JUNE header even if existing one has trailing spaces")
+}
+
+func TestFileRepository_ShouldIgnoreCodeMarkersInPayeesAndComments(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "book.ledger")
+	original := "2026/04/04 (FIRST) Mention (SECOND)\n    ; See (SECOND)\n    Expenses:Food  10 EUR\n    Assets:Cash\n"
+	require.NoError(t, os.WriteFile(path, []byte(original), 0600))
+	repo, err := NewTransactionFileRepository(path, &mockConfigUC{alignment: 40}, NewLedgerFormatter())
+	require.NoError(t, err)
+
+	found, err := repo.FindByCode("SECOND")
+	require.NoError(t, err)
+	assert.Nil(t, found)
+
+	second := domain.Transaction{
+		Date:        time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC),
+		Code:        "SECOND",
+		Description: "Second transaction",
+		Postings:    []domain.Posting{{Account: "Expenses:Food", Amount: new(10.0), Currency: "EUR"}, {Account: "Assets:Cash"}},
+	}
+	require.NoError(t, repo.Create(second))
+	second.Description = "Updated second transaction"
+	require.NoError(t, repo.Update(second))
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), original)
+	assert.Contains(t, string(content), "(SECOND) Updated second transaction")
+
+	require.NoError(t, repo.Delete("SECOND"))
+	content, err = os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), original)
+	assert.NotContains(t, string(content), "Updated second transaction")
 }
