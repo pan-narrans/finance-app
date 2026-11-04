@@ -146,7 +146,6 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 		ImportFilePath: tmpFile,
 	})
 
-
 	msg, selector := a.ui.BuildBankExportPrompt()
 	sent, err := a.teleBot.Send(c.Chat(), msg, selector, telebot.ModeHTML)
 	if err == nil {
@@ -157,7 +156,6 @@ func (a *TelegramAdapter) handleDocument(c telebot.Context) error {
 	}
 	return err
 }
-
 
 /*
 handleSearchQuery processes text input when the user is searching for an account.
@@ -171,7 +169,8 @@ func (a *TelegramAdapter) handleSearchQuery(c telebot.Context) error {
 		return a.handleAccountSelect(c)
 	}
 
-	results := a.configUseCase.Get().Mappings.SearchAccounts(query, 8)
+	session, _ := a.sessionManager.Get(c.Sender().ID)
+	results := searchDraftAccounts(a.configUseCase.Get().Mappings, query, 8, session.EditingPosting)
 
 	msg, selector := a.ui.BuildSearchResults(query, results)
 	return c.Send(msg, selector, telebot.ModeHTML)

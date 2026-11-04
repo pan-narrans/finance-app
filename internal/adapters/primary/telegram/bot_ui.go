@@ -29,7 +29,6 @@ const (
 	CallbackSelectBank   = "sel_bank"
 )
 
-
 // UI message constants.
 const (
 	MsgSessionExpired         = "Session expired."
@@ -58,7 +57,6 @@ const (
 	LabelYes        = "Yes ✅"
 	LabelNo         = "No ❌"
 )
-
 
 /*
 UI provides helpers for building Telegram-specific message layouts and keyboards.
@@ -114,11 +112,11 @@ func (u *UI) BuildDraftMessage(
 		makeRow(selector, LabelDiscard, CallbackDiscard),
 	}
 
-	targetAccount := tx.Postings[0].Account
+	posting := unknownPosting(tx)
 	msgSuffix := ""
-	if strings.HasSuffix(targetAccount, ":Unknown") {
+	if posting >= 0 {
 		msgSuffix = "\n\nUnknown account. Suggestions:"
-		suggestions := mappingProvider.SearchAccounts(tx.Description, 5)
+		suggestions := searchDraftAccounts(mappingProvider, tx.Description, 5, posting)
 		rows = append(rows, mapToRows(selector, suggestions, CallbackSelectAcc)...)
 	}
 
@@ -171,11 +169,11 @@ func (u *UI) BuildImportReviewMessage(
 		),
 	}
 
-	targetAccount := tx.Postings[0].Account
+	posting := unknownPosting(tx)
 	msgSuffix := ""
-	if strings.HasSuffix(targetAccount, ":Unknown") {
+	if posting >= 0 {
 		msgSuffix = "\n\nUnknown account. Suggestions:"
-		suggestions := mappingProvider.SearchAccounts(tx.Description, 5)
+		suggestions := searchDraftAccounts(mappingProvider, tx.Description, 5, posting)
 		rows = append(rows, mapToRows(selector, suggestions, CallbackSelectAcc)...)
 	}
 
@@ -185,6 +183,22 @@ func (u *UI) BuildImportReviewMessage(
 	msg := fmt.Sprintf("Reviewing Import (%d left):\n<pre>%s</pre>%s", pendingCount+1, html.EscapeString(formatted), msgSuffix)
 
 	return msg, selector
+}
+
+func unknownPosting(tx domain.Transaction) int {
+	for index, posting := range tx.Postings {
+		if strings.HasSuffix(posting.Account, ":Unknown") {
+			return index
+		}
+	}
+	return -1
+}
+
+func searchDraftAccounts(provider ports.MappingProvider, query string, limit, posting int) []string {
+	if posting == 1 {
+		return provider.SearchSourceAccounts(query, limit)
+	}
+	return provider.SearchAccounts(query, limit)
 }
 
 /*
@@ -287,7 +301,6 @@ func (u *UI) BuildBankSelector(banks []string) (string, *telebot.ReplyMarkup) {
 	selector.Inline(rows...)
 	return MsgSelectBank, selector
 }
-
 
 // Helpers
 

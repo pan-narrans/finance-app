@@ -33,7 +33,6 @@ type ImportUseCase interface {
 	GetAvailableBanks() []string
 }
 
-
 /*
 AppConfig combines application settings and the derived mapping service.
 It represents a single, consistent snapshot of the application configuration.
@@ -50,7 +49,7 @@ type ConfigurationUseCase interface {
 	Get() *AppConfig
 	SaveMappings(data domain.MappingData) error
 	UpdateMapping(fn func(data *domain.MappingData)) error
-	LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error
+	LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) (bool, error)
 }
 
 /*

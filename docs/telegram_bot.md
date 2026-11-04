@@ -42,12 +42,9 @@ Choose **Edit comment** on a draft, then send the comment as text. In groups wit
 
 ## Learning Mechanism (Mapping Persistence)
 
-The bot "learns" from user corrections to reduce future friction.
+Confirmation learns from explicit account overrides. Source means From, and target means To. In legacy income shorthand such as `1000 salary`, the salary account supplies From and the default asset account receives To.
 
-1.  **Target Learning**: If you override an "Unknown" or incorrect expense account, the system maps the **UPPERCASE** description to the selected account.
-    - *Example*: `Coffee` -> Selected `Expenses:Drinks`. Next time `coffee 5` will auto-map to `Expenses:Drinks`.
-2.  **Source Learning**: If you override a source keyword, the system maps the **lowercase** keyword to the selected account.
-    - *Example*: `Personal 10 Lunch` -> Selected `Assets:Checking:Personal`. Next time `personal 20 ...` will auto-map to that account.
+See [Mappings and Scoring Logic](mappings.md) for role overrides and import review behavior.
 
 ## Security and Authorization
 

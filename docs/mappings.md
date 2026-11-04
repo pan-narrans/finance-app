@@ -7,9 +7,22 @@ A core feature of the Finance App is its ability to deterministically map messy 
 The system uses two main mapping types defined in `mappings.json`:
 
 1.  **Account Mappings**: Maps description keywords or source keywords to specific ledger accounts (Assets, Liabilities, Expenses, Income).
-    - *Logic*: Iterates through keywords sorted by length (descending). The first keyword found as a substring in the input wins.
-    - *Example*: `"AMAZON MARKETPLACE"` is checked before `"AMAZON"`.
-    - **Collision Warning**: Since sources and targets share the same mapping pool, avoid very short keywords (e.g., "a", "c") that might appear accidentally in descriptions. Use descriptive keywords like "cash" or "visa" to ensure deterministic resolution.
+    - Description matching uses the longest matching keyword. Explicit source keywords match exactly, ignoring case.
+    - A string sets the same account for From and To. An object sets each role separately.
+
+       ```json
+       {
+         "accounts": {
+           "EMPLOYER_NAME": "Income:Salary",
+           "cash": {
+             "source": "Assets:Cash",
+             "target": "Expenses:Cash"
+           }
+         }
+       }
+       ```
+
+    - Account capitalization is preserved. Keyword matching ignores case.
 
 2.  **Description Cleaning**: Strips technical "junk" from bank descriptions.
     - *Example*: `"TARJETA Apple Pay: Mercadona"` -> `"Mercadona"`.
@@ -57,7 +70,6 @@ The `Transaction.GenerateCode()` method then creates a 16-character SHA-256 pref
 
 The system can "learn" from user overrides to improve future auto-mapping accuracy. This logic resides in `domain.MappingData.Learn`.
 
-1.  **Target Learning**: When a user overrides the expense/income account, the system maps the **UPPERCASE** description to the selected account.
-2.  **Source Learning**: When a user overrides a source keyword (e.g., "cash"), the system maps the **UPPERCASE** keyword to the selected asset/liability account.
+New keywords start as shared string mappings. Confirming a later account override updates only the selected role, preserving the other role in the resulting object. For bank imports, the payee identifies the To account for outflows and the From account for inflows.
 
-Learned mappings are persisted back to `mappings.json` via the `ConfigurationUseCase`.
+When confirmation creates or changes a mapping, remaining rows in the current import review pick up matching accounts. They keep their original transaction codes and still require confirmation.

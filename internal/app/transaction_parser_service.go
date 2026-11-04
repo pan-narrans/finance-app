@@ -68,22 +68,24 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 	targetAccount := s.resolveTargetAccount(appConfig, cleanDescription)
 	sourceAccount := s.resolveSourceAccount(appConfig, sourceKeyword)
 
-	// Convention: Postings[0] is Target (Debit), Postings[1] is Source (Credit)
-	var postings []domain.Posting
-	isIncome := appConfig.Mappings.IsIncomeAccount(targetAccount)
-
-	if isIncome {
-		// Income: Assets (Target) increase, Income (Source) remains credit balance
-		postings = []domain.Posting{
-			{Account: sourceAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: targetAccount, Amount: nil},
+	keys := [2]string{cleanDescription, sourceKeyword}
+	// Legacy income shorthand uses the payee as From and the optional prefix as To.
+	if appConfig.Mappings.IsIncomeAccount(targetAccount) {
+		keys = [2]string{sourceKeyword, cleanDescription}
+		sourceAccount, _ = appConfig.Mappings.ResolveSourceDescription(cleanDescription)
+		if sourceAccount == "" {
+			sourceAccount = targetAccount
 		}
-	} else {
-		// Expense/Transfer: Expense (Target) increases, Assets (Source) decrease
-		postings = []domain.Posting{
-			{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
-			{Account: sourceAccount, Amount: nil},
+		targetAccount = appConfig.Settings.DefaultAssetAccount
+		if sourceKeyword != "" {
+			if account, found := appConfig.Mappings.ResolveAccount(sourceKeyword); found {
+				targetAccount = account
+			}
 		}
+	}
+	postings := []domain.Posting{
+		{Account: targetAccount, Amount: &amount, Currency: appConfig.Settings.DefaultCurrency},
+		{Account: sourceAccount},
 	}
 
 	// Add Metadata
@@ -97,6 +99,7 @@ func (s *TransactionParserService) ParseText(text, origin string) (domain.Transa
 		Date:        time.Now(),
 		Status:      domain.StatusPending,
 		Description: cleanDescription,
+		MappingKeys: keys,
 		Metadata:    metadata,
 		Postings:    postings,
 	}

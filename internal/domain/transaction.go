@@ -57,6 +57,8 @@ type Transaction struct {
 	Status      TransactionStatus
 	Description string
 	Comment     string
+	// MappingKeys identifies the original keyword for each posting during review.
+	MappingKeys [2]string `json:"-"`
 	Code        string
 	Metadata    Metadata
 	Postings    []Posting

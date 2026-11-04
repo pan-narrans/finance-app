@@ -272,6 +272,7 @@ func TestMappingData_Learn(t *testing.T) {
 		amount := 1000.0
 		tx := Transaction{
 			Description: "SALARY",
+			MappingKeys: [2]string{"WORK", "SALARY"},
 			Postings: []Posting{
 				{Account: "Assets:Checking", Amount: &amount},
 				{Account: "Income:Salary"},
@@ -280,7 +281,7 @@ func TestMappingData_Learn(t *testing.T) {
 
 		data.Learn(tx, true, true, "WORK")
 
-		assert.Equal(t, "Income:Salary", data.Accounts["SALARY"], "For income, target should be from Postings[1]")
-		assert.Equal(t, "Assets:Checking", data.Accounts["WORK"], "For income, source should be from Postings[0]")
+		assert.Equal(t, "Income:Salary", data.Accounts["SALARY"], "Income From account comes from Postings[1]")
+		assert.Equal(t, "Assets:Checking", data.Accounts["WORK"], "Income To account comes from Postings[0]")
 	})
 }

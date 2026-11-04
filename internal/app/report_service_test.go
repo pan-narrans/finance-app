@@ -36,7 +36,9 @@ func (m *MockConfigUC) Close() error                                            
 func (m *MockConfigUC) ReloadWithData(settings domain.Settings, mappings domain.MappingData) {}
 func (m *MockConfigUC) SaveMappings(data domain.MappingData) error                           { return nil }
 func (m *MockConfigUC) UpdateMapping(fn func(data *domain.MappingData)) error                { return nil }
-func (m *MockConfigUC) LearnMapping(tx domain.Transaction, tO, sO bool, oS string) error     { return nil }
+func (m *MockConfigUC) LearnMapping(tx domain.Transaction, tO, sO bool, oS string) (bool, error) {
+	return false, nil
+}
 
 func TestReportService_GetMonthlyReport_ShouldReturnSections_WhenDataExists(t *testing.T) {
 	// Arrange

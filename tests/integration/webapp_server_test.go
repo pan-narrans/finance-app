@@ -52,9 +52,9 @@ func (m *MockConfigUseCase) UpdateMapping(fn func(data *domain.MappingData)) err
 	return args.Error(0)
 }
 
-func (m *MockConfigUseCase) LearnMapping(transaction domain.Transaction, t, s bool, os string) error {
+func (m *MockConfigUseCase) LearnMapping(transaction domain.Transaction, t, s bool, os string) (bool, error) {
 	args := m.Called(transaction, t, s, os)
-	return args.Error(0)
+	return args.Bool(0), args.Error(1)
 }
 
 func generateValidInitData(botToken string, userID int64) string {
@@ -96,9 +96,9 @@ func TestWebAppServer_GetAccounts_ShouldReturnAccountsFromConfig(t *testing.T) {
 	sessionManager := telegram.NewSessionManager()
 	mockRefresher := new(MockRefresher)
 	botToken := "fake-token"
-	
+
 	server := telegram.NewWebAppServer(0, botToken, mockConfig, sessionManager, mockRefresher)
-	
+
 	mappingService := domain.NewMappingService(domain.MappingData{}, []string{"Assets:Checking", "Expenses:Food"})
 	appConfig := &ports.AppConfig{
 		Settings: domain.Settings{RootAccounts: []string{"Assets", "Expenses"}},
@@ -135,7 +135,7 @@ func TestWebAppServer_SelectAccount_ShouldUpdateSessionAndRefreshMessage(t *test
 	userID := int64(12345)
 
 	server := telegram.NewWebAppServer(0, botToken, mockConfig, sessionManager, mockRefresher)
-	
+
 	sessionManager.Set(userID, &telegram.UserSession{
 		Draft: domain.Transaction{
 			Postings: []domain.Posting{{}, {}},

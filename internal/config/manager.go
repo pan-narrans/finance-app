@@ -200,34 +200,44 @@ UpdateMapping provides a thread-safe way to modify and persist mappings.
 It reloads the latest data from disk before applying the update.
 */
 func (m *Manager) UpdateMapping(fn func(data *domain.MappingData)) error {
+	_, err := m.updateMapping(func(data *domain.MappingData) bool {
+		fn(data)
+		return true
+	})
+	return err
+}
+
+func (m *Manager) updateMapping(fn func(*domain.MappingData) bool) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	data, err := LoadMappings(m.mappingsPath)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	fn(&data)
+	if !fn(&data) {
+		return false, nil
+	}
 
 	if err := WriteMappings(m.mappingsPath, data); err != nil {
-		return err
+		return false, err
 	}
 
-	return m.reload()
+	if err := m.reload(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 /*
 LearnMapping updates the mappings based on transaction overrides and persists them.
 */
-func (m *Manager) LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) error {
-	if !targetOverride && (!sourceOverride || originalSource == "") {
-		return nil
+func (m *Manager) LearnMapping(transaction domain.Transaction, targetOverride bool, sourceOverride bool, originalSource string) (bool, error) {
+	if !targetOverride && !sourceOverride {
+		return false, nil
 	}
-
-	return m.UpdateMapping(
-		func(data *domain.MappingData) {
-			data.Learn(transaction, targetOverride, sourceOverride, originalSource)
-		},
-	)
+	return m.updateMapping(func(data *domain.MappingData) bool {
+		return data.Learn(transaction, targetOverride, sourceOverride, originalSource)
+	})
 }
