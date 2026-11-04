@@ -59,3 +59,22 @@ func TestLoadMappings_ShouldReturnEmpty_WhenFileNotFound(t *testing.T) {
 	assert.NotNil(t, data.Accounts)
 	assert.Empty(t, data.Accounts)
 }
+
+func TestLoadConfig_ShouldApplyEnvironmentUserIDsOnEachLoad(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("TELEGRAM_USER_IDS", "42, 43")
+
+	settings, err := LoadConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{42, 43}, settings.TelegramUserIDs)
+
+	require.NoError(t, os.WriteFile(path, []byte(`{"telegram_user_ids":[99]}`), 0600))
+	settings, err = LoadConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{42, 43}, settings.TelegramUserIDs)
+
+	t.Setenv("TELEGRAM_USER_IDS", "")
+	settings, err = LoadConfig(path)
+	require.NoError(t, err)
+	assert.Equal(t, []int64{99}, settings.TelegramUserIDs)
+}
